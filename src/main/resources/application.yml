@@ -1,2 +1,12 @@
+quarkus:
+  mongodb:
+    connection-string: mongodb://admin:admin123@localhost:27017/psych?authSource=admin
+    database: psych
+  http:
+    port: ${PORT:8080}
+    host: 0.0.0.0
+  log:
+    console:
+      level: INFO
 greeting:
   message: "hello"
