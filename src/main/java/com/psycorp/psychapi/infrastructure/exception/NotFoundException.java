@@ -1,4 +1,4 @@
-package com.example.psychapi.infrastructure.exception;
+package com.psycorp.psychapi.infrastructure.exception;
 
 public class NotFoundException extends RuntimeException {
     private final String code;

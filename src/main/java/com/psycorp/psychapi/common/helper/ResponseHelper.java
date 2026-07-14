@@ -1,11 +1,11 @@
-package com.example.psychapi.common.helper;
+package com.psycorp.psychapi.common.helper;
 
 import java.util.List;
 
-import com.example.psychapi.common.response.ApiResponse;
-import com.example.psychapi.common.response.ErrorCode;
-import com.example.psychapi.common.response.FieldError;
-import com.example.psychapi.common.response.PaginationMeta;
+import com.psycorp.psychapi.common.response.ApiResponse;
+import com.psycorp.psychapi.common.response.ErrorCode;
+import com.psycorp.psychapi.common.response.FieldError;
+import com.psycorp.psychapi.common.response.PaginationMeta;
 
 import jakarta.ws.rs.core.Response;
 

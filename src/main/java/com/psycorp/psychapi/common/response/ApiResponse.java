@@ -1,4 +1,4 @@
-package com.example.psychapi.common.response;
+package com.psycorp.psychapi.common.response;
 
 public record ApiResponse(
     boolean success,

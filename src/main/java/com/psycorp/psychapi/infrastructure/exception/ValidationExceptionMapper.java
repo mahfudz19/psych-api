@@ -1,9 +1,9 @@
-package com.example.psychapi.infrastructure.exception;
+package com.psycorp.psychapi.infrastructure.exception;
 
 import java.util.List;
 
-import com.example.psychapi.common.helper.ResponseHelper;
-import com.example.psychapi.common.response.FieldError;
+import com.psycorp.psychapi.common.helper.ResponseHelper;
+import com.psycorp.psychapi.common.response.FieldError;
 
 import jakarta.validation.ConstraintViolationException;
 import jakarta.ws.rs.core.Response;
