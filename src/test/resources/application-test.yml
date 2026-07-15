@@ -1,0 +1,40 @@
+# ===========================================
+# Quarkus Test Configuration
+# ===========================================
+# Configuration khusus untuk testing (QUARKUS_PROFILE=test)
+# File ini otomatis di-load saat running tests
+#
+# Environment variables memiliki prioritas lebih tinggi
+# dan dapat override nilai di bawah ini
+# ===========================================
+
+quarkus:
+  application:
+    name: psych-api-test
+    version: 1.0.0-SNAPSHOT
+
+  http:
+    # Port berbeda untuk test agar tidak conflict dengan dev
+    port: 8081
+    host: 0.0.0.0
+
+  mongodb:
+    # Database terisolasi untuk testing
+    # Override via ENV: QUARKUS_MONGODB_CONNECTION_STRING
+    connection-string: mongodb://localhost:27017/psych-test
+    database: psych-test
+
+  log:
+    # Lebih verbose untuk debugging test failures
+    level: DEBUG
+    console:
+      json: false
+      enable: true
+
+  profile: test
+
+  smallrye:
+    openapi:
+      info:
+        title: Psych API (Test)
+        version: 1.0.0-SNAPSHOT

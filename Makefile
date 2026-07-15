@@ -1,8 +1,10 @@
 PROJECT_NAME := psych-api
 QUARKUS_VERSION := 3.37.1
 JAVA_VERSION := 21
+SHELL := /bin/zsh
+export PATH := /opt/homebrew/bin:/opt/homebrew/sbin:$(PATH)
 
-.PHONY: all build test clean package dev docker-build docker-run docker-native-build docker-native-run
+.PHONY: all build test test-integration clean package dev docker-build docker-run docker-native-build docker-native-run
 
 all: build test
 
@@ -10,9 +12,40 @@ build:
 	@echo "Building $(PROJECT_NAME)..."
 	mvn clean install -DskipTests
 
+# ===========================================
+# Testing Targets
+# ===========================================
+
 test:
-	@echo "Running tests for $(PROJECT_NAME)..."
+	@echo "Running integration tests for $(PROJECT_NAME)..."
+	@echo "Profile: test"
+	@echo "Database: psych-test (mongodb://localhost:27017/psych-test)"
+	@echo "HTTP Port: 8081"
+	QUARKUS_PROFILE=test \
+	QUARKUS_MONGODB_CONNECTION_STRING=mongodb://localhost:27017/psych-test \
+	QUARKUS_MONGODB_DATABASE=psych-test \
+	QUARKUS_HTTP_PORT=8081 \
 	mvn test
+
+# Running tests tanpa environment override (gunakan default application-test.yml)
+test-quick:
+	@echo "Running tests with default test configuration..."
+	mvn test -Dquarkus.profile=test
+
+# Running tests dengan coverage report
+test-coverage:
+	@echo "Running tests with code coverage..."
+	QUARKUS_PROFILE=test \
+	QUARKUS_MONGODB_CONNECTION_STRING=mongodb://localhost:27017/psych-test \
+	QUARKUS_MONGODB_DATABASE=psych-test \
+	QUARKUS_HTTP_PORT=8081 \
+	mvn test -Dquarkus.jacoco.report=true
+
+# Clean test database (hapus semua data di psych-test)
+test-clean-db:
+	@echo "Cleaning test database (psych-test)..."
+	mongosh mongodb://localhost:27017/psych-test --eval "db.dropDatabase()"
+	@echo "Test database cleaned!"
 
 clean:
 	@echo "Cleaning $(PROJECT_NAME)..."
