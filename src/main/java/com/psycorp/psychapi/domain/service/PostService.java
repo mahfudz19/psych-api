@@ -1,27 +1,82 @@
 package com.psycorp.psychapi.domain.service;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
+import com.mongodb.client.model.Filters;
+import com.psycorp.psychapi.api.dto.PostRequests.PostListRequest;
+import com.psycorp.psychapi.common.util.FilterParser;
+import com.psycorp.psychapi.common.util.SearchBuilder;
+import com.psycorp.psychapi.common.util.SortBuilder;
 import com.psycorp.psychapi.domain.model.Post;
 import com.psycorp.psychapi.infrastructure.exception.NotFoundException;
 
+import io.quarkus.mongodb.panache.PanacheQuery;
 import jakarta.enterprise.context.ApplicationScoped;
 
 @ApplicationScoped
 public class PostService {
 
-    // === READ ALL (dengan pagination) ===
-    public List<Post> getAllPosts(int page, int limit) {
-        return Post.findAll()
-                .page(page - 1, limit) // Panache page 0-based
-                .list();
+    // Fields yang bisa di-search untuk Post
+    private static final String[] SEARCH_FIELDS = {"title", "content"};
+
+    // === READ ALL (dengan pagination, search, filter, sort) ===
+    public List<Post> getAllPosts(PostListRequest request) {
+        // 1. Build search filter di title dan content
+        Bson searchFilter = SearchBuilder.build(request.search(), SEARCH_FIELDS);
+        
+        // 2. Parse custom filter (contoh: "status:in:draft,published")
+        Bson customFilter = FilterParser.parse(request.filter());
+        
+        // 3. Combine semua filters dengan $and
+        Bson finalFilter = combineFilters(searchFilter, customFilter);
+        
+        // 4. Build sort
+        Bson sort = SortBuilder.build(request.sortBy(), request.sortOrder());
+        
+        // 5. Execute query dengan pagination
+        PanacheQuery<Post> query = Post.find(finalFilter, sort);
+        query.page(request.page() - 1, request.limit());
+        
+        return query.list();
     }
 
-    public long getTotalPostsCount() {
-        return Post.count();
+    public long getTotalPostsCount(PostListRequest request) {
+        // Build search filter
+        Bson searchFilter = SearchBuilder.build(request.search(), SEARCH_FIELDS);
+        
+        // Parse custom filter
+        Bson customFilter = FilterParser.parse(request.filter());
+        
+        // Combine filters
+        Bson finalFilter = combineFilters(searchFilter, customFilter);
+        
+        return Post.count(finalFilter);
     }
+    
+    // Helper method untuk combine filters
+    private Bson combineFilters(Bson... filters) {
+        List<Bson> validFilters = new ArrayList<>();
+        for (Bson filter : filters) {
+            if (filter != null) {
+                validFilters.add(filter);
+            }
+        }
+        
+        if (validFilters.isEmpty()) {
+            return new Document(); // empty = select all
+        }
+        
+        return validFilters.size() == 1
+            ? validFilters.get(0)
+            : Filters.and(validFilters);
+    }
+
+
 
     // === READ BY ID ===
     public Post getPostById(String id) {
