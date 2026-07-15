@@ -17,19 +17,20 @@ public class PostSeeder {
             return; 
         }
 
+        // ✅ Gunakan factory method + setters
         Post post1 = new Post();
-        post1.title = "Post 1";
-        post1.content = "Content 1";
-        post1.status = "published";
-        post1.createdAt = Instant.now();
-        post1.updatedAt = Instant.now();
+        post1.setTitle("Post 1");
+        post1.setContent("Content 1");
+        post1.setStatus("published");
+        post1.setCreatedAt(Instant.now());
+        post1.setUpdatedAt(Instant.now());
 
         Post post2 = new Post();
-        post2.title = "Post 2";
-        post2.content = "Content 2";
-        post2.status = "draft";
-        post2.createdAt = Instant.now();
-        post2.updatedAt = Instant.now();
+        post2.setTitle("Post 2");
+        post2.setContent("Content 2");
+        post2.setStatus("draft");
+        post2.setCreatedAt(Instant.now());
+        post2.setUpdatedAt(Instant.now());
 
         Post.persist(post1, post2);
         System.out.println("Posts seeded successfully!");

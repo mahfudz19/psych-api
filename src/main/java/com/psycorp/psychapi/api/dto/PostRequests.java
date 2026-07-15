@@ -12,7 +12,7 @@ public final class PostRequests {
 
     public record CreatePostRequest(
         @NotBlank String title,
-        String content,
+        @NotBlank String content,
         @Pattern(regexp = "^(draft|published)$") String status
     ) {}
 

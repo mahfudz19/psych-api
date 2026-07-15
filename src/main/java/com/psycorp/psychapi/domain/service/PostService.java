@@ -3,17 +3,18 @@ package com.psycorp.psychapi.domain.service;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import com.mongodb.client.model.Filters;
 import com.psycorp.psychapi.api.dto.PostRequests.PostListRequest;
+import com.psycorp.psychapi.common.util.FilterCombiner;
 import com.psycorp.psychapi.common.util.FilterParser;
+import com.psycorp.psychapi.common.util.ObjectIdValidator;
 import com.psycorp.psychapi.common.util.SearchBuilder;
 import com.psycorp.psychapi.common.util.SortBuilder;
 import com.psycorp.psychapi.domain.model.Post;
 import com.psycorp.psychapi.infrastructure.exception.NotFoundException;
+import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 
 import io.quarkus.mongodb.panache.PanacheQuery;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -33,7 +34,7 @@ public class PostService {
         Bson customFilter = FilterParser.parse(request.filter());
         
         // 3. Combine semua filters dengan $and
-        Bson finalFilter = combineFilters(searchFilter, customFilter);
+        Bson finalFilter =  FilterCombiner.combine(searchFilter, customFilter);
         
         // 4. Build sort
         Bson sort = SortBuilder.build(request.sortBy(), request.sortOrder());
@@ -53,34 +54,17 @@ public class PostService {
         Bson customFilter = FilterParser.parse(request.filter());
         
         // Combine filters
-        Bson finalFilter = combineFilters(searchFilter, customFilter);
+        Bson finalFilter = FilterCombiner.combine(searchFilter, customFilter);
         
         return Post.count(finalFilter);
     }
-    
-    // Helper method untuk combine filters
-    private Bson combineFilters(Bson... filters) {
-        List<Bson> validFilters = new ArrayList<>();
-        for (Bson filter : filters) {
-            if (filter != null) {
-                validFilters.add(filter);
-            }
-        }
-        
-        if (validFilters.isEmpty()) {
-            return new Document(); // empty = select all
-        }
-        
-        return validFilters.size() == 1
-            ? validFilters.get(0)
-            : Filters.and(validFilters);
-    }
-
-
 
     // === READ BY ID ===
     public Post getPostById(String id) {
-        Post post = Post.findById(new ObjectId(id));
+        // ✅ Validate ObjectId format
+        ObjectId objectId = ObjectIdValidator.validate(id);
+        
+        Post post = Post.findById(objectId);
         if (post == null) {
             throw new NotFoundException("POST_NOT_FOUND", "Post with id " + id + " not found");
         }
@@ -89,33 +73,53 @@ public class PostService {
 
     // === CREATE ===
     public Post createPost(String title, String content, String status) {
-        Post post = new Post();
-        post.title = title;
-        post.content = content;
-        post.status = status != null ? status : "draft";
-        // prePersist() akan dipanggil otomatis oleh Panache
+        validatePostData(title, content, status);
+    
+        Post post = Post.create(title, content, status);
         post.persist();
         return post;
     }
 
     // === UPDATE ===
     public Post updatePost(String id, String title, String content, String status) {
-        Post post = getPostById(id); // akan throw NotFoundException jika tidak ada
-        post.title = title;
-        post.content = content;
-        post.status = status;
-        // preUpdate() akan dipanggil otomatis oleh Panache
+        Post post = getPostById(id);
+ 
+        validatePostData(title, content, status);
+        
+        post.update(title, content, status);
         post.update();
         return post;
     }
 
     // === DELETE ===
     public boolean deletePost(String id) {
-        Post post = Post.findById(new ObjectId(id));
-        if (post == null) {
-            return false;
-        }
+        Post post = getPostById(id);
         post.delete();
         return true;
     }
+
+    private void validatePostData(String title, String content, String status) {
+        List<String> errors = new ArrayList<>();
+        
+        if (title == null || title.isBlank()) {
+            errors.add("Title is required");
+        } else if (title.length() < 3) {
+            errors.add("Title must be at least 3 characters");
+        } else if (title.length() > 200) {
+            errors.add("Title must not exceed 200 characters");
+        }
+        
+        if (content != null && content.length() > 10000) {
+            errors.add("Content must not exceed 10000 characters");
+        }
+        
+        if (status != null && !status.matches("^(draft|published|archived)$")) {
+            errors.add("Status must be one of: draft, published, archived");
+        }
+        
+        if (!errors.isEmpty()) {
+            throw new ValidationException("VALIDATION_ERROR", String.join(", ", errors));
+        }
+    }
+
 }
