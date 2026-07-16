@@ -22,7 +22,6 @@ bin/
 nb-configuration.xml
 
 # Visual Studio Code
-.vscode
 .factorypath
 
 # OSX
@@ -43,3 +42,5 @@ nb-configuration.xml
 /.quarkus/cli/plugins/
 # TLS Certificates
 .certs/
+
+plans

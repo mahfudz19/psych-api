@@ -1,0 +1,7 @@
+{
+  "java.compile.nullAnalysis.mode": "automatic",
+  "editor.formatOnSave": true,
+  "java.format.settings.google": true,
+  "java.format.settings.url": "https://raw.githubusercontent.com/google/google-java-format/main/google-java-format/src/main/resources/com/google/googlejavaformat/java/GoogleJavaFormatGoogleStyle.xml"
+}
+
