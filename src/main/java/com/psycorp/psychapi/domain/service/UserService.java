@@ -15,6 +15,7 @@ import com.psycorp.psychapi.common.util.SortBuilder;
 import com.psycorp.psychapi.domain.model.User;
 import com.psycorp.psychapi.infrastructure.exception.NotFoundException;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
+import com.psycorp.psychapi.infrastructure.security.PasswordEncoder;
 
 import io.quarkus.mongodb.panache.PanacheQuery;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -76,7 +77,10 @@ public class UserService {
     public User createUser(String email, String password, String fullName, String phone, String bio, String referredBy) {
         validateUserData(email, password, fullName, null);
         
-        User user = User.create(email, password, fullName, referredBy);
+        // Hash password sebelum menyimpan ke database
+        String hashedPassword = PasswordEncoder.hash(password);
+        
+        User user = User.create(email, hashedPassword, fullName, referredBy);
         
         // Set optional fields
         if (phone != null && !phone.isBlank()) {
@@ -143,6 +147,73 @@ public class UserService {
         user.update();
         
         return user;
+    }
+
+    /**
+     * Verify password user dengan cara compare plain text password
+     * dengan hashed password di database.
+     *
+     * @param userId User ID
+     * @param password Password plain text yang akan diverifikasi
+     * @return true jika password match, false jika tidak
+     */
+    public boolean verifyPassword(String userId, String password) {
+        User user = getUserById(userId);
+        String hashedPassword = user.getPassword();
+        
+        return PasswordEncoder.verify(password, hashedPassword);
+    }
+
+    /**
+     * Update password user dengan password baru.
+     * Method ini akan hash password baru sebelum menyimpan ke database.
+     *
+     * @param userId User ID
+     * @param oldPassword Password lama (untuk verifikasi)
+     * @param newPassword Password baru yang akan di-set
+     * @return Updated user
+     *
+     * @throws ValidationException jika password lama salah
+     */
+    public User updatePassword(String userId, String oldPassword, String newPassword) {
+        // Verify old password dulu
+        if (!verifyPassword(userId, oldPassword)) {
+            throw new ValidationException("INVALID_PASSWORD", "Current password is incorrect");
+        }
+        
+        // Validate new password
+        validateUserData(null, newPassword, null, null);
+        
+        // Hash new password
+        String hashedPassword = PasswordEncoder.hash(newPassword);
+        
+        User user = getUserById(userId);
+        user.setPassword(hashedPassword);
+        user.update();
+        
+        return getUserById(userId);
+    }
+
+    /**
+     * Reset password user (hanya untuk admin).
+     * Method ini tidak memerlukan verifikasi password lama.
+     *
+     * @param userId User ID
+     * @param newPassword Password baru yang akan di-set
+     * @return Updated user
+     */
+    public User resetPassword(String userId, String newPassword) {
+        // Validate new password
+        validateUserData(null, newPassword, null, null);
+        
+        // Hash new password
+        String hashedPassword = PasswordEncoder.hash(newPassword);
+        
+        User user = getUserById(userId);
+        user.setPassword(hashedPassword);
+        user.update();
+        
+        return getUserById(userId);
     }
 
     private void validateUserData(String email, String password, String fullName, String status) {

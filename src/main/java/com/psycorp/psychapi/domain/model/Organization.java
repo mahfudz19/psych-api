@@ -4,10 +4,14 @@ import java.time.Instant;
 
 import org.bson.types.ObjectId;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import io.quarkus.mongodb.panache.PanacheMongoEntity;
 import io.quarkus.mongodb.panache.common.MongoEntity;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @MongoEntity(collection = "organizations")
-public class Organization {
+public class Organization extends PanacheMongoEntity {
     private String name; // "Acme Corp"
     private String description; // "Leading provider of widgets"
     private String website; // "https://www.acmecorp.com"

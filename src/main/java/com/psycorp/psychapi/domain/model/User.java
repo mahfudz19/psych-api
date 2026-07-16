@@ -37,7 +37,7 @@ public class User extends PanacheMongoEntity {
 
     // === SUBSCRIPTION & MONETIZATION ===
     private String subscriptionTier; // "free", "premium", "enterprise"
-    private String subscriptionExpiry; // "2026-08-15T08:00:00Z +00:00"
+    private Instant subscriptionExpiry; // "2026-08-15T08:00:00Z +00:00"
     private Integer revenueSharePercentage; // 0-100 (default: 0)
 
     // === REFERRAL SYSTEM ===
@@ -72,7 +72,7 @@ public class User extends PanacheMongoEntity {
     public String getOrganizationRole() { return organizationRole; }
     public String getOrganizationName() { return organizationName; }
     public String getSubscriptionTier() { return subscriptionTier; }
-    public String getSubscriptionExpiry() { return subscriptionExpiry; }
+    public Instant getSubscriptionExpiry() { return subscriptionExpiry; }
     public Integer getRevenueSharePercentage() { return revenueSharePercentage; }
     public String getReferredBy() { return referredBy; }
     public List<String> getReferrals() { return referrals; }
@@ -100,7 +100,7 @@ public class User extends PanacheMongoEntity {
     public void setOrganizationRole(String organizationRole) { this.organizationRole = organizationRole; }
     public void setOrganizationName(String organizationName) { this.organizationName = organizationName; }
     public void setSubscriptionTier(String subscriptionTier) { this.subscriptionTier = subscriptionTier; }
-    public void setSubscriptionExpiry(String subscriptionExpiry) { this.subscriptionExpiry = subscriptionExpiry; }
+    public void setSubscriptionExpiry(Instant subscriptionExpiry) { this.subscriptionExpiry = subscriptionExpiry; }
     public void setRevenueSharePercentage(Integer revenueSharePercentage) { this.revenueSharePercentage = revenueSharePercentage; }
     public void setReferredBy(String referredBy) { this.referredBy = referredBy; }
     public void setReferrals(List<String> referrals) { this.referrals = referrals; }
