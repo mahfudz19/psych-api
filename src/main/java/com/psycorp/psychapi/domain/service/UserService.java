@@ -298,65 +298,10 @@ public class UserService {
         return user;
     }
 
-    public void logout(String userId, Boolean allDevices) {
-        // Dalam production, invalidate token di database/redis
-        // Untuk sekarang, cukup update last logout time
+    public void logout(String userId) {
         User user = getUserById(userId);
         user.setUpdatedAt(Instant.now());
         user.update();
-    }
-
-    public boolean forgotPassword(String email) {
-        // Cari user berdasarkan email
-        User user = User.find("email", email).firstResult();
-        
-        // Selalu return true untuk security (tidak mengungkap apakah email terdaftar)
-        if (user == null) {
-            return true;
-        }
-        
-        // Generate reset token (dalam production, simpan di database dengan expiry)
-        String resetToken = java.util.UUID.randomUUID().toString();
-        
-        // TODO: Kirim email dengan reset token
-        // emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
-        
-        return true;
-    }
-
-    public User resetPasswordWithToken(String token, String newPassword) {
-        // TODO: Dalam production, validasi token dari database
-        // Untuk sekarang, langsung reset password
-        validateUserData(null, newPassword, null, null);
-        
-        // Hash new password
-        String hashedPassword = PasswordEncoder.hash(newPassword);
-        
-        // TODO: Cari user berdasarkan token yang valid
-        // Untuk sekarang, throw exception karena token belum diimplementasikan
-        throw new ValidationException("NOT_IMPLEMENTED", "Reset password with token belum diimplementasikan");
-    }
-
-    public User verifyEmail(String token) {
-        // TODO: Dalam production, validasi token dari database
-        // Untuk sekarang, throw exception karena token belum diimplementasikan
-        throw new ValidationException("NOT_IMPLEMENTED", "Verify email dengan token belum diimplementasikan");
-    }
-
-    public void resendVerificationEmail(String email, String userId) {
-        // Cari user berdasarkan email
-        User user = User.find("email", email).firstResult();
-        
-        if (user == null) {
-            // Tidak melakukan apa-apa untuk security
-            return;
-        }
-        
-        // Generate verification token
-        String verificationToken = java.util.UUID.randomUUID().toString();
-        
-        // TODO: Kirim email verifikasi
-        // emailService.sendVerificationEmail(user.getEmail(), verificationToken);
     }
 
     public User createUser(String email, String password, String fullName, String phone, String bio, String referredBy) {
@@ -413,58 +358,6 @@ public class UserService {
         user.softDelete();
         user.update();
         return user;
-    }
-
-    public User deleteUserField(String id, String fieldName) {
-        User user = getUserById(id);
-        
-        if (!fieldName.equals("phone") && !fieldName.equals("bio")) {
-            throw new ValidationException("INVALID_FIELD", "Field '" + fieldName + "' cannot be deleted. Allowed fields: phone, bio");
-        }
-        
-        user.update();
-        
-        return user;
-    }
-
-    public boolean verifyPassword(String userId, String password) {
-        User user = getUserById(userId);
-        String hashedPassword = user.getPassword();
-        
-        return PasswordEncoder.verify(password, hashedPassword);
-    }
-
-    public User updatePassword(String userId, String oldPassword, String newPassword) {
-        // Verify old password dulu
-        if (!verifyPassword(userId, oldPassword)) {
-            throw new ValidationException("INVALID_PASSWORD", "Current password is incorrect");
-        }
-        
-        // Validate new password
-        validateUserData(null, newPassword, null, null);
-        
-        // Hash new password
-        String hashedPassword = PasswordEncoder.hash(newPassword);
-        
-        User user = getUserById(userId);
-        user.setPassword(hashedPassword);
-        user.update();
-        
-        return getUserById(userId);
-    }
-
-    public User resetPassword(String userId, String newPassword) {
-        // Validate new password
-        validateUserData(null, newPassword, null, null);
-        
-        // Hash new password
-        String hashedPassword = PasswordEncoder.hash(newPassword);
-        
-        User user = getUserById(userId);
-        user.setPassword(hashedPassword);
-        user.update();
-        
-        return getUserById(userId);
     }
 
     private void validateUserData(String email, String password, String fullName, String status) {
