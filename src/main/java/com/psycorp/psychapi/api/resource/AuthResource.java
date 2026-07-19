@@ -8,6 +8,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import com.psycorp.psychapi.api.dto.AuthRequests.LoginRequest;
 import com.psycorp.psychapi.api.dto.AuthRequests.RegisterRequest;
 import com.psycorp.psychapi.common.helper.ResponseHelper;
 import com.psycorp.psychapi.common.response.ApiResponse;
@@ -96,76 +97,61 @@ public class AuthResource {
         return ResponseHelper.authenticationSuccess(user, token, tokenExpiresIn, "Registration successful");
     }
 
-    // // ============================================================================
-    // // 1.2 POST /auth/login - Authenticate user dan mendapatkan JWT token
-    // // ============================================================================
-    // @POST
-    // @Path("/login")
-    // @Operation(summary = "Login user", description = "Authenticate user dan mendapatkan JWT token")
-    // @APIResponse(
-    //     responseCode = "200",
-    //     description = "Login successful",
-    //     content = @Content(
-    //         mediaType = "application/json",
-    //         schema = @Schema(implementation = ApiResponse.class),
-    //         examples = {
-    //             @ExampleObject(
-    //                 name = "LoginSuccess",
-    //                 summary = "Login successful",
-    //                 value = """
-    //                 {
-    //                     "success": true,
-    //                     "message": "Login successful",
-    //                     "data": {
-    //                         "user": {
-    //                             "id": "usr_123",
-    //                             "email": "user@example.com",
-    //                             "fullName": "John Doe",
-    //                             "profilePicture": "https://example.com/avatar.jpg",
-    //                             "roles": ["USER"],
-    //                             "organizationId": null,
-    //                             "organizationRole": null,
-    //                             "subscriptionTier": "free"
-    //                         },
-    //                         "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    //                         "refreshToken": "refresh_token_here",
-    //                         "expiresIn": 3600
-    //                     }
-    //                 }
-    //                 """
-    //             )
-    //         }
-    //     )
-    // )
-    // public Response login(@Valid LoginRequest request) {
-    //     // Verify password dan dapatkan user
-    //     User user = userService.login(request.email(), request.password());
+    // ============================================================================
+    // 1.2 POST /auth/login - Authenticate user dan mendapatkan JWT token
+    // ============================================================================
+    @POST
+    @Path("/login")
+    @Operation(summary = "Login user", description = "Authenticate user dan mendapatkan JWT token")
+    @APIResponse(
+        responseCode = "200",
+        description = "Login successful",
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = ApiResponse.class),
+            examples = {
+                @ExampleObject(
+                    name = "LoginSuccess",
+                    summary = "Login successful",
+                    value = """
+                    {
+                        "success": true,
+                        "message": "Login successful",
+                        "data": {
+                            "user": {
+                                "id": "usr_123",
+                                "email": "user@example.com",
+                                "fullName": "John Doe",
+                                "profilePicture": "https://example.com/avatar.jpg",
+                                "roles": ["USER"],
+                                "organizationId": null,
+                                "organizationRole": null,
+                                "subscriptionTier": "free"
+                            },
+                            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                            "expiresIn": 3600
+                        }
+                    }
+                    """
+                )
+            }
+        )
+    )
+    public Response login(@Valid LoginRequest request) {
+        // Authenticate user
+        User user = userService.login(request.email(), request.password());
         
-    //     // Generate JWT token
-    //     String token = jwtService.generateToken(
-    //         user.id.toHexString(),
-    //         user.getEmail(),
-    //         user.getRoles()
-    //     );
+        // Generate JWT token with accountType from model (direct usage)
+        String token = jwtService.generateToken(user, user.getAccountType());
         
-    //     // Generate refresh token (simplified - dalam production bisa disimpan di database)
-    //     String refreshToken = jwtService.generateTokenWithExpiry(
-    //         user.id.toHexString(),
-    //         user.getEmail(),
-    //         user.getRoles(),
-    //         86400L // 24 jam
-    //     );
-        
-    //     // Build response
-    //     Map<String, Object> responseData = Map.of(
-    //         "user", user,
-    //         "token", token,
-    //         "refreshToken", refreshToken,
-    //         "expiresIn", 3600
-    //     );
-        
-    //     return ResponseHelper.ok(responseData, "Login successful");
-    // }
+        // Return consistent response (same format as register)
+        return ResponseHelper.authenticationSuccess(
+            user,
+            token,
+            tokenExpiresIn,
+            "Login successful"
+        );
+    }
 
     // // ============================================================================
     // // 1.3 POST /auth/refresh - Memperbarui JWT token yang expired

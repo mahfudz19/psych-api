@@ -91,24 +91,18 @@ public final class AuthRequests {
         }
     }
 
-    /**
-     * Request untuk login user.
-     */
     public record LoginRequest(
         @NotBlank(message = "Email is required")
         @Email(message = "Invalid email format")
+        @Schema(description = "User email", examples = "regular.member@example.com")
         String email,
         
         @NotBlank(message = "Password is required")
+        @Schema(description = "User password", examples = "password123")
         String password
     ) {}
 
-    /**
-     * Request untuk refresh JWT token.
-     */
     public record RefreshTokenRequest(
-        @NotBlank(message = "Refresh token is required")
-        String refreshToken
     ) {}
 
     /**

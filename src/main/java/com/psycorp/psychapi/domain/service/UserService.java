@@ -222,30 +222,75 @@ public class UserService {
     }
 
     public User login(String email, String password) {
-        // Cari user berdasarkan email
+        // 1. Find user by email
         User user = User.find("email", email).firstResult();
         
         if (user == null) {
-            throw new ValidationException("INVALID_CREDENTIALS", "Email or password is incorrect");
+            throw new ValidationException("INVALID_CREDENTIALS",
+                "Email or password is incorrect");
         }
         
-        // Cek status user
+        // 2. Check if account is suspended (hard limit reached)
+        if ("suspended".equals(user.getStatus())) {
+            throw new ValidationException("ACCOUNT_LOCKED",
+                "Your account has been locked due to too many failed login attempts. " +
+                "Please reset your password or contact support.");
+        }
+        
+        // 3. Check if account is inactive/deleted
         if (!"active".equals(user.getStatus())) {
-            throw new ValidationException("ACCOUNT_INACTIVE", "Your account is " + user.getStatus());
+            throw new ValidationException("ACCOUNT_INACTIVE",
+                "Your account is " + user.getStatus() + ". Please contact support.");
         }
         
-        // Verify password
+        // 4. Verify password
         String hashedPassword = user.getPassword();
         if (!PasswordEncoder.verify(password, hashedPassword)) {
             // Increment login attempts
-            Integer attempts = user.getLoginAttempts() != null ? user.getLoginAttempts() : 0;
-            user.setLoginAttempts(attempts + 1);
+            Integer attemptsObj = user.getLoginAttempts();
+            int attempts = (attemptsObj != null ? attemptsObj : 0) + 1;
+            user.setLoginAttempts(attempts);
+            
+            // 5. Check if exceeded hard limit (16 attempts)
+            if (attempts >= 16) {
+                user.setStatus("suspended");
+                user.update();
+                throw new ValidationException("ACCOUNT_LOCKED",
+                    "Your account has been locked due to too many failed login attempts. " +
+                    "Please reset your password or contact support.");
+            }
+            
+            // 6. Calculate progressive delay based on tier
+            int tier = (attempts - 1) / 3;
+            long delaySeconds = switch(tier) {
+                case 0 -> 0;      // Attempt 1-3
+                case 1 -> 5;      // Attempt 4-6
+                case 2 -> 30;     // Attempt 7-9
+                case 3 -> 120;    // Attempt 10-12
+                case 4 -> 300;    // Attempt 13-15
+                default -> 300;   // Cap at 5 minutes
+            };
+            
             user.update();
             
-            throw new ValidationException("INVALID_CREDENTIALS", "Email or password is incorrect");
+            // 7. Apply delay BEFORE throwing exception
+            if (delaySeconds > 0) {
+                try {
+                    Thread.sleep(delaySeconds * 1000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            
+            int remainingAttempts = 16 - attempts;
+            String message = String.format(
+                "Email or password is incorrect. %d attempts remaining before account lockout.",
+                remainingAttempts
+            );
+            throw new ValidationException("INVALID_CREDENTIALS", message);
         }
         
-        // Reset login attempts dan update last login
+        // 8. Success - reset attempts and update last login
         user.setLoginAttempts(0);
         user.setLastLoginAt(Instant.now());
         user.update();
