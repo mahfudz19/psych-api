@@ -82,8 +82,12 @@ public class AuthResource {
             request.email(),
             request.password(),
             request.fullName(),
-            request.referredBy(),
-            request.accountType()
+            request.referralCode(),
+            request.accountType(),
+            request.inviteCode(),
+            request.invitedBy(),
+            request.invitedOrganizationId(),
+            request.invitationRole()
         );
         
         // Generate JWT token berdasarkan account type

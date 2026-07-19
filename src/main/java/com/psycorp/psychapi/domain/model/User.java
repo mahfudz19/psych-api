@@ -1,6 +1,7 @@
 package com.psycorp.psychapi.domain.model;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.bson.conversions.Bson;
@@ -41,8 +42,22 @@ public class User extends PanacheMongoEntity {
     private Integer revenueSharePercentage; // 0-100 (default: 0)
 
     // === REFERRAL SYSTEM ===
-    private String referredBy; // User yang mengajak/menginvite user ini. FK to users (nullable)
-    private List<String> referrals; // List user yang diinvite oleh user ini.
+    private String referralCode;            // Unique code untuk user ini (e.g., "JOHN2024", "REF_ABC123")
+    private ObjectId referredBy;            // ObjectId user yang mereferensikan
+    private List<ObjectId> referralIds;     // List ObjectId user yang direferensikan
+    private Integer totalReferrals;         // Total referrals count (denormalized untuk performa)
+    private Integer successfulReferrals;    // Referrals yang completed registration
+    private Double referralEarnings;        // Total earnings dari referrals (dalam currency atau credits)
+    private Instant referredAt;             // Kapan user ini direferensikan
+
+    // === ORGANIZATION INVITATION ===
+    private String inviteCode;              // Unique code untuk user ini (e.g., "JOHN2024", "REF_ABC123")
+    private ObjectId invitedBy;             // ObjectId user yang invite ke organization
+    private ObjectId invitedOrganizationId; // Organization yang diinvite untuk join
+    private String invitationStatus;        // "pending", "accepted", "declined", "expired"
+    private Instant invitationSentAt;
+    private Instant invitationAcceptedAt;
+    private String invitationRole;          // Role yang ditawarkan ("member", "admin", "owner")
 
     // === ACCOUNT STATUS ===
     private String status; // "active", "inactive", "suspended"
@@ -77,8 +92,25 @@ public class User extends PanacheMongoEntity {
     public String getSubscriptionTier() { return subscriptionTier; }
     public Instant getSubscriptionExpiry() { return subscriptionExpiry; }
     public Integer getRevenueSharePercentage() { return revenueSharePercentage; }
-    public String getReferredBy() { return referredBy; }
-    public List<String> getReferrals() { return referrals; }
+    
+    // Referral System Getters
+    public String getReferralCode() { return referralCode; }
+    public ObjectId getReferredBy() { return referredBy; }
+    public List<ObjectId> getReferralIds() { return referralIds; }
+    public Integer getTotalReferrals() { return totalReferrals; }
+    public Integer getSuccessfulReferrals() { return successfulReferrals; }
+    public Double getReferralEarnings() { return referralEarnings; }
+    public Instant getReferredAt() { return referredAt; }
+    
+    // Organization Invitation Getters
+    public String getInviteCode() { return inviteCode; }
+    public ObjectId getInvitedBy() { return invitedBy; }
+    public ObjectId getInvitedOrganizationId() { return invitedOrganizationId; }
+    public String getInvitationStatus() { return invitationStatus; }
+    public Instant getInvitationSentAt() { return invitationSentAt; }
+    public Instant getInvitationAcceptedAt() { return invitationAcceptedAt; }
+    public String getInvitationRole() { return invitationRole; }
+    
     public String getStatus() { return status; }
     public Instant getLastLoginAt() { return lastLoginAt; }
     public Integer getLoginAttempts() { return loginAttempts; }
@@ -106,8 +138,25 @@ public class User extends PanacheMongoEntity {
     public void setSubscriptionTier(String subscriptionTier) { this.subscriptionTier = subscriptionTier; }
     public void setSubscriptionExpiry(Instant subscriptionExpiry) { this.subscriptionExpiry = subscriptionExpiry; }
     public void setRevenueSharePercentage(Integer revenueSharePercentage) { this.revenueSharePercentage = revenueSharePercentage; }
-    public void setReferredBy(String referredBy) { this.referredBy = referredBy; }
-    public void setReferrals(List<String> referrals) { this.referrals = referrals; }
+    
+    // Referral System Setters
+    public void setReferralCode(String referralCode) { this.referralCode = referralCode; }
+    public void setReferredBy(ObjectId referredBy) { this.referredBy = referredBy; }
+    public void setReferralIds(List<ObjectId> referralIds) { this.referralIds = referralIds; }
+    public void setTotalReferrals(Integer totalReferrals) { this.totalReferrals = totalReferrals; }
+    public void setSuccessfulReferrals(Integer successfulReferrals) { this.successfulReferrals = successfulReferrals; }
+    public void setReferralEarnings(Double referralEarnings) { this.referralEarnings = referralEarnings; }
+    public void setReferredAt(Instant referredAt) { this.referredAt = referredAt; }
+    
+    // Organization Invitation Setters
+    public void setInviteCode(String inviteCode) { this.inviteCode = inviteCode; }
+    public void setInvitedBy(ObjectId invitedBy) { this.invitedBy = invitedBy; }
+    public void setInvitedOrganizationId(ObjectId invitedOrganizationId) { this.invitedOrganizationId = invitedOrganizationId; }
+    public void setInvitationStatus(String invitationStatus) { this.invitationStatus = invitationStatus; }
+    public void setInvitationSentAt(Instant invitationSentAt) { this.invitationSentAt = invitationSentAt; }
+    public void setInvitationAcceptedAt(Instant invitationAcceptedAt) { this.invitationAcceptedAt = invitationAcceptedAt; }
+    public void setInvitationRole(String invitationRole) { this.invitationRole = invitationRole; }
+    
     public void setStatus(String status) { this.status = status; }
     public void setLastLoginAt(Instant lastLoginAt) { this.lastLoginAt = lastLoginAt; }
     public void setLoginAttempts(Integer loginAttempts) { this.loginAttempts = loginAttempts; }
@@ -139,8 +188,8 @@ public class User extends PanacheMongoEntity {
             throw new IllegalArgumentException("Invalid AccountType: " + value);
         }
     }
-    
-    public static User create(String email, String password, String fullName, String referredBy, AccountType accountType) {
+
+    public static User create(String email, String password, String fullName, User referrer, User inviter, AccountType accountType) {
         User user = new User();
         
         // WAJIB
@@ -156,6 +205,13 @@ public class User extends PanacheMongoEntity {
         user.updatedAt = Instant.now();
         user.loginAttempts = 0;
         
+        // Auto-generate referral code
+        user.referralCode = generateReferralCode(email, user.createdAt);
+        user.referralIds = new ArrayList<>();
+        user.totalReferrals = 0;
+        user.successfulReferrals = 0;
+        user.referralEarnings = 0.0;
+        
         // Set account type
         user.accountType = accountType;
 
@@ -163,14 +219,40 @@ public class User extends PanacheMongoEntity {
         if (accountType == AccountType.ORGANIZATION) {
             user.setRoles(List.of("USER", "ORGANIZATION"));
             user.setOrganizationRole("owner");
+            user.setInvitationStatus("accepted");
+            user.setInvitationAcceptedAt(Instant.now());
         }
                 
-        // OPSIONAL
-        if (referredBy != null && !referredBy.isEmpty()) {
-            user.referredBy = referredBy;
+        // OPSIONAL - Set referral info jika ada referrer (sudah tervalidasi)
+        if (referrer != null) {
+            user.referredBy = referrer.id;  // Langsung ObjectId, bukan toHexString()
+            user.referredAt = Instant.now();
+        }
+        
+        // OPSIONAL - Set invitation info jika ada inviter (sudah tervalidasi)
+        if (inviter != null) {
+            user.invitedBy = inviter.id;  // Langsung ObjectId, bukan toHexString()
+            user.invitedOrganizationId = inviter.getInvitedOrganizationId();
+            user.invitationStatus = "accepted";
+            user.invitationSentAt = Instant.now();
+            user.invitationAcceptedAt = Instant.now();
+            user.invitationRole = inviter.getInvitationRole() != null ?
+                                  inviter.getInvitationRole() : "member";
         }
         
         return user;
+    }
+
+    private static String generateReferralCode(String email, Instant createdAt) {
+        if (email == null || email.isEmpty()) {
+            return "USR" + createdAt.getEpochSecond();
+        }
+        
+        String prefix = email.substring(0, Math.min(3, email.length())).toUpperCase();
+        String timestamp = String.valueOf(createdAt.getEpochSecond());
+        String suffix = timestamp.length() > 6 ? timestamp.substring(timestamp.length() - 6) : timestamp;
+        
+        return prefix + suffix;
     }
     
     public void executeUpdate(Bson update) {

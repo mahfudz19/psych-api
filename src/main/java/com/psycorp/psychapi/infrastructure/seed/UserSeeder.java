@@ -2,6 +2,7 @@ package com.psycorp.psychapi.infrastructure.seed;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.psycorp.psychapi.domain.model.Organization;
@@ -45,12 +46,13 @@ public class UserSeeder {
         // INDIVIDUAL USERS (No Organization)
         // ==========================================
 
-        // 1. Individual Free User
+        // 1. Individual Free User (NO REFERRAL - First user)
         User individualFree = User.create(
             "individual.free@example.com",
             PasswordEncoder.hash("password123"),
             "Individual Free User",
-            null,
+            null,  // referrer
+            null,  // inviter
             AccountType.INDIVIDUAL
         );
         individualFree.setPhone("+6281234567890");
@@ -58,14 +60,15 @@ public class UserSeeder {
         individualFree.setRoles(List.of("USER"));
         individualFree.setSubscriptionTier("free");
         individualFree.persist();
-        System.out.println("✓ Created: Individual Free User");
+        System.out.println("✓ Created: Individual Free User (referralCode: " + individualFree.getReferralCode() + ")");
 
-        // 2. Individual Premium User
+        // 2. Individual Premium User (REFERRAL: individualFree)
         User individualPremium = User.create(
             "individual.premium@example.com",
             PasswordEncoder.hash("password123"),
             "Individual Premium User",
-            null,
+            individualFree,  // referrer
+            null,            // inviter
             AccountType.INDIVIDUAL
         );
         individualPremium.setPhone("+6281234567891");
@@ -73,15 +76,27 @@ public class UserSeeder {
         individualPremium.setRoles(List.of("USER"));
         individualPremium.setSubscriptionTier("premium");
         individualPremium.setSubscriptionExpiry(Instant.now().plus(30, ChronoUnit.DAYS));
-        individualPremium.persist();
-        System.out.println("✓ Created: Individual Premium User");
+        individualPremium.persist();  // Persist first to get ID
+        
+        // Set referral after persist (to get individualPremium.id)
+        individualPremium.setReferredBy(individualFree.id);
+        individualPremium.setReferredAt(Instant.now());
+        individualPremium.update();
+        
+        // Update individualFree referral stats
+        individualFree.setReferralIds(new ArrayList<>(List.of(individualPremium.id)));
+        individualFree.setTotalReferrals(1);
+        individualFree.update();
+        
+        System.out.println("✓ Created: Individual Premium User (referralCode: " + individualPremium.getReferralCode() + ", referredBy: individualFree)");
 
-        // 3. Individual Enterprise User
+        // 3. Individual Enterprise User (REFERRAL: individualPremium)
         User individualEnterprise = User.create(
             "individual.enterprise@example.com",
             PasswordEncoder.hash("password123"),
             "Individual Enterprise User",
-            null,
+            individualPremium,  // referrer
+            null,               // inviter
             AccountType.INDIVIDUAL
         );
         individualEnterprise.setPhone("+6281234567892");
@@ -89,8 +104,19 @@ public class UserSeeder {
         individualEnterprise.setRoles(List.of("USER"));
         individualEnterprise.setSubscriptionTier("enterprise");
         individualEnterprise.setSubscriptionExpiry(Instant.now().plus(365, ChronoUnit.DAYS));
-        individualEnterprise.persist();
-        System.out.println("✓ Created: Individual Enterprise User");
+        individualEnterprise.persist();  // Persist first to get ID
+        
+        // Set referral after persist (to get individualEnterprise.id)
+        individualEnterprise.setReferredBy(individualPremium.id);
+        individualEnterprise.setReferredAt(Instant.now());
+        individualEnterprise.update();
+        
+        // Update individualPremium referral stats
+        individualPremium.setReferralIds(new ArrayList<>(List.of(individualEnterprise.id)));
+        individualPremium.setTotalReferrals(1);
+        individualPremium.update();
+        
+        System.out.println("✓ Created: Individual Enterprise User (referralCode: " + individualEnterprise.getReferralCode() + ", referredBy: individualPremium)");
 
         // ==========================================
         // ORGANIZATION OWNERS
@@ -119,7 +145,8 @@ public class UserSeeder {
             "owner.trial@example.com",
             PasswordEncoder.hash("password123"),
             "Owner Trial User",
-            null,
+            null,  // referrer
+            null,  // inviter
             AccountType.ORGANIZATION
         );
         orgOwnerTrial.setPhone("+6281234567893");
@@ -156,7 +183,8 @@ public class UserSeeder {
             "owner.free@example.com",
             PasswordEncoder.hash("password123"),
             "Owner Free User",
-            null,
+            null,  // referrer
+            null,  // inviter
             AccountType.ORGANIZATION
         );
         orgOwnerFree.setPhone("+6281234567894");
@@ -193,7 +221,8 @@ public class UserSeeder {
             "owner.pro@example.com",
             PasswordEncoder.hash("password123"),
             "Owner Pro User",
-            null,
+            null,  // referrer
+            null,  // inviter
             AccountType.ORGANIZATION
         );
         orgOwnerPro.setPhone("+6281234567895");
@@ -233,7 +262,8 @@ public class UserSeeder {
             "owner.enterprise@example.com",
             PasswordEncoder.hash("password123"),
             "Owner Enterprise User",
-            null,
+            null,  // referrer
+            null,  // inviter
             AccountType.ORGANIZATION
         );
         orgOwnerEnterprise.setPhone("+6281234567896");
@@ -253,14 +283,24 @@ public class UserSeeder {
         // ORGANIZATION MEMBERS (dengan referral tracking)
         // ==========================================
 
-        // 8. Organization Admin (dijoin oleh owner pro)
+        // 8. Organization Admin (REFERRAL: orgOwnerPro, INVITATION: orgPro)
         User orgAdmin = User.create(
             "admin.member@example.com",
             PasswordEncoder.hash("password123"),
             "Organization Admin User",
-            orgOwnerPro.id.toHexString(), // Direfer oleh owner pro
-            AccountType.INDIVIDUAL // Admin adalah individual yang join organization
+            orgOwnerPro,  // referrer
+            null,         // inviter (will set invitation manually)
+            AccountType.INDIVIDUAL
         );
+        orgAdmin.setReferredBy(orgOwnerPro.id);
+        orgAdmin.setReferredAt(Instant.now());
+        orgAdmin.setInviteCode("INV-PRO-ADMIN");  // Invitation code for organization
+        orgAdmin.setInvitedBy(orgOwnerPro.id);
+        orgAdmin.setInvitedOrganizationId(orgPro.id);
+        orgAdmin.setInvitationStatus("accepted");
+        orgAdmin.setInvitationSentAt(Instant.now());
+        orgAdmin.setInvitationAcceptedAt(Instant.now());
+        orgAdmin.setInvitationRole("admin");
         orgAdmin.setPhone("+6281234567897");
         orgAdmin.setBio("HR Manager di PT Perusahaan Pro");
         orgAdmin.setRoles(List.of("USER"));
@@ -274,23 +314,34 @@ public class UserSeeder {
         orgPro.setSeatsUsed(orgPro.getSeatsUsed() + 1);
         orgPro.update();
         
-        // Update referrals list di owner pro
-        if (orgOwnerPro.getReferrals() == null) {
-            orgOwnerPro.setReferrals(List.of(orgAdmin.id.toHexString()));
+        // Update referralIds list di owner pro
+        if (orgOwnerPro.getReferralIds() == null) {
+            orgOwnerPro.setReferralIds(new ArrayList<>(List.of(orgAdmin.id)));
         } else {
-            orgOwnerPro.getReferrals().add(orgAdmin.id.toHexString());
+            orgOwnerPro.getReferralIds().add(orgAdmin.id);
         }
+        orgOwnerPro.setTotalReferrals(orgOwnerPro.getTotalReferrals() + 1);
         orgOwnerPro.update();
-        System.out.println("✓ Created: Organization Admin");
+        System.out.println("✓ Created: Organization Admin (referralCode: " + orgAdmin.getReferralCode() + ", referredBy: orgOwnerPro, inviteCode: " + orgAdmin.getInviteCode() + ")");
 
-        // 9. Organization Member (regular employee)
+        // 9. Organization Member (REFERRAL: orgAdmin, INVITATION: orgPro)
         User orgMember = User.create(
             "regular.member@example.com",
             PasswordEncoder.hash("password123"),
             "Organization Member User",
-            orgAdmin.id.toHexString(), // Direfer oleh admin
-            AccountType.INDIVIDUAL // Member adalah individual yang join organization
+            orgAdmin,     // referrer
+            orgAdmin,     // inviter
+            AccountType.INDIVIDUAL
         );
+        orgMember.setReferredBy(orgAdmin.id);
+        orgMember.setReferredAt(Instant.now());
+        orgMember.setInviteCode("INV-PRO-MEMBER");  // Invitation code for organization
+        orgMember.setInvitedBy(orgOwnerPro.id);
+        orgMember.setInvitedOrganizationId(orgPro.id);
+        orgMember.setInvitationStatus("accepted");
+        orgMember.setInvitationSentAt(Instant.now());
+        orgMember.setInvitationAcceptedAt(Instant.now());
+        orgMember.setInvitationRole("member");
         orgMember.setPhone("+6281234567898");
         orgMember.setBio("Software Engineer di PT Perusahaan Pro");
         orgMember.setRoles(List.of("USER"));
@@ -304,14 +355,15 @@ public class UserSeeder {
         orgPro.setSeatsUsed(orgPro.getSeatsUsed() + 1);
         orgPro.update();
         
-        // Update referrals list di admin
-        if (orgAdmin.getReferrals() == null) {
-            orgAdmin.setReferrals(List.of(orgMember.id.toHexString()));
+        // Update referralIds list di admin
+        if (orgAdmin.getReferralIds() == null) {
+            orgAdmin.setReferralIds(new ArrayList<>(List.of(orgMember.id)));
         } else {
-            orgAdmin.getReferrals().add(orgMember.id.toHexString());
+            orgAdmin.getReferralIds().add(orgMember.id);
         }
+        orgAdmin.setTotalReferrals(orgAdmin.getTotalReferrals() + 1);
         orgAdmin.update();
-        System.out.println("✓ Created: Organization Member");
+        System.out.println("✓ Created: Organization Member (referralCode: " + orgMember.getReferralCode() + ", referredBy: orgAdmin, inviteCode: " + orgMember.getInviteCode() + ")");
 
         // ==========================================
         // ADMIN USER (Platform Administrator)
@@ -321,8 +373,9 @@ public class UserSeeder {
             "admin@psycorp.com",
             PasswordEncoder.hash("admin123"),
             "Platform Administrator",
-            null,
-            AccountType.INDIVIDUAL // Admin adalah individual dengan role ADMIN
+            null,  // referrer
+            null,  // inviter
+            AccountType.INDIVIDUAL
         );
         adminUser.setPhone("+6281234567899");
         adminUser.setBio("Super Admin PsychCorp Platform");
@@ -330,7 +383,7 @@ public class UserSeeder {
         adminUser.setSubscriptionTier("enterprise");
         adminUser.setStatus("active");
         adminUser.persist();
-        System.out.println("✓ Created: Platform Administrator");
+        System.out.println("✓ Created: Platform Administrator (referralCode: " + adminUser.getReferralCode() + ")");
 
         // ==========================================
         // SUMMARY
@@ -342,18 +395,23 @@ public class UserSeeder {
         System.out.println("Total Users: " + User.count());
         System.out.println("Total Organizations: " + Organization.count());
         System.out.println("\n📊 User Breakdown:");
-        System.out.println("  - Individual Free: 1");
-        System.out.println("  - Individual Premium: 1");
-        System.out.println("  - Individual Enterprise: 1");
+        System.out.println("  - Individual Free: 1 (referralCode: " + individualFree.getReferralCode() + ", totalReferrals: " + individualFree.getTotalReferrals() + ")");
+        System.out.println("  - Individual Premium: 1 (referralCode: " + individualPremium.getReferralCode() + ", referredBy: individualFree, totalReferrals: " + individualPremium.getTotalReferrals() + ")");
+        System.out.println("  - Individual Enterprise: 1 (referralCode: " + individualEnterprise.getReferralCode() + ", referredBy: individualPremium)");
         System.out.println("  - Organization Owners: 4 (Trial, Free, Pro, Enterprise)");
-        System.out.println("  - Organization Admin: 1");
-        System.out.println("  - Organization Member: 1");
+        System.out.println("  - Organization Admin: 1 (referralCode: " + orgAdmin.getReferralCode() + ", referredBy: orgOwnerPro, inviteCode: " + orgAdmin.getInviteCode() + ")");
+        System.out.println("  - Organization Member: 1 (referralCode: " + orgMember.getReferralCode() + ", referredBy: orgAdmin, inviteCode: " + orgMember.getInviteCode() + ")");
         System.out.println("  - Platform Admin: 1");
         System.out.println("\n🏢 Organizations:");
         System.out.println("  - PT Startup Trial (free_trial)");
         System.out.println("  - CV Usaha Gratis (free)");
-        System.out.println("  - PT Perusahaan Pro (pro)");
+        System.out.println("  - PT Perusahaan Pro (pro) - Seats: " + orgPro.getSeatsUsed() + "/" + orgPro.getSeats());
         System.out.println("  - PT Korporasi Enterprise (enterprise)");
+        System.out.println("\n🔗 Referral Chain:");
+        System.out.println("  individualFree → individualPremium → individualEnterprise");
+        System.out.println("  orgOwnerPro → orgAdmin → orgMember");
+        System.out.println("\n📨 Invitation System:");
+        System.out.println("  orgOwnerPro (inviteCode: INV-PRO-ABC123) → orgAdmin, orgMember");
         System.out.println("========================================\n");
     }
 }

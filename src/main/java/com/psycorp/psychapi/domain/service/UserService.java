@@ -13,22 +13,18 @@ import com.psycorp.psychapi.common.util.FilterParser;
 import com.psycorp.psychapi.common.util.ObjectIdValidator;
 import com.psycorp.psychapi.common.util.SearchBuilder;
 import com.psycorp.psychapi.common.util.SortBuilder;
+import com.psycorp.psychapi.domain.model.Organization;
 import com.psycorp.psychapi.domain.model.User;
 import com.psycorp.psychapi.domain.model.User.AccountType;
 import com.psycorp.psychapi.infrastructure.exception.NotFoundException;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
-import com.psycorp.psychapi.infrastructure.security.JwtService;
 import com.psycorp.psychapi.infrastructure.security.PasswordEncoder;
 
 import io.quarkus.mongodb.panache.PanacheQuery;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 
 @ApplicationScoped
 public class UserService {
-
-    @Inject
-    JwtService jwtService;
 
     // Fields yang bisa di-search untuk User
     private static final String[] SEARCH_FIELDS = {"email", "fullName", "phone", "bio"};
@@ -77,27 +73,152 @@ public class UserService {
         return user;
     }
 
-    public User register(String email, String password, String fullName, String referredBy, AccountType accountType) {
-        if (referredBy != null && !referredBy.isEmpty()) {
-            // Todo: Validate referredBy
-            throw new ValidationException(
-                "FEATURE_NOT_AVAILABLE",
-                "Referral system is not available yet. Please register without referredBy."
-            );
-        }
-
-        // Validate user data
-        validateUserData(email, password, fullName, null, referredBy);
+    public User register(
+        String email,
+        String password,
+        String fullName,
+        String referralCode,
+        AccountType accountType,
+        String inviteCode,
+        String invitedBy,
+        String invitedOrganizationId,
+        String invitationRole
+    ) {        
+        // 1. Validate user data (email format, password strength, etc)
+        validateUserData(email, password, fullName, null);
         
-        // Hash password sebelum menyimpan ke database
+        // 2. Validate email uniqueness (DB check)
+        User existingUser = User.find("email", email).firstResult();
+        if (existingUser != null) {
+            throw new ValidationException("EMAIL_EXISTS",
+                "Email '" + email + "' is already registered");
+        }
+        
+        // 3. Validate referralCode (FAIL FAST - throw jika tidak ditemukan)
+        User referrer = null;
+        if (referralCode != null && !referralCode.isEmpty()) {
+            referrer = validateReferralCode(referralCode);
+            
+            // Prevent self-referral
+            if (referrer.getEmail().equals(email)) {
+                throw new ValidationException("INVALID_REFERRAL",
+                    "Cannot use your own referral code");
+            }
+        }
+        
+        // 4. Determine inviter: inviteCode OR direct add
+        User inviter = null;
+        org.bson.types.ObjectId orgId = null;
+        String role = null;
+        
+        if (inviteCode != null && !inviteCode.isEmpty()) {
+            // === SCENARIO A: Invite dengan code ===
+            inviter = validateInviteCode(inviteCode);
+            orgId = inviter.getInvitedOrganizationId();
+            role = inviter.getInvitationRole() != null ? inviter.getInvitationRole() : "member";
+            
+        } else if (invitedBy != null && !invitedBy.isEmpty() && invitedOrganizationId != null && !invitedOrganizationId.isEmpty()) {
+            // === SCENARIO B: Direct add ===
+            
+            // 4a. Validate invitedBy exists (DB check)
+            inviter = User.findById(new org.bson.types.ObjectId(invitedBy));
+            if (inviter == null) {
+                throw new ValidationException("INVALID_INVITER",
+                    "User who invited you does not exist");
+            }
+            
+            // 4b. Validate organization exists (DB check)
+            Organization org = Organization.findById(new org.bson.types.ObjectId(invitedOrganizationId));
+            if (org == null) {
+                throw new ValidationException("INVALID_ORGANIZATION",
+                    "Organization does not exist");
+            }
+            orgId = org.id;
+            
+            // 4c. AUTHORIZATION: Validate inviter has permission to add members
+            if (!inviter.getOrganizationId().equals(org.id)) {
+                throw new ValidationException("UNAUTHORIZED",
+                    "User does not belong to this organization");
+            }
+            if (!List.of("owner", "admin").contains(inviter.getOrganizationRole())) {
+                throw new ValidationException("UNAUTHORIZED",
+                    "Only organization owner or admin can add members directly. Your role: " + inviter.getOrganizationRole());
+            }
+            
+            // 4d. Set role (default to "member" if not specified)
+            role = invitationRole != null && !invitationRole.isEmpty() ? invitationRole : "member";
+        }
+        
+        // 5. Hash password
         String hashedPassword = PasswordEncoder.hash(password);
         
-        User user = User.create(email, hashedPassword, fullName, referredBy, accountType);
+        // 6. Create User object
+        User user = User.create(email, hashedPassword, fullName, referrer, inviter, accountType);
         
-        // Persist user ke database
+        // 7. For direct add, override invitation info
+        if (invitedBy != null && !invitedBy.isEmpty() && invitedOrganizationId != null && !invitedOrganizationId.isEmpty()) {
+            user.setInvitedBy(new org.bson.types.ObjectId(invitedBy));
+            user.setInvitedOrganizationId(orgId);
+            user.setInvitationStatus("accepted");
+            user.setInvitationRole(role);
+            user.setOrganizationId(orgId);
+            user.setOrganizationRole(role);
+        }
+        
+        // 8. Persist user BARU ke database (sekali saja, tanpa update)
         user.persist();
-
+        
+        // 9. Update stats referrer LAMA
+        if (referrer != null) {
+            updateReferrerStats(referrer, user);
+        }
+        
+        // 10. Update organization seats LAMA
+        if (inviter != null && orgId != null) {
+            updateOrganizationSeats(orgId);
+        }
+        
         return user;
+    }
+
+    private User validateReferralCode(String referralCode) {
+        User referrer = User.find("referralCode", referralCode).firstResult();
+        if (referrer == null) {
+            throw new ValidationException("INVALID_REFERRAL_CODE",
+                "Referral code '" + referralCode + "' is not valid");
+        }
+        return referrer;
+    }
+
+    private User validateInviteCode(String inviteCode) {
+        User inviter = User.find("inviteCode", inviteCode).firstResult();
+        if (inviter == null) {
+            throw new ValidationException("INVALID_INVITE_CODE",
+                "Invitation code '" + inviteCode + "' is not valid");
+        }
+        if (inviter.getInvitedOrganizationId() == null) {
+            throw new ValidationException("INVALID_INVITE_CODE",
+                "Invitation code '" + inviteCode + "' is not associated with any organization");
+        }
+        return inviter;
+    }
+
+    private void updateReferrerStats(User referrer, User newUser) {
+        if (referrer.getReferralIds() == null) {
+            referrer.setReferralIds(new ArrayList<>(List.of(newUser.id)));
+        } else {
+            referrer.getReferralIds().add(newUser.id);
+        }
+        referrer.setTotalReferrals(referrer.getTotalReferrals() + 1);
+        referrer.update();
+    }
+
+    private void updateOrganizationSeats(org.bson.types.ObjectId orgId) {
+        Organization org = Organization.findById(orgId);
+        if (org != null) {
+            org.setSeatsUsed(org.getSeatsUsed() + 1);
+            org.update();
+        }
     }
 
     public User login(String email, String password) {
@@ -161,7 +282,7 @@ public class UserService {
     public User resetPasswordWithToken(String token, String newPassword) {
         // TODO: Dalam production, validasi token dari database
         // Untuk sekarang, langsung reset password
-        validateUserData(null, newPassword, null, null, null);
+        validateUserData(null, newPassword, null, null);
         
         // Hash new password
         String hashedPassword = PasswordEncoder.hash(newPassword);
@@ -194,12 +315,18 @@ public class UserService {
     }
 
     public User createUser(String email, String password, String fullName, String phone, String bio, String referredBy) {
-        validateUserData(email, password, fullName, null, null);
+        validateUserData(email, password, fullName, null);
         
         // Hash password sebelum menyimpan ke database
         String hashedPassword = PasswordEncoder.hash(password);
         
-        User user = User.create(email, hashedPassword, fullName, referredBy, AccountType.INDIVIDUAL);
+        // Find referrer jika ada referredBy
+        User referrer = null;
+        if (referredBy != null && !referredBy.isEmpty()) {
+            referrer = User.findById(new org.bson.types.ObjectId(referredBy));
+        }
+        
+        User user = User.create(email, hashedPassword, fullName, referrer, null, AccountType.INDIVIDUAL);
         
         // Set optional fields
         if (phone != null && !phone.isBlank()) {
@@ -269,7 +396,7 @@ public class UserService {
         }
         
         // Validate new password
-        validateUserData(null, newPassword, null, null, null);
+        validateUserData(null, newPassword, null, null);
         
         // Hash new password
         String hashedPassword = PasswordEncoder.hash(newPassword);
@@ -283,7 +410,7 @@ public class UserService {
 
     public User resetPassword(String userId, String newPassword) {
         // Validate new password
-        validateUserData(null, newPassword, null, null, null);
+        validateUserData(null, newPassword, null, null);
         
         // Hash new password
         String hashedPassword = PasswordEncoder.hash(newPassword);
@@ -295,7 +422,7 @@ public class UserService {
         return getUserById(userId);
     }
 
-    private void validateUserData(String email, String password, String fullName, String status, String referredBy) {
+    private void validateUserData(String email, String password, String fullName, String status) {
         List<String> errors = new ArrayList<>();
         
         // Email validation
@@ -305,14 +432,6 @@ public class UserService {
             errors.add("Invalid email format");
         } else if (email.length() > 255) {
             errors.add("Email must not exceed 255 characters");
-        }
-
-        if (referredBy != null && !referredBy.isEmpty()) {
-            if (!referredBy.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
-                errors.add("Invalid referredBy email format");
-            } else if (referredBy.length() > 255) {
-                errors.add("ReferredBy email must not exceed 255 characters");
-            } 
         }
 
         // Email validation (hanya untuk create)
