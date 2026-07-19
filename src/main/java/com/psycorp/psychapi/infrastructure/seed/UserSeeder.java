@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.psycorp.psychapi.domain.model.Organization;
 import com.psycorp.psychapi.domain.model.User;
+import com.psycorp.psychapi.domain.model.User.AccountType;
 import com.psycorp.psychapi.infrastructure.security.PasswordEncoder;
 
 import io.quarkus.runtime.StartupEvent;
@@ -49,7 +50,8 @@ public class UserSeeder {
             "individual.free@example.com",
             PasswordEncoder.hash("password123"),
             "Individual Free User",
-            null
+            null,
+            AccountType.INDIVIDUAL
         );
         individualFree.setPhone("+6281234567890");
         individualFree.setBio("Individual free user, belum berlangganan");
@@ -63,7 +65,8 @@ public class UserSeeder {
             "individual.premium@example.com",
             PasswordEncoder.hash("password123"),
             "Individual Premium User",
-            null
+            null,
+            AccountType.INDIVIDUAL
         );
         individualPremium.setPhone("+6281234567891");
         individualPremium.setBio("Individual premium user, berlangganan pribadi");
@@ -78,7 +81,8 @@ public class UserSeeder {
             "individual.enterprise@example.com",
             PasswordEncoder.hash("password123"),
             "Individual Enterprise User",
-            null
+            null,
+            AccountType.INDIVIDUAL
         );
         individualEnterprise.setPhone("+6281234567892");
         individualEnterprise.setBio("Individual enterprise user dengan fitur lengkap");
@@ -115,7 +119,8 @@ public class UserSeeder {
             "owner.trial@example.com",
             PasswordEncoder.hash("password123"),
             "Owner Trial User",
-            null
+            null,
+            AccountType.ORGANIZATION
         );
         orgOwnerTrial.setPhone("+6281234567893");
         orgOwnerTrial.setBio("Founder & CEO PT Startup Trial");
@@ -151,7 +156,8 @@ public class UserSeeder {
             "owner.free@example.com",
             PasswordEncoder.hash("password123"),
             "Owner Free User",
-            null
+            null,
+            AccountType.ORGANIZATION
         );
         orgOwnerFree.setPhone("+6281234567894");
         orgOwnerFree.setBio("Owner CV Usaha Gratis");
@@ -187,7 +193,8 @@ public class UserSeeder {
             "owner.pro@example.com",
             PasswordEncoder.hash("password123"),
             "Owner Pro User",
-            null
+            null,
+            AccountType.ORGANIZATION
         );
         orgOwnerPro.setPhone("+6281234567895");
         orgOwnerPro.setBio("CEO PT Perusahaan Pro");
@@ -226,7 +233,8 @@ public class UserSeeder {
             "owner.enterprise@example.com",
             PasswordEncoder.hash("password123"),
             "Owner Enterprise User",
-            null
+            null,
+            AccountType.ORGANIZATION
         );
         orgOwnerEnterprise.setPhone("+6281234567896");
         orgOwnerEnterprise.setBio("President Director PT Korporasi Enterprise");
@@ -250,7 +258,8 @@ public class UserSeeder {
             "admin.member@example.com",
             PasswordEncoder.hash("password123"),
             "Organization Admin User",
-            orgOwnerPro.id.toHexString() // Direfer oleh owner pro
+            orgOwnerPro.id.toHexString(), // Direfer oleh owner pro
+            AccountType.INDIVIDUAL // Admin adalah individual yang join organization
         );
         orgAdmin.setPhone("+6281234567897");
         orgAdmin.setBio("HR Manager di PT Perusahaan Pro");
@@ -279,7 +288,8 @@ public class UserSeeder {
             "regular.member@example.com",
             PasswordEncoder.hash("password123"),
             "Organization Member User",
-            orgAdmin.id.toHexString() // Direfer oleh admin
+            orgAdmin.id.toHexString(), // Direfer oleh admin
+            AccountType.INDIVIDUAL // Member adalah individual yang join organization
         );
         orgMember.setPhone("+6281234567898");
         orgMember.setBio("Software Engineer di PT Perusahaan Pro");
@@ -311,7 +321,8 @@ public class UserSeeder {
             "admin@psycorp.com",
             PasswordEncoder.hash("admin123"),
             "Platform Administrator",
-            null
+            null,
+            AccountType.INDIVIDUAL // Admin adalah individual dengan role ADMIN
         );
         adminUser.setPhone("+6281234567899");
         adminUser.setBio("Super Admin PsychCorp Platform");

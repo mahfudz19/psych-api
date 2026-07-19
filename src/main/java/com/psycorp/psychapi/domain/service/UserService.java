@@ -1,5 +1,6 @@
 package com.psycorp.psychapi.domain.service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,19 +14,21 @@ import com.psycorp.psychapi.common.util.ObjectIdValidator;
 import com.psycorp.psychapi.common.util.SearchBuilder;
 import com.psycorp.psychapi.common.util.SortBuilder;
 import com.psycorp.psychapi.domain.model.User;
+import com.psycorp.psychapi.domain.model.User.AccountType;
 import com.psycorp.psychapi.infrastructure.exception.NotFoundException;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
+import com.psycorp.psychapi.infrastructure.security.JwtService;
 import com.psycorp.psychapi.infrastructure.security.PasswordEncoder;
 
 import io.quarkus.mongodb.panache.PanacheQuery;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
-/**
- * Service untuk mengelola operasi CRUD pada User.
- * Menangani validasi, pencarian, filter, dan pagination.
- */
 @ApplicationScoped
 public class UserService {
+
+    @Inject
+    JwtService jwtService;
 
     // Fields yang bisa di-search untuk User
     private static final String[] SEARCH_FIELDS = {"email", "fullName", "phone", "bio"};
@@ -74,13 +77,129 @@ public class UserService {
         return user;
     }
 
-    public User createUser(String email, String password, String fullName, String phone, String bio, String referredBy) {
-        validateUserData(email, password, fullName, null);
+    public User register(String email, String password, String fullName, String referredBy, AccountType accountType) {
+        if (referredBy != null && !referredBy.isEmpty()) {
+            // Todo: Validate referredBy
+            throw new ValidationException(
+                "FEATURE_NOT_AVAILABLE",
+                "Referral system is not available yet. Please register without referredBy."
+            );
+        }
+
+        // Validate user data
+        validateUserData(email, password, fullName, null, referredBy);
         
         // Hash password sebelum menyimpan ke database
         String hashedPassword = PasswordEncoder.hash(password);
         
-        User user = User.create(email, hashedPassword, fullName, referredBy);
+        User user = User.create(email, hashedPassword, fullName, referredBy, accountType);
+        
+        // Persist user ke database
+        user.persist();
+
+        return user;
+    }
+
+    public User login(String email, String password) {
+        // Cari user berdasarkan email
+        User user = User.find("email", email).firstResult();
+        
+        if (user == null) {
+            throw new ValidationException("INVALID_CREDENTIALS", "Email or password is incorrect");
+        }
+        
+        // Cek status user
+        if (!"active".equals(user.getStatus())) {
+            throw new ValidationException("ACCOUNT_INACTIVE", "Your account is " + user.getStatus());
+        }
+        
+        // Verify password
+        String hashedPassword = user.getPassword();
+        if (!PasswordEncoder.verify(password, hashedPassword)) {
+            // Increment login attempts
+            Integer attempts = user.getLoginAttempts() != null ? user.getLoginAttempts() : 0;
+            user.setLoginAttempts(attempts + 1);
+            user.update();
+            
+            throw new ValidationException("INVALID_CREDENTIALS", "Email or password is incorrect");
+        }
+        
+        // Reset login attempts dan update last login
+        user.setLoginAttempts(0);
+        user.setLastLoginAt(Instant.now());
+        user.update();
+        
+        return user;
+    }
+
+    public void logout(String userId, Boolean allDevices) {
+        // Dalam production, invalidate token di database/redis
+        // Untuk sekarang, cukup update last logout time
+        User user = getUserById(userId);
+        user.setUpdatedAt(Instant.now());
+        user.update();
+    }
+
+    public boolean forgotPassword(String email) {
+        // Cari user berdasarkan email
+        User user = User.find("email", email).firstResult();
+        
+        // Selalu return true untuk security (tidak mengungkap apakah email terdaftar)
+        if (user == null) {
+            return true;
+        }
+        
+        // Generate reset token (dalam production, simpan di database dengan expiry)
+        String resetToken = java.util.UUID.randomUUID().toString();
+        
+        // TODO: Kirim email dengan reset token
+        // emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
+        
+        return true;
+    }
+
+    public User resetPasswordWithToken(String token, String newPassword) {
+        // TODO: Dalam production, validasi token dari database
+        // Untuk sekarang, langsung reset password
+        validateUserData(null, newPassword, null, null, null);
+        
+        // Hash new password
+        String hashedPassword = PasswordEncoder.hash(newPassword);
+        
+        // TODO: Cari user berdasarkan token yang valid
+        // Untuk sekarang, throw exception karena token belum diimplementasikan
+        throw new ValidationException("NOT_IMPLEMENTED", "Reset password with token belum diimplementasikan");
+    }
+
+    public User verifyEmail(String token) {
+        // TODO: Dalam production, validasi token dari database
+        // Untuk sekarang, throw exception karena token belum diimplementasikan
+        throw new ValidationException("NOT_IMPLEMENTED", "Verify email dengan token belum diimplementasikan");
+    }
+
+    public void resendVerificationEmail(String email, String userId) {
+        // Cari user berdasarkan email
+        User user = User.find("email", email).firstResult();
+        
+        if (user == null) {
+            // Tidak melakukan apa-apa untuk security
+            return;
+        }
+        
+        // Generate verification token
+        String verificationToken = java.util.UUID.randomUUID().toString();
+        
+        // TODO: Kirim email verifikasi
+        // emailService.sendVerificationEmail(user.getEmail(), verificationToken);
+    }
+
+    public User createUser(String email, String password, String fullName, String phone, String bio, String referredBy) {
+        validateUserData(email, password, fullName, null, null);
+        
+        // Hash password sebelum menyimpan ke database
+        String hashedPassword = PasswordEncoder.hash(password);
+        
+        User user = User.create(email, hashedPassword, fullName, referredBy, AccountType.INDIVIDUAL);
         
         // Set optional fields
         if (phone != null && !phone.isBlank()) {
@@ -94,19 +213,6 @@ public class UserService {
         return user;
     }
 
-    /**
-     * Update user dengan field-field yang disediakan.
-     * Field dengan nilai null akan dihapus dari database.
-     *
-     * @param id User ID
-     * @param email Email (null = tidak diubah)
-     * @param fullName Full name (null = tidak diubah)
-     * @param phone Phone (null = tidak diubah)
-     * @param bio Bio (null = tidak diubah)
-     * @param status Status (null = tidak diubah)
-     * @param loginAttempts Login attempts (null = hapus field dari database)
-     * @return Updated user
-     */
     public User updateUser(String id, String email, String fullName, String phone, String bio, String status) {
         User user = getUserById(id);
 
@@ -149,14 +255,6 @@ public class UserService {
         return user;
     }
 
-    /**
-     * Verify password user dengan cara compare plain text password
-     * dengan hashed password di database.
-     *
-     * @param userId User ID
-     * @param password Password plain text yang akan diverifikasi
-     * @return true jika password match, false jika tidak
-     */
     public boolean verifyPassword(String userId, String password) {
         User user = getUserById(userId);
         String hashedPassword = user.getPassword();
@@ -164,17 +262,6 @@ public class UserService {
         return PasswordEncoder.verify(password, hashedPassword);
     }
 
-    /**
-     * Update password user dengan password baru.
-     * Method ini akan hash password baru sebelum menyimpan ke database.
-     *
-     * @param userId User ID
-     * @param oldPassword Password lama (untuk verifikasi)
-     * @param newPassword Password baru yang akan di-set
-     * @return Updated user
-     *
-     * @throws ValidationException jika password lama salah
-     */
     public User updatePassword(String userId, String oldPassword, String newPassword) {
         // Verify old password dulu
         if (!verifyPassword(userId, oldPassword)) {
@@ -182,7 +269,7 @@ public class UserService {
         }
         
         // Validate new password
-        validateUserData(null, newPassword, null, null);
+        validateUserData(null, newPassword, null, null, null);
         
         // Hash new password
         String hashedPassword = PasswordEncoder.hash(newPassword);
@@ -194,17 +281,9 @@ public class UserService {
         return getUserById(userId);
     }
 
-    /**
-     * Reset password user (hanya untuk admin).
-     * Method ini tidak memerlukan verifikasi password lama.
-     *
-     * @param userId User ID
-     * @param newPassword Password baru yang akan di-set
-     * @return Updated user
-     */
     public User resetPassword(String userId, String newPassword) {
         // Validate new password
-        validateUserData(null, newPassword, null, null);
+        validateUserData(null, newPassword, null, null, null);
         
         // Hash new password
         String hashedPassword = PasswordEncoder.hash(newPassword);
@@ -216,7 +295,7 @@ public class UserService {
         return getUserById(userId);
     }
 
-    private void validateUserData(String email, String password, String fullName, String status) {
+    private void validateUserData(String email, String password, String fullName, String status, String referredBy) {
         List<String> errors = new ArrayList<>();
         
         // Email validation
@@ -226,6 +305,22 @@ public class UserService {
             errors.add("Invalid email format");
         } else if (email.length() > 255) {
             errors.add("Email must not exceed 255 characters");
+        }
+
+        if (referredBy != null && !referredBy.isEmpty()) {
+            if (!referredBy.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+                errors.add("Invalid referredBy email format");
+            } else if (referredBy.length() > 255) {
+                errors.add("ReferredBy email must not exceed 255 characters");
+            } 
+        }
+
+        // Email validation (hanya untuk create)
+        if (email != null) {
+            User existingUser = User.find("email", email).firstResult();
+            if (existingUser != null) {
+                errors.add("Email already exists");
+            }
         }
         
         // Password validation (hanya untuk create)

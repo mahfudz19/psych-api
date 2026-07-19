@@ -52,6 +52,9 @@ public class User extends PanacheMongoEntity {
     private Instant createdAt; // "2024-08-15T08:00:00Z +00:00"
     private Instant updatedAt; // "2024-08-15T08:00:00Z +00:00"
     private Instant deletedAt; // "2024-08-15T08:00:00Z +00:00" (nullable)
+    
+    // === ACCOUNT TYPE ===
+    private AccountType accountType; // INDIVIDUAL / ORGANIZATION
 
     public User() {}
 
@@ -82,6 +85,7 @@ public class User extends PanacheMongoEntity {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public Instant getDeletedAt() { return deletedAt; }
+    public AccountType getAccountType() { return accountType; }
 
     // === SETTERS ===
     
@@ -110,8 +114,33 @@ public class User extends PanacheMongoEntity {
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
     public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
+    public void setAccountType(AccountType accountType) { this.accountType = accountType; }
 
-    public static User create(String email, String password, String fullName, String referredBy) {
+    public enum AccountType {
+        INDIVIDUAL("individual"),
+        ORGANIZATION("organization");
+        
+        private final String value;
+        
+        AccountType(String value) {
+            this.value = value;
+        }
+        
+        public String getValue() {
+            return value;
+        }
+        
+        public static AccountType fromValue(String value) {
+            for (AccountType type : values()) {
+                if (type.value.equalsIgnoreCase(value)) {
+                    return type;
+                }
+            }
+            throw new IllegalArgumentException("Invalid AccountType: " + value);
+        }
+    }
+    
+    public static User create(String email, String password, String fullName, String referredBy, AccountType accountType) {
         User user = new User();
         
         // WAJIB
@@ -127,6 +156,15 @@ public class User extends PanacheMongoEntity {
         user.updatedAt = Instant.now();
         user.loginAttempts = 0;
         
+        // Set account type
+        user.accountType = accountType;
+
+        // Set roles dan organization info berdasarkan account type
+        if (accountType == AccountType.ORGANIZATION) {
+            user.setRoles(List.of("USER", "ORGANIZATION"));
+            user.setOrganizationRole("owner");
+        }
+                
         // OPSIONAL
         if (referredBy != null && !referredBy.isEmpty()) {
             user.referredBy = referredBy;

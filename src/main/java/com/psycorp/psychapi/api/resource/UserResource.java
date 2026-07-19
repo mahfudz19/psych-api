@@ -33,11 +33,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-/**
- * REST API untuk User operations.
- * Mendukung CRUD operations dengan pagination, search, filter, dan explicit delete flag.
- */
-@Path("/users")
+@Path("/api/v1/users")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Users", description = "API untuk mengelola users")

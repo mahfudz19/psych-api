@@ -1,6 +1,7 @@
 package com.psycorp.psychapi.common.helper;
 
 import java.util.List;
+import java.util.Map;
 
 import com.psycorp.psychapi.common.response.ApiResponse;
 import com.psycorp.psychapi.common.response.ErrorCode;
@@ -36,6 +37,43 @@ public final class ResponseHelper {
     public static <T> Response created(T data, String message) {
         return Response.status(Response.Status.CREATED)
                 .entity(ApiResponse.success(data, message))
+                .build();
+    }
+
+    public static Response authenticationSuccess(Object userData, String token, long expiresIn, String message) {
+        Map<String, Object> responseData = Map.of(
+            "user", userData,
+            "token", token,
+            "expiresIn", expiresIn
+        );
+        
+        // Set cookie dengan token
+        String cookieValue = String.format(
+            "token=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=Strict",
+            token, expiresIn
+        );
+        
+        return Response.status(Response.Status.CREATED)
+                .entity(ApiResponse.success(responseData, message))
+                .header("Set-Cookie", cookieValue)
+                .build();
+    }
+
+    public static Response authenticationOk(Object userData, String token, long expiresIn, String message) {
+        Map<String, Object> responseData = Map.of(
+            "user", userData,
+            "token", token,
+            "expiresIn", expiresIn
+        );
+        
+        // Set cookie dengan token
+        String cookieValue = String.format(
+            "token=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=Strict",
+            token, expiresIn
+        );
+        
+        return Response.ok(ApiResponse.success(responseData, message))
+                .header("Set-Cookie", cookieValue)
                 .build();
     }
 

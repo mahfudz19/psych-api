@@ -28,8 +28,8 @@ quarkus:
       # JWT Secret key (minimal 32 characters)
       secret: ${JWT_SECRET:psych-api-secret-key-min-32-chars-change-in-prod}
 
-      # Token expiration in seconds (default: 1 hour = 3600)
-      token-expires-in: ${JWT_TOKEN_EXPIRES_IN:3600}
+      # Token expiration in seconds (default: 7 days = 604800)
+      token-expires-in: ${JWT_TOKEN_EXPIRES_IN:604800}
 
       # Token issuer
       issuer: ${JWT_ISSUER:psych-api}
@@ -42,5 +42,5 @@ security:
   # JWT Configuration (alias untuk quarkus.smallrye.jwt)
   jwt:
     secret: ${JWT_SECRET:psych-api-secret-key-min-32-chars-change-in-prod}
-    token-expires-in: ${JWT_TOKEN_EXPIRES_IN:3600}
+    token-expires-in: ${JWT_TOKEN_EXPIRES_IN:604800}
     issuer: ${JWT_ISSUER:psych-api}
