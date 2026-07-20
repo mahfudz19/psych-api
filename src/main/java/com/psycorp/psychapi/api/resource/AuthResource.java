@@ -1,6 +1,5 @@
 package com.psycorp.psychapi.api.resource;
 
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
@@ -12,10 +11,12 @@ import com.psycorp.psychapi.api.dto.AuthRequests.LoginRequest;
 import com.psycorp.psychapi.api.dto.AuthRequests.RegisterRequest;
 import com.psycorp.psychapi.common.helper.ResponseHelper;
 import com.psycorp.psychapi.common.response.ApiResponse;
+import com.psycorp.psychapi.config.JwtConfig;
 import com.psycorp.psychapi.domain.model.User;
 import com.psycorp.psychapi.domain.service.UserService;
 import com.psycorp.psychapi.infrastructure.security.JwtService;
 
+import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
@@ -31,6 +32,7 @@ import jakarta.ws.rs.core.SecurityContext;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Authentication", description = "API untuk authentication dan authorization")
+@PermitAll
 public class AuthResource {
 
     @Inject
@@ -38,9 +40,9 @@ public class AuthResource {
 
     @Inject
     JwtService jwtService;
-    
-    @ConfigProperty(name = "quarkus.smallrye.jwt.token-expires-in")
-    Long tokenExpiresIn;
+
+    @Inject
+    JwtConfig jwtConfig;
 
     @POST
     @Path("/register")
@@ -96,7 +98,7 @@ public class AuthResource {
         // Generate JWT token berdasarkan account type
         String token = jwtService.generateToken(user, request.accountType());
         
-        return ResponseHelper.authenticationSuccess(user, token, tokenExpiresIn, "Registration successful");
+        return ResponseHelper.authenticationSuccess(user, token, jwtConfig.expiresIn(), "Registration successful");
     }
 
     // ============================================================================
@@ -150,7 +152,7 @@ public class AuthResource {
         return ResponseHelper.authenticationSuccess(
             user,
             token,
-            tokenExpiresIn,
+            jwtConfig.expiresIn(),
             "Login successful"
         );
     }

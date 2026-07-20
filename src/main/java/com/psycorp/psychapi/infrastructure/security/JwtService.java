@@ -7,14 +7,18 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.bson.types.ObjectId;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.psycorp.psychapi.config.JwtConfig;
 import com.psycorp.psychapi.domain.model.User;
 import com.psycorp.psychapi.domain.model.User.AccountType;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 
 import io.smallrye.jwt.build.Jwt;
+import io.smallrye.jwt.build.JwtClaimsBuilder;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 @ApplicationScoped
 public class JwtService {
@@ -62,14 +66,10 @@ public class JwtService {
         }
     }
 
-    @ConfigProperty(name = "quarkus.smallrye.jwt.token-expires-in", defaultValue = "604800")
-    Long tokenExpiresIn;
-
-    @ConfigProperty(name = "quarkus.smallrye.jwt.issuer", defaultValue = "psych-api")
-    String issuer;
-
+    @Inject
+    JwtConfig jwtConfig;
     public String generateToken(User user, AccountType accountType) {
-        return generateToken(user, accountType, tokenExpiresIn);
+        return generateToken(user, accountType, jwtConfig.expiresIn());
     }
 
     public String generateToken(User user, AccountType accountType, long expiresIn) {
@@ -102,9 +102,9 @@ public class JwtService {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(expiresIn);
 
-        var claims = Jwt.claims()
+        JwtClaimsBuilder claims = Jwt.claims()
             // Standard claims (RFC 7519)
-            .issuer(issuer)
+            .issuer(jwtConfig.issuer())
             .subject(user.id.toHexString())
             .issuedAt(now)
             .expiresAt(expiry)
@@ -148,9 +148,9 @@ public class JwtService {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(expiresIn);
 
-        var claims = Jwt.claims()
+        JwtClaimsBuilder claims = Jwt.claims()
             // Standard claims (RFC 7519)
-            .issuer(issuer)
+            .issuer(jwtConfig.issuer())
             .subject(user.id.toHexString())
             .issuedAt(now)
             .expiresAt(expiry)
@@ -214,13 +214,18 @@ public class JwtService {
 
             // Decode payload (base64url)
             String payload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
-                        
-            claims.put("raw_payload", payload);
+            
+            // Parse JSON payload into claims map using Jackson
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            Map<String, Object> jsonClaims = mapper.readValue(payload, new TypeReference<Map<String, Object>>() {});
+            
+            // Merge JSON claims into our claims map
+            claims.putAll(jsonClaims);
             
             return claims;
         } catch (ValidationException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (JsonProcessingException e) {
             throw new ValidationException("INVALID_TOKEN", "Invalid JWT token: " + e.getMessage());
         }
     }
@@ -237,7 +242,7 @@ public class JwtService {
             String payload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
             
             // Check expiration
-            if (payload.contains("\"exp\"")) {
+            if (jwtConfig.verify().expiresAt() && payload.contains("\"exp\"")) {
                 String expStr = payload.replaceAll(".*\"exp\":(\\d+).*", "$1");
                 try {
                     long exp = Long.parseLong(expStr);

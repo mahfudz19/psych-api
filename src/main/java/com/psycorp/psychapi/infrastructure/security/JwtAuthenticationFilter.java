@@ -48,7 +48,7 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
             // Invalid token
             requestContext.abortWith(
                 Response.status(Response.Status.UNAUTHORIZED)
-                    .entity("{\"success\": false, \"message\": \"Invalid or expired token\"}")
+                    .entity("{\"success\": false, \"message\": \"Invalid or expired token\", \"code\": \"UNAUTHORIZED\"}")
                     .build()
             );
             return;
@@ -56,12 +56,12 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
 
         // Extract claims
         String userId = jwtService.getClaim(JwtService.JwtClaim.USER_ID, token).toString();
-        String email = jwtService.getClaim(JwtService.JwtClaim.EMAIL, token).toString();
 
         // Create SecurityContext with authenticated user
         final SecurityContext originalSecurityContext = requestContext.getSecurityContext();
         requestContext.setSecurityContext(new SecurityContext() {
             @Override
+            @SuppressWarnings("Convert2Lambda")
             public Principal getUserPrincipal() {
                 return new Principal() {
                     @Override

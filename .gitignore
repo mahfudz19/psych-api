@@ -43,4 +43,7 @@ nb-configuration.xml
 # TLS Certificates
 .certs/
 
+# RSA Keys for JWT
+src/main/resources/keys/
+
 plans

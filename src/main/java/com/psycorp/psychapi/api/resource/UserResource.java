@@ -19,6 +19,7 @@ import com.psycorp.psychapi.common.response.PaginationMeta;
 import com.psycorp.psychapi.domain.model.User;
 import com.psycorp.psychapi.domain.service.UserService;
 
+import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.BeanParam;
@@ -30,8 +31,10 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 
 @Path("/api/v1/users")
 @Produces(MediaType.APPLICATION_JSON)
@@ -44,6 +47,7 @@ public class UserResource {
 
     // === GET ALL (dengan pagination) ===
     @GET
+    @PermitAll
     @Operation(summary = "Get all users with pagination, search, and filter")
     @APIResponse(
         responseCode = "200",
@@ -101,6 +105,7 @@ public class UserResource {
 
     // === GET BY ID ===
     @GET
+    @PermitAll
     @Path("/{id}")
     @Operation(summary = "Get a user by ID")
     @APIResponse(
@@ -157,8 +162,77 @@ public class UserResource {
         return ResponseHelper.ok(user, "User retrieved successfully");
     }
 
+    // === GET CURRENT USER (ME) ===
+    @GET
+    @PermitAll
+    @Path("/me")
+    @Operation(summary = "Get current user profile", description = "Get authenticated user profile based on JWT token")
+    @APIResponse(
+        responseCode = "200",
+        description = "Successful response",
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = ApiResponse.class),
+            examples = {
+                @ExampleObject(
+                    name = "CurrentUserResponse",
+                    summary = "Current user profile",
+                    value = """
+                    {
+                        "success": true,
+                        "data": {
+                            "id": "507f1f77bcf86cd799439011",
+                            "email": "john@example.com",
+                            "fullName": "John Doe",
+                            "profilePicture": "https://example.com/avatar.jpg",
+                            "phone": "+1234567890",
+                            "bio": "Hello!",
+                            "roles": ["USER"],
+                            "organizationId": null,
+                            "organizationRole": null,
+                            "subscriptionTier": "free",
+                            "status": "active",
+                            "createdAt": "2024-01-01T00:00:00Z"
+                        },
+                        "message": "User profile retrieved successfully"
+                    }
+                    """
+                ),
+                @ExampleObject(
+                    name = "Unauthorized",
+                    summary = "Invalid or missing token",
+                    value = """
+                    {
+                        "success": false,
+                        "data": null,
+                        "message": "Invalid or expired token",
+                        "code": "UNAUTHORIZED"
+                    }
+                    """
+                )
+            }
+        )
+    )
+    public Response getCurrentUser(@Context SecurityContext securityContext) {
+        // Extract userId from authenticated SecurityContext
+        java.security.Principal principal = securityContext.getUserPrincipal();
+        
+        // Check if principal is null (no token or invalid token)
+        if (principal == null) {
+            return ResponseHelper.unauthorized("Authentication required. Please provide a valid JWT token in Authorization header.");
+        }
+        
+        String userId = principal.getName();
+        
+        // Get user by ID
+        User user = userService.getUserById(userId);
+        
+        return ResponseHelper.ok(user, "User profile retrieved successfully");
+    }
+
     // === CREATE ===
     @POST
+    @PermitAll
     @Operation(summary = "Create a new user")
     @APIResponse(
         responseCode = "201",
@@ -227,6 +301,7 @@ public class UserResource {
 
     // === UPDATE (Typed Parameters) ===
     @PUT
+    @PermitAll
     @Path("/{id}")
     @Operation(summary = "Update a user with typed parameters")
     @APIResponse(
@@ -275,6 +350,7 @@ public class UserResource {
 
     // === DELETE ===
     @DELETE
+    @PermitAll
     @Path("/{id}")
     @Operation(summary = "Delete a user permanently")
     @APIResponse(
@@ -308,6 +384,7 @@ public class UserResource {
 
     // === SOFT DELETE ===
     @DELETE
+    @PermitAll
     @Path("/{id}/soft")
     @Operation(summary = "Soft delete a user (mark as deleted)")
     @APIResponse(
