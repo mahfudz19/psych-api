@@ -16,8 +16,32 @@ import jakarta.ws.rs.ext.Provider;
 
 /**
  * JWT Authentication Filter.
+ *
  * Filter ini akan mengekstrak dan memvalidasi JWT token dari Authorization header
  * untuk endpoint yang memerlukan authentication.
+ *
+ * ### How It Works
+ * 1. Extract Authorization header dari request
+ * 2. Validasi format Bearer token
+ * 3. Validate JWT token menggunakan {@link JwtService}
+ * 4. Extract user ID dan roles dari token claims
+ * 5. Set SecurityContext dengan authenticated user principal
+ *
+ * ### Token Format
+ * Authorization header harus dalam format: `Bearer <jwt_token>`
+ *
+ * ### Error Responses
+ * - **401 Unauthorized**: Token invalid atau expired
+ * - **No token**: Request dilanjutkan tanpa authentication (endpoint public akan handle)
+ *
+ * ### Security Context
+ * Setelah filter ini berhasil:
+ * - `securityContext.getUserPrincipal().getName()` returns userId
+ * - `securityContext.isUserInRole("ROLE")` checks role membership
+ *
+ * ### Priority
+ * Filter ini berjalan dengan {@link Priorities#AUTHENTICATION} untuk memastikan
+ * authentication dilakukan sebelum authorization checks.
  */
 @Provider
 @Priority(Priorities.AUTHENTICATION)

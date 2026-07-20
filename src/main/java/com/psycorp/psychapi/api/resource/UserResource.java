@@ -6,8 +6,10 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponseSchema;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import com.psycorp.psychapi.api.dto.UserRequests.CreateUserRequest;
@@ -19,7 +21,7 @@ import com.psycorp.psychapi.common.response.PaginationMeta;
 import com.psycorp.psychapi.domain.model.User;
 import com.psycorp.psychapi.domain.service.UserService;
 
-import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.BeanParam;
@@ -36,6 +38,26 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
+/**
+ * REST API untuk User Management.
+ * 
+ * Endpoint ini menangani:
+ * - List users dengan pagination, search, dan filter
+ * - Get user by ID
+ * - Get current user profile
+ * - Create user (admin only)
+ * - Update user profile
+ * - Delete user (soft dan permanent)
+ * 
+ * ### Access Control
+ * - **GET /users** - ADMIN only
+ * - **GET /users/{id}** - ADMIN only
+ * - **GET /users/me** - USER (own profile)
+ * - **POST /users** - ADMIN only
+ * - **PUT /users/{id}** - USER (own profile)
+ * - **DELETE /users/{id}** - ADMIN only
+ * - **DELETE /users/{id}/soft** - USER (own account)
+ */
 @Path("/api/v1/users")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -47,8 +69,30 @@ public class UserResource {
 
     // === GET ALL (dengan pagination) ===
     @GET
-    @PermitAll
-    @Operation(summary = "Get all users with pagination, search, and filter")
+    @RolesAllowed("ADMIN")
+    @SecurityRequirement(name = "Bearer")
+    @Operation(
+        summary = "Get all users with pagination, search, and filter",
+        description = """
+            Mengambil daftar semua users dengan fitur:
+            - **Pagination**: Page number dan limit
+            - **Search**: Cari di email, fullName, phone, dan bio
+            - **Filter**: Filter dengan format 'field:operator:value'
+            - **Sort**: Sort by field dan order (asc/desc)
+            
+            ### Access Control
+            Endpoint ini hanya bisa diakses oleh user dengan role **ADMIN**.
+            
+            ### Filter Examples
+            - `status:in:active,suspended` - Filter status active atau suspended
+            - `createdAt:gte:2024-01-01` - Filter created after date
+            - `roles:eq:USER` - Filter by role
+            
+            ### Sort Examples
+            - `sortBy=createdAt&sortOrder=desc` - Sort by created date descending
+            - `sortBy=email&sortOrder=asc` - Sort by email ascending
+            """
+    )
     @APIResponse(
         responseCode = "200",
         description = "Successful response",
@@ -70,6 +114,8 @@ public class UserResource {
                                 "phone": "+1234567890",
                                 "bio": "Hello, I'm John!",
                                 "status": "active",
+                                "roles": ["USER"],
+                                "subscriptionTier": "free",
                                 "createdAt": "2024-01-01T00:00:00Z",
                                 "updatedAt": "2024-01-15T10:30:00Z"
                             }
@@ -89,6 +135,14 @@ public class UserResource {
             }
         )
     )
+    @APIResponse(
+        responseCode = "401",
+        description = "Unauthorized - Missing or invalid JWT token"
+    )
+    @APIResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't have ADMIN role"
+    )
     public Response getAllUsers(@BeanParam UserListRequest request) {
         List<User> users = userService.getAllUsers(request.search(), request.filter(), request.sortBy(), request.sortOrder(), request.page(), request.limit());
         long total = userService.getTotalUsersCount(request.search(), request.filter());
@@ -105,9 +159,28 @@ public class UserResource {
 
     // === GET BY ID ===
     @GET
-    @PermitAll
+    @RolesAllowed("ADMIN")
+    @SecurityRequirement(name = "Bearer")
     @Path("/{id}")
-    @Operation(summary = "Get a user by ID")
+    @Operation(
+        summary = "Get a user by ID",
+        description = """
+            Mengambil detail user berdasarkan ID.
+            
+            ### Access Control
+            Endpoint ini hanya bisa diakses oleh user dengan role **ADMIN**.
+            
+            ### Path Parameter
+            - **id**: User ID dalam format ObjectId hex string (24 characters)
+            
+            ### Response
+            User data lengkap termasuk:
+            - Personal info (email, fullName, phone, bio)
+            - Account info (roles, status, subscriptionTier)
+            - Organization info (jika ada)
+            - Timestamps (createdAt, updatedAt)
+            """
+    )
     @APIResponse(
         responseCode = "200",
         description = "Successful response",
@@ -125,10 +198,14 @@ public class UserResource {
                             "id": "507f1f77bcf86cd799439011",
                             "email": "john@example.com",
                             "fullName": "John Doe",
+                            "profilePicture": "https://example.com/avatar.jpg",
                             "phone": "+1234567890",
                             "bio": "Hello, I'm John!",
                             "status": "active",
                             "roles": ["USER"],
+                            "accountType": "INDIVIDUAL",
+                            "organizationId": null,
+                            "organizationRole": null,
                             "subscriptionTier": "free",
                             "createdAt": "2024-01-01T00:00:00Z",
                             "updatedAt": "2024-01-15T10:30:00Z"
@@ -139,23 +216,21 @@ public class UserResource {
                         "errors": null
                     }
                     """
-                ),
-                @ExampleObject(
-                    name = "UserNotFound",
-                    summary = "User not found",
-                    value = """
-                    {
-                        "success": false,
-                        "data": null,
-                        "message": "User with id 507f1f77bcf86cd799439011 not found",
-                        "meta": null,
-                        "code": "USER_NOT_FOUND",
-                        "errors": null
-                    }
-                    """
                 )
             }
         )
+    )
+    @APIResponse(
+        responseCode = "401",
+        description = "Unauthorized - Missing or invalid JWT token"
+    )
+    @APIResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't have ADMIN role"
+    )
+    @APIResponse(
+        responseCode = "404",
+        description = "Not Found - User doesn't exist"
     )
     public Response getUserById(@PathParam("id") String id) {
         User user = userService.getUserById(id);
@@ -164,9 +239,30 @@ public class UserResource {
 
     // === GET CURRENT USER (ME) ===
     @GET
-    @PermitAll
+    @RolesAllowed("USER")
+    @SecurityRequirement(name = "Bearer")
     @Path("/me")
-    @Operation(summary = "Get current user profile", description = "Get authenticated user profile based on JWT token")
+    @Operation(
+        summary = "Get current user profile",
+        description = """
+            Mengambil informasi profile user yang sedang login berdasarkan JWT token.
+            
+            ### Authentication Required
+            Endpoint ini memerlukan JWT token yang valid di Authorization header.
+            
+            ### How to Use
+            1. Login terlebih dahulu untuk mendapatkan token
+            2. Sertakan token di Authorization header: `Authorization: Bearer <token>`
+            3. Endpoint akan return user data berdasarkan userId dari token
+            
+            ### Response
+            User profile lengkap termasuk:
+            - Personal info (email, fullName, profilePicture, phone, bio)
+            - Account info (roles, status, accountType)
+            - Organization info (jika ORGANIZATION account)
+            - Subscription info (tier, expiry)
+            """
+    )
     @APIResponse(
         responseCode = "200",
         description = "Successful response",
@@ -188,30 +284,26 @@ public class UserResource {
                             "phone": "+1234567890",
                             "bio": "Hello!",
                             "roles": ["USER"],
+                            "accountType": "INDIVIDUAL",
                             "organizationId": null,
                             "organizationRole": null,
                             "subscriptionTier": "free",
                             "status": "active",
                             "createdAt": "2024-01-01T00:00:00Z"
                         },
-                        "message": "User profile retrieved successfully"
-                    }
-                    """
-                ),
-                @ExampleObject(
-                    name = "Unauthorized",
-                    summary = "Invalid or missing token",
-                    value = """
-                    {
-                        "success": false,
-                        "data": null,
-                        "message": "Invalid or expired token",
-                        "code": "UNAUTHORIZED"
+                        "message": "User profile retrieved successfully",
+                        "meta": null,
+                        "code": null,
+                        "errors": null
                     }
                     """
                 )
             }
         )
+    )
+    @APIResponse(
+        responseCode = "401",
+        description = "Unauthorized - Invalid or missing JWT token"
     )
     public Response getCurrentUser(@Context SecurityContext securityContext) {
         // Extract userId from authenticated SecurityContext
@@ -232,8 +324,49 @@ public class UserResource {
 
     // === CREATE ===
     @POST
-    @PermitAll
-    @Operation(summary = "Create a new user")
+    @RolesAllowed("ADMIN")
+    @SecurityRequirement(name = "Bearer")
+    @Operation(
+        summary = "Create a new user (Admin only)",
+        description = """
+            Membuat user baru melalui admin panel.
+            
+            ### Access Control
+            Endpoint ini hanya bisa diakses oleh user dengan role **ADMIN**.
+            
+            ### Request Requirements
+            - **Email**: Harus valid dan belum terdaftar
+            - **Password**: Minimal 8 karakter
+            - **Full Name**: Nama lengkap user
+            
+            ### Note
+            Untuk user registration biasa, gunakan endpoint `/api/v1/auth/register`.
+            Endpoint ini digunakan untuk admin membuat user secara manual.
+            """
+    )
+    @RequestBody(
+        description = "Create user request dengan user data",
+        required = true,
+        content = @Content(
+            schema = @Schema(implementation = CreateUserRequest.class),
+            examples = {
+                @ExampleObject(
+                    name = "CreateUserRequest",
+                    summary = "Create user request",
+                    value = """
+                    {
+                        "email": "john@example.com",
+                        "password": "Password123!",
+                        "fullName": "John Doe",
+                        "phone": "+1234567890",
+                        "bio": "Hello, I'm John!",
+                        "referredBy": "507f1f77bcf86cd799439011"
+                    }
+                    """
+                )
+            }
+        )
+    )
     @APIResponse(
         responseCode = "201",
         description = "User created successfully",
@@ -257,6 +390,7 @@ public class UserResource {
                             "roles": ["USER"],
                             "status": "active",
                             "subscriptionTier": "free",
+                            "referralCode": "JOH1721484000",
                             "createdAt": "2024-01-15T10:30:00Z",
                             "updatedAt": "2024-01-15T10:30:00Z"
                         },
@@ -266,26 +400,25 @@ public class UserResource {
                         "errors": null
                     }
                     """
-                ),
-                @ExampleObject(
-                    name = "ValidationError",
-                    summary = "Validation error",
-                    value = """
-                    {
-                        "success": false,
-                        "data": null,
-                        "message": "Email is required, Password must be at least 8 characters",
-                        "meta": null,
-                        "code": "VALIDATION_ERROR",
-                        "errors": [
-                            {"field": "email", "message": "Email is required"},
-                            {"field": "password", "message": "Password must be at least 8 characters"}
-                        ]
-                    }
-                    """
                 )
             }
         )
+    )
+    @APIResponse(
+        responseCode = "401",
+        description = "Unauthorized - Missing or invalid JWT token"
+    )
+    @APIResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't have ADMIN role"
+    )
+    @APIResponse(
+        responseCode = "409",
+        description = "Conflict - Email already exists"
+    )
+    @APIResponse(
+        responseCode = "422",
+        description = "Validation error - Invalid input (e.g., email required, password too weak)"
     )
     public Response createUser(@Valid CreateUserRequest request){
         User user = userService.createUser(
@@ -301,9 +434,54 @@ public class UserResource {
 
     // === UPDATE (Typed Parameters) ===
     @PUT
-    @PermitAll
+    @RolesAllowed("USER")
+    @SecurityRequirement(name = "Bearer")
     @Path("/{id}")
-    @Operation(summary = "Update a user with typed parameters")
+    @Operation(
+        summary = "Update user profile",
+        description = """
+            Update profile user.
+            
+            ### Authentication Required
+            Endpoint ini memerlukan JWT token yang valid.
+            
+            ### Ownership Check
+            User hanya bisa update profile sendiri. ID di path parameter harus sama dengan
+            userId dari JWT token. Jika tidak, akan return FORBIDDEN error.
+            
+            ### Updatable Fields
+            - **email**: Email address (harus valid dan belum digunakan user lain)
+            - **fullName**: Full name
+            - **phone**: Phone number
+            - **bio**: Short bio/description
+            - **status**: Account status (active, inactive, suspended, deleted)
+            
+            ### Note
+            Password tidak bisa diupdate melalui endpoint ini.
+            """
+    )
+    @RequestBody(
+        description = "Update user request dengan fields yang akan diupdate",
+        required = true,
+        content = @Content(
+            schema = @Schema(implementation = UpdateUserRequest.class),
+            examples = {
+                @ExampleObject(
+                    name = "UpdateUserRequest",
+                    summary = "Update user request",
+                    value = """
+                    {
+                        "email": "newemail@example.com",
+                        "fullName": "John Doe Updated",
+                        "phone": "+9876543210",
+                        "bio": "Updated bio",
+                        "status": "active"
+                    }
+                    """
+                )
+            }
+        )
+    )
     @APIResponse(
         responseCode = "200",
         description = "User updated successfully",
@@ -336,6 +514,22 @@ public class UserResource {
             }
         )
     )
+    @APIResponse(
+        responseCode = "401",
+        description = "Unauthorized - Missing or invalid JWT token"
+    )
+    @APIResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't own this resource (ID mismatch with token)"
+    )
+    @APIResponse(
+        responseCode = "404",
+        description = "Not Found - User doesn't exist"
+    )
+    @APIResponse(
+        responseCode = "409",
+        description = "Conflict - Email already exists"
+    )
     public Response updateUser(@PathParam("id") String id, @Valid UpdateUserRequest request) {
         User user = userService.updateUser(
             id,
@@ -350,9 +544,29 @@ public class UserResource {
 
     // === DELETE ===
     @DELETE
-    @PermitAll
+    @RolesAllowed("ADMIN")
+    @SecurityRequirement(name = "Bearer")
     @Path("/{id}")
-    @Operation(summary = "Delete a user permanently")
+    @Operation(
+        summary = "Delete a user permanently (Admin only)",
+        description = """
+            Menghapus user secara permanen dari database.
+            
+            ### Access Control
+            Endpoint ini hanya bisa diakses oleh user dengan role **ADMIN**.
+            
+            ### Warning
+            Ini adalah operasi destruktif yang tidak bisa di-undo.
+            Untuk non-aktifkan user tanpa menghapus data, gunakan:
+            - Update status menjadi 'inactive' atau 'suspended'
+            - Atau soft delete endpoint `/users/{id}/soft`
+            
+            ### What Gets Deleted
+            - User account dan semua data terkait
+            - Posts yang dibuat user (atau transferred ke admin)
+            - Organization membership (jika ada)
+            """
+    )
     @APIResponse(
         responseCode = "200",
         description = "User deleted successfully",
@@ -377,6 +591,18 @@ public class UserResource {
             }
         )
     )
+    @APIResponse(
+        responseCode = "401",
+        description = "Unauthorized - Missing or invalid JWT token"
+    )
+    @APIResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't have ADMIN role"
+    )
+    @APIResponse(
+        responseCode = "404",
+        description = "Not Found - User doesn't exist"
+    )
     public Response deleteUser(@PathParam("id") String id) {
         userService.deleteUser(id);
         return ResponseHelper.ok(null, "User deleted successfully");
@@ -384,9 +610,32 @@ public class UserResource {
 
     // === SOFT DELETE ===
     @DELETE
-    @PermitAll
+    @RolesAllowed("USER")
+    @SecurityRequirement(name = "Bearer")
     @Path("/{id}/soft")
-    @Operation(summary = "Soft delete a user (mark as deleted)")
+    @Operation(
+        summary = "Soft delete a user account (own account)",
+        description = """
+            Soft delete user account (mark as deleted tanpa menghapus data).
+            
+            ### Authentication Required
+            Endpoint ini memerlukan JWT token yang valid.
+            
+            ### Ownership Check
+            User hanya bisa soft delete account sendiri. ID di path parameter harus sama dengan
+            userId dari JWT token. Jika tidak, akan return FORBIDDEN error.
+            
+            ### What Happens
+            - Status user diubah menjadi 'deleted'
+            - deletedAt timestamp diisi
+            - Data tetap ada di database untuk audit/backup
+            - User tidak bisa login lagi
+            
+            ### Difference from Hard Delete
+            - **Soft Delete**: Data tetap ada, bisa di-restore
+            - **Hard Delete**: Data dihapus permanen (endpoint `/users/{id}`)
+            """
+    )
     @APIResponse(
         responseCode = "200",
         description = "User soft deleted successfully",
@@ -417,6 +666,18 @@ public class UserResource {
                 )
             }
         )
+    )
+    @APIResponse(
+        responseCode = "401",
+        description = "Unauthorized - Missing or invalid JWT token"
+    )
+    @APIResponse(
+        responseCode = "403",
+        description = "Forbidden - User doesn't own this resource (ID mismatch with token)"
+    )
+    @APIResponse(
+        responseCode = "404",
+        description = "Not Found - User doesn't exist"
     )
     public Response softDeleteUser(@PathParam("id") String id) {
         User user = userService.softDeleteUser(id);
