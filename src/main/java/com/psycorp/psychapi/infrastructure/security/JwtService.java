@@ -1,212 +1,82 @@
 package com.psycorp.psychapi.infrastructure.security;
 
 import java.time.Instant;
-import java.util.HashMap;
+import java.util.Date;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 import org.bson.types.ObjectId;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
 import com.psycorp.psychapi.config.JwtConfig;
 import com.psycorp.psychapi.domain.model.User;
-import com.psycorp.psychapi.domain.model.User.AccountType;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 
-import io.smallrye.jwt.build.Jwt;
-import io.smallrye.jwt.build.JwtClaimsBuilder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 @ApplicationScoped
 public class JwtService {
-    public enum JwtClaim {
-        // Standard claims (RFC 7519)
-        ISSUER("iss", String.class),
-        ISSUED_AT("iat", Long.class),
-        EXPIRES_AT("exp", Long.class),
-        
-        // Custom claims - User identity
-        USER_ID("sub", String.class),
-        EMAIL("email", String.class),
-        ROLES("roles", List.class),
-        FULL_NAME("fullName", String.class),
-        PROFILE_PICTURE("profilePicture", String.class),
-        
-        // Custom claims - Account context
-        ACCOUNT_TYPE("accountType", String.class),
-        ORGANIZATION_ID("organizationId", String.class),
-        ORGANIZATION_ROLE("organizationRole", String.class),
-        ORGANIZATION_NAME("organizationName", String.class),
-        
-        // Custom claims - Subscription
-        SUBSCRIPTION_TIER("subscriptionTier", String.class),
-        SUBSCRIPTION_EXPIRY("subscriptionExpiry", Long.class),
-        
-        // Custom claims - Token metadata
-        STATUS("status", String.class),
-        JTI("jti", String.class);
-        
-        private final String key;
-        private final Class<?> type;
-        
-        JwtClaim(String key, Class<?> type) {
-            this.key = key;
-            this.type = type;
-        }
-        
-        public String getKey() {
-            return key;
-        }
-
-        public Class<?> getType() {
-            return type;
-        }
-    }
 
     @Inject
     JwtConfig jwtConfig;
-    public String generateToken(User user, AccountType accountType) {
-        return generateToken(user, accountType, jwtConfig.expiresIn());
-    }
 
-    public String generateToken(User user, AccountType accountType, long expiresIn) {
+    public record TokenClaims(
+        String userId,
+        String email,
+        List<String> roles,
+        Instant issuedAt,
+        Instant expiresAt
+    ) {}
+
+    public String generateToken(User user) {
         if (user == null) {
             throw new IllegalArgumentException("User cannot be null");
-        }
-        
-        if (accountType == null) {
-            throw new IllegalArgumentException("AccountType cannot be null");
         }
         
         if (user.id == null) {
             throw new IllegalStateException("User ID is null - user not persisted?");
         }
         
-        if (accountType == AccountType.ORGANIZATION) {
-            return generateTokenForOrganization(
-                user,
-                user.getOrganizationId(),
-                user.getOrganizationRole(),
-                user.getOrganizationName(),
-                expiresIn
-            );
-        } else {
-            return generateTokenForIndividual(user, expiresIn);
-        }
-    }
+        try {
+            Instant now = Instant.now();
+            Instant expiry = now.plusSeconds(jwtConfig.expiresIn());
 
-    public String generateTokenForIndividual(User user, long expiresIn) {
-        Instant now = Instant.now();
-        Instant expiry = now.plusSeconds(expiresIn);
+            // Get secret from environment or use default
+            String secret = System.getenv("JWT_SECRET");
+            if (secret == null || secret.isEmpty()) {
+                secret = "PsychApiSuperSecretKeyForJWTSigning2024!ChangeThisInProduction";
+            }
 
-        JwtClaimsBuilder claims = Jwt.claims()
-            // Standard claims (RFC 7519)
-            .issuer(jwtConfig.issuer())
-            .subject(user.id.toHexString())
-            .issuedAt(now)
-            .expiresAt(expiry)
-            .claim("jti", UUID.randomUUID().toString())
+            Algorithm algorithm = Algorithm.HMAC256(secret);
             
-            // User info claims (hanya yang tidak null)
-            .claim("email", user.getEmail())
-            .claim("roles", user.getRoles())
-            .claim("fullName", user.getFullName());
-        
-        // Claim yang mungkin null - hanya ditambahkan jika ada value
-        if (user.getProfilePicture() != null) {
-            claims.claim("profilePicture", user.getProfilePicture());
+            return JWT.create()
+                // Standard claims (RFC 7519)
+                .withIssuer(jwtConfig.issuer())
+                .withSubject(user.id.toHexString())
+                .withIssuedAt(Date.from(now))
+                .withExpiresAt(Date.from(expiry))
+                
+                // Essential custom claims
+                .withClaim("email", user.getEmail())
+                .withClaim("roles", user.getRoles())
+                
+                // Sign with HS256 using shared secret
+                .sign(algorithm);
+        } catch (io.smallrye.jwt.build.JwtSignatureException e) {
+            throw new RuntimeException("Failed to sign JWT token: " + e.getMessage() + ". Check your JWT signing key configuration.", e);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate JWT token: " + e.getMessage(), e);
         }
-        
-        // Account context - individual
-        claims.claim("accountType", "individual")
-                .claim("organizationId", "")
-                .claim("organizationRole", "")
-                .claim("organizationName", "");
-        
-        // Subscription info
-        claims.claim("subscriptionTier", user.getSubscriptionTier());
-        if (user.getSubscriptionExpiry() != null) {
-            claims.claim("subscriptionExpiry", user.getSubscriptionExpiry().getEpochSecond());
-        }
-        
-        // Account status
-        claims.claim("status", user.getStatus());
-        
-        return claims.sign();
     }
 
-    public String generateTokenForOrganization(
-            User user,
-            ObjectId organizationId,
-            String organizationRole,
-            String organizationName,
-            long expiresIn) {
-        
-        Instant now = Instant.now();
-        Instant expiry = now.plusSeconds(expiresIn);
-
-        JwtClaimsBuilder claims = Jwt.claims()
-            // Standard claims (RFC 7519)
-            .issuer(jwtConfig.issuer())
-            .subject(user.id.toHexString())
-            .issuedAt(now)
-            .expiresAt(expiry)
-            .claim("jti", UUID.randomUUID().toString())
-            
-            // User info claims (hanya yang tidak null)
-            .claim("email", user.getEmail())
-            .claim("roles", user.getRoles())
-            .claim("fullName", user.getFullName());
-        
-        // Claim yang mungkin null - hanya ditambahkan jika ada value
-        if (user.getProfilePicture() != null) {
-            claims.claim("profilePicture", user.getProfilePicture());
-        }
-        
-        // Organization context
-        claims.claim("accountType", "organization");
-        if (organizationId != null) {
-            claims.claim("organizationId", organizationId.toHexString());
-        } else {
-            claims.claim("organizationId", "");
-        }
-        
-        if (organizationRole != null) {
-            claims.claim("organizationRole", organizationRole);
-        } else {
-            claims.claim("organizationRole", "");
-        }
-        
-        if (organizationName != null) {
-            claims.claim("organizationName", organizationName);
-        } else {
-            claims.claim("organizationName", "");
-        }
-        
-        // Subscription info
-        claims.claim("subscriptionTier", user.getSubscriptionTier());
-        if (user.getSubscriptionExpiry() != null) {
-            claims.claim("subscriptionExpiry", user.getSubscriptionExpiry().getEpochSecond());
-        }
-        
-        // Account status
-        claims.claim("status", user.getStatus());
-        
-        return claims.sign();
-    }
-
-    private Map<String, Object> extractClaims(String token) {
+    public TokenClaims parseClaims(String token) {
         if (token == null || token.isEmpty()) {
             throw new ValidationException("INVALID_TOKEN", "Token cannot be null or empty");
         }
-        
+
         try {
-            Map<String, Object> claims = new HashMap<>();
-            
-            // Parse token parts (header.payload.signature)
+            // Extract payload dari token
             String[] parts = token.split("\\.");
             if (parts.length != 3) {
                 throw new ValidationException("INVALID_TOKEN_FORMAT", "Invalid JWT token format");
@@ -215,23 +85,34 @@ public class JwtService {
             // Decode payload (base64url)
             String payload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
             
-            // Parse JSON payload into claims map using Jackson
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            Map<String, Object> jsonClaims = mapper.readValue(payload, new TypeReference<Map<String, Object>>() {});
-            
-            // Merge JSON claims into our claims map
-            claims.putAll(jsonClaims);
-            
-            return claims;
+            // Parse JSON manually untuk essential claims
+            String userId = extractStringClaim(payload, "sub");
+            String email = extractStringClaim(payload, "email");
+            List<String> roles = extractListClaim(payload, "roles");
+            Long issuedAt = extractLongClaim(payload, "iat");
+            Long expiresAt = extractLongClaim(payload, "exp");
+
+            // Validate expiration
+            if (expiresAt != null && Instant.now().isAfter(Instant.ofEpochSecond(expiresAt))) {
+                throw new ValidationException("TOKEN_EXPIRED", "JWT token has expired");
+            }
+
+            return new TokenClaims(userId, email, roles, 
+                issuedAt != null ? Instant.ofEpochSecond(issuedAt) : null,
+                expiresAt != null ? Instant.ofEpochSecond(expiresAt) : null);
         } catch (ValidationException e) {
             throw e;
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             throw new ValidationException("INVALID_TOKEN", "Invalid JWT token: " + e.getMessage());
         }
     }
 
     public boolean validateToken(String token) {
         try {
+            if (token == null || token.isEmpty()) {
+                return false;
+            }
+
             // Parse token
             String[] parts = token.split("\\.");
             if (parts.length != 3) {
@@ -242,12 +123,12 @@ public class JwtService {
             String payload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
             
             // Check expiration
-            if (jwtConfig.verify().expiresAt() && payload.contains("\"exp\"")) {
+            if (payload.contains("\"exp\"")) {
                 String expStr = payload.replaceAll(".*\"exp\":(\\d+).*", "$1");
                 try {
                     long exp = Long.parseLong(expStr);
                     if (Instant.now().isAfter(Instant.ofEpochSecond(exp))) {
-                        return false; // Token expired
+                        return false;
                     }
                 } catch (NumberFormatException e) {
                     return false;
@@ -260,8 +141,49 @@ public class JwtService {
         }
     }
 
-    public Object getClaim(JwtClaim claim, String token) {
-        Map<String, Object> claims = extractClaims(token);
-        return claims.get(claim.getKey());
+    public User extractUserFromToken(String token) {
+        TokenClaims claims = parseClaims(token);
+        
+        User user = new User();
+        user.id = new ObjectId(claims.userId());
+        user.setEmail(claims.email());
+        user.setRoles(claims.roles());
+        
+        return user;
+    }
+
+    public String getUserIdFromToken(String token) {
+        TokenClaims claims = parseClaims(token);
+        return claims.userId();
+    }
+
+    private String extractStringClaim(String payload, String claimName) {
+        String regex = "\"" + claimName + "\"\\s*:\\s*\"([^\"]*)\"";
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(regex).matcher(payload);
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private Long extractLongClaim(String payload, String claimName) {
+        String regex = "\"" + claimName + "\"\\s*:\\s*(\\d+)";
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(regex).matcher(payload);
+        return matcher.find() ? Long.parseLong(matcher.group(1)) : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> extractListClaim(String payload, String claimName) {
+        String regex = "\"" + claimName + "\"\\s*:\\s*\\[([^\\]]*)\\]";
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(regex).matcher(payload);
+        if (matcher.find()) {
+            String listContent = matcher.group(1);
+            // Parse array elements
+            java.util.regex.Pattern elementPattern = java.util.regex.Pattern.compile("\"([^\"]*)\"");
+            java.util.regex.Matcher elementMatcher = elementPattern.matcher(listContent);
+            java.util.List<String> result = new java.util.ArrayList<>();
+            while (elementMatcher.find()) {
+                result.add(elementMatcher.group(1));
+            }
+            return result;
+        }
+        return null;
     }
 }

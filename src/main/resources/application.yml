@@ -33,11 +33,15 @@ quarkus:
         title: ${QUARKUS_SMALLRYE_OPENAPI_INFO_TITLE:Psych API}
         version: ${QUARKUS_SMALLRYE_OPENAPI_INFO_VERSION:1.0.0-SNAPSHOT}
 
+    # SmallRye JWT configuration (required for JWT signing)
+    # Using shared secret for simplicity (HS256 algorithm)
+    jwt:
+      sign:
+        secret: ${JWT_SECRET:VWVyeVNlY3JldEtleUZvckpXVFNpZ25pbmdQdXJwb3Nlc09ubHkxMjM0NTY3ODk=}
+
 # =============================================================================
-# JWT SECURITY CONFIGURATION
+# JWT SECURITY CONFIGURATION (Custom 'jwt' prefix untuk aplikasi kita)
 # =============================================================================
-# Note: Using custom 'jwt' prefix instead of 'quarkus.smallrye.jwt'
-# because the latter is reserved for Quarkus smallrye-jwt extension
 jwt:
   # Token expiration in seconds
   # - Development: 604800 (7 days)
@@ -47,11 +51,6 @@ jwt:
 
   # Token issuer identifier
   issuer: ${JWT_ISSUER:psych-api}
-
-  # RSA signing key location (relative to src/main/resources)
-  sign:
-    key:
-      location: ${JWT_SIGN_KEY_LOCATION:keys/privateKey.pem}
 
   # Enable expiration verification
   verify:

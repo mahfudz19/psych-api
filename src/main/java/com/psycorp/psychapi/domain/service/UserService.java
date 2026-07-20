@@ -221,7 +221,7 @@ public class UserService {
         }
     }
 
-    public User login(String email, String password) {
+    public User authenticate(String email, String password) {
         // 1. Find user by email
         User user = User.find("email", email).firstResult();
         
@@ -296,6 +296,11 @@ public class UserService {
         user.update();
         
         return user;
+    }
+
+    @Deprecated
+    public User login(String email, String password) {
+        return authenticate(email, password);
     }
 
     public void logout(String userId) {

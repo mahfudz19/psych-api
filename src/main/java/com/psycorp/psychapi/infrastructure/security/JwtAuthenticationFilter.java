@@ -2,6 +2,7 @@ package com.psycorp.psychapi.infrastructure.security;
 
 import java.io.IOException;
 import java.security.Principal;
+import java.util.List;
 
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
@@ -55,7 +56,8 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
         }
 
         // Extract claims
-        String userId = jwtService.getClaim(JwtService.JwtClaim.USER_ID, token).toString();
+        String userId = jwtService.getUserIdFromToken(token);
+        JwtService.TokenClaims claims = jwtService.parseClaims(token);
 
         // Create SecurityContext with authenticated user
         final SecurityContext originalSecurityContext = requestContext.getSecurityContext();
@@ -74,8 +76,7 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
             @Override
             public boolean isUserInRole(String role) {
                 // Check if user has the specified role
-                @SuppressWarnings("unchecked")
-                java.util.List<String> roles = (java.util.List<String>) jwtService.getClaim(JwtService.JwtClaim.ROLES, token);
+                List<String> roles = claims.roles();
                 return roles != null && roles.contains(role);
             }
 

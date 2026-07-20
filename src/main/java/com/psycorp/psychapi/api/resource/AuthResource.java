@@ -10,16 +10,17 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import com.psycorp.psychapi.api.dto.AuthRequests.LoginRequest;
 import com.psycorp.psychapi.api.dto.AuthRequests.RegisterRequest;
 import com.psycorp.psychapi.common.helper.ResponseHelper;
-import com.psycorp.psychapi.common.response.ApiResponse;
 import com.psycorp.psychapi.config.JwtConfig;
 import com.psycorp.psychapi.domain.model.User;
-import com.psycorp.psychapi.domain.service.UserService;
-import com.psycorp.psychapi.infrastructure.security.JwtService;
+import com.psycorp.psychapi.domain.service.AuthService;
+import com.psycorp.psychapi.domain.service.AuthService.AuthenticationResult;
 
 import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -32,27 +33,24 @@ import jakarta.ws.rs.core.SecurityContext;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Authentication", description = "API untuk authentication dan authorization")
-@PermitAll
 public class AuthResource {
 
     @Inject
-    UserService userService;
-
-    @Inject
-    JwtService jwtService;
+    AuthService authService;
 
     @Inject
     JwtConfig jwtConfig;
 
     @POST
     @Path("/register")
+    @PermitAll
     @Operation(summary = "Register user baru", description = "Membuat akun user baru (individual atau organization owner)")
     @APIResponse(
         responseCode = "201",
         description = "Registration successful",
         content = @Content(
             mediaType = "application/json",
-            schema = @Schema(implementation = ApiResponse.class),
+            schema = @Schema(implementation = com.psycorp.psychapi.common.response.ApiResponse.class),
             examples = {
                 @ExampleObject(
                     name = "RegistrationSuccess",
@@ -83,7 +81,7 @@ public class AuthResource {
     )
     public Response register(@Valid RegisterRequest request) {
         // Register user
-        User user = userService.register(
+        AuthenticationResult result = authService.register(
             request.email(),
             request.password(),
             request.fullName(),
@@ -95,24 +93,24 @@ public class AuthResource {
             request.invitationRole()
         );
         
-        // Generate JWT token berdasarkan account type
-        String token = jwtService.generateToken(user, request.accountType());
-        
-        return ResponseHelper.authenticationSuccess(user, token, jwtConfig.expiresIn(), "Registration successful");
+        return ResponseHelper.authenticationSuccess(
+            result.user(), 
+            result.token(), 
+            jwtConfig.expiresIn(), 
+            "Registration successful"
+        );
     }
 
-    // ============================================================================
-    // 1.2 POST /auth/login - Authenticate user dan mendapatkan JWT token
-    // ============================================================================
     @POST
     @Path("/login")
+    @PermitAll
     @Operation(summary = "Login user", description = "Authenticate user dan mendapatkan JWT token")
     @APIResponse(
         responseCode = "200",
         description = "Login successful",
         content = @Content(
             mediaType = "application/json",
-            schema = @Schema(implementation = ApiResponse.class),
+            schema = @Schema(implementation = com.psycorp.psychapi.common.response.ApiResponse.class),
             examples = {
                 @ExampleObject(
                     name = "LoginSuccess",
@@ -143,32 +141,71 @@ public class AuthResource {
     )
     public Response login(@Valid LoginRequest request) {
         // Authenticate user
-        User user = userService.login(request.email(), request.password());
+        AuthenticationResult result = authService.login(request.email(), request.password());
         
-        // Generate JWT token with accountType from model (direct usage)
-        String token = jwtService.generateToken(user, user.getAccountType());
-        
-        // Return consistent response (same format as register)
         return ResponseHelper.authenticationSuccess(
-            user,
-            token,
+            result.user(),
+            result.token(),
             jwtConfig.expiresIn(),
             "Login successful"
         );
     }
 
-    // ============================================================================
-    // 1.4 POST /auth/logout - Logout user
-    // ============================================================================
+    @GET
+    @Path("/me")
+    @PermitAll
+    @Operation(summary = "Get current user", description = "Mengembalikan informasi user yang sedang login dari JWT token")
+    @APIResponse(
+        responseCode = "200",
+        description = "User info retrieved successfully",
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = com.psycorp.psychapi.common.response.ApiResponse.class),
+            examples = {
+                @ExampleObject(
+                    name = "GetUserSuccess",
+                    summary = "Get current user successful",
+                    value = """
+                    {
+                        "success": true,
+                        "data": {
+                            "id": "usr_123",
+                            "email": "user@example.com",
+                            "roles": ["USER"]
+                        }
+                    }
+                    """
+                )
+            }
+        )
+    )
+    @APIResponse(
+        responseCode = "401",
+        description = "Unauthorized - Invalid or missing token"
+    )
+    public Response getCurrentUser(@Context SecurityContext securityContext) {
+        // Check if user is authenticated
+        if (securityContext.getUserPrincipal() == null) {
+            return ResponseHelper.unauthorized("Authentication required");
+        }
+        
+        // Get user from database using userId dari SecurityContext
+        // userId sudah di-extract dari JWT token oleh JwtAuthenticationFilter
+        User user = authService.getCurrentUserFromToken(securityContext);
+        
+        return ResponseHelper.ok(user);
+    }
+
     @POST
     @Path("/logout")
+    @RolesAllowed("USER")
     @Operation(summary = "Logout user", description = "Logout user dan invalidate session")
     @APIResponse(
         responseCode = "200",
         description = "Logout successful",
         content = @Content(
             mediaType = "application/json",
-            schema = @Schema(implementation = ApiResponse.class),
+            schema = @Schema(implementation = com.psycorp.psychapi.common.response.ApiResponse.class),
             examples = {
                 @ExampleObject(
                     name = "LogoutSuccess",
@@ -188,7 +225,7 @@ public class AuthResource {
         String userId = securityContext.getUserPrincipal().getName();
         
         // Logout logic
-        userService.logout(userId);
+        authService.logout(userId);
         
         return ResponseHelper.ok("Logout successful");
     }
