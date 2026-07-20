@@ -1,5 +1,6 @@
 package com.psycorp.psychapi.infrastructure.exception;
 
+import java.util.Arrays;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -27,7 +28,8 @@ public class JsonProcessingExceptionMapper implements ExceptionMapper<JsonMappin
         String field = extractFieldName(e);
         
         // Create FieldError and pass as List (consistent with ValidationExceptionMapper)
-        List<FieldError> errors = List.of(new FieldError(field, message));
+        List<FieldError> errors = new java.util.ArrayList<>();
+        errors.add(new FieldError(field, message));
         return ResponseHelper.badRequest(message, errors);
     }
     
@@ -61,14 +63,18 @@ public class JsonProcessingExceptionMapper implements ExceptionMapper<JsonMappin
             return "Type mismatch: expected " + getExpectedType(e) + " but got different type";
         }
         
-        // Default message
-        String originalMsg = e.getOriginalMessage();
-        if (originalMsg != null && !originalMsg.isEmpty()) {
-            // Remove stack trace from message
-            return originalMsg.split(" at ")[0];
+        // Handle potential null message gracefully
+        if (e == null) {
+            return "Invalid JSON format";
         }
-        
-        return "Invalid JSON format";
+        if (e.getMessage() == null) {
+            return "Invalid JSON format";
+        }
+        if (e.getMessage().isEmpty()) {
+            return "Invalid JSON format";
+        }
+        int atIndex = e.getMessage().indexOf(" at ");
+        return atIndex > 0 ? e.getMessage().substring(0, atIndex) : e.getMessage();
     }
     
     /**
@@ -107,16 +113,19 @@ public class JsonProcessingExceptionMapper implements ExceptionMapper<JsonMappin
     /**
      * Get semua enum values sebagai array string.
      */
-    @SuppressWarnings("unchecked")
     private String[] getEnumValues(Class<?> targetType) {
-        if (targetType.isEnum()) {
-            Enum<?>[] enums = (Enum<?>[]) targetType.getEnumConstants();
-            String[] names = new String[enums.length];
-            for (int i = 0; i < enums.length; i++) {
-                names[i] = enums[i].name();
-            }
-            return names;
+        if (!targetType.isEnum()) {
+            return new String[0];
         }
-        return new String[0];
+        
+        Object[] constants = targetType.getEnumConstants();
+        if (constants == null) {
+            return new String[0];
+        }
+        
+        return Arrays.stream(constants)
+                .filter(e -> e != null)
+                .map(e -> ((Enum<?>) e).name())
+                .toArray(String[]::new);
     }
 }

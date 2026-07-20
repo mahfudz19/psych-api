@@ -2,7 +2,6 @@ package com.psycorp.psychapi.infrastructure.exception;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.psycorp.psychapi.common.helper.ResponseHelper;
@@ -27,7 +26,8 @@ public class InvalidFormatExceptionMapper implements ExceptionMapper<InvalidForm
         String field = extractFieldName(e);
         
         // Create FieldError and pass as List (consistent with other mappers)
-        List<FieldError> errors = List.of(new FieldError(field, message));
+        List<FieldError> errors = new java.util.ArrayList<>();
+        errors.add(new FieldError(field, message));
         return ResponseHelper.badRequest(message, errors);
     }
     
@@ -80,13 +80,18 @@ public class InvalidFormatExceptionMapper implements ExceptionMapper<InvalidForm
      * Get semua enum values sebagai array string.
      */
     private String[] getEnumValues(Class<?> targetType) {
-        if (targetType.isEnum()) {
-            Enum<?>[] enums = (Enum<?>[]) targetType.getEnumConstants();
-            return Arrays.stream(enums)
-                    .map(Enum::name)
-                    .collect(Collectors.toList())
-                    .toArray(new String[0]);
+        if (!targetType.isEnum()) {
+            return new String[0];
         }
-        return new String[0];
+        
+        Object[] constants = targetType.getEnumConstants();
+        if (constants == null) {
+            return new String[0];
+        }
+        
+        return Arrays.stream(constants)
+                .filter(e -> e != null)
+                .map(e -> ((Enum<?>) e).name())
+                .toArray(String[]::new);
     }
 }

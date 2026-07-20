@@ -63,8 +63,10 @@ public class JwtService {
                 
                 // Sign with HS256 using shared secret
                 .sign(algorithm);
-        } catch (io.smallrye.jwt.build.JwtSignatureException e) {
-            throw new RuntimeException("Failed to sign JWT token: " + e.getMessage() + ". Check your JWT signing key configuration.", e);
+        } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate JWT token: " + e.getMessage(), e);
         }
@@ -166,10 +168,13 @@ public class JwtService {
     private Long extractLongClaim(String payload, String claimName) {
         String regex = "\"" + claimName + "\"\\s*:\\s*(\\d+)";
         java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(regex).matcher(payload);
-        return matcher.find() ? Long.parseLong(matcher.group(1)) : null;
+        if (matcher.find()) {
+            String value = matcher.group(1);
+            return Long.valueOf(value);
+        }
+        return null;
     }
 
-    @SuppressWarnings("unchecked")
     private List<String> extractListClaim(String payload, String claimName) {
         String regex = "\"" + claimName + "\"\\s*:\\s*\\[([^\\]]*)\\]";
         java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(regex).matcher(payload);
@@ -187,3 +192,4 @@ public class JwtService {
         return null;
     }
 }
+
