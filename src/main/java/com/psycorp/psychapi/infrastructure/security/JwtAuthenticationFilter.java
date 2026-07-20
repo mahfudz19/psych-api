@@ -3,70 +3,48 @@ package com.psycorp.psychapi.infrastructure.security;
 import java.io.IOException;
 import java.security.Principal;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Priorities;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
+import jakarta.ws.rs.core.Cookie;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import jakarta.ws.rs.ext.Provider;
 
-/**
- * JWT Authentication Filter.
- *
- * Filter ini akan mengekstrak dan memvalidasi JWT token dari Authorization header
- * untuk endpoint yang memerlukan authentication.
- *
- * ### How It Works
- * 1. Extract Authorization header dari request
- * 2. Validasi format Bearer token
- * 3. Validate JWT token menggunakan {@link JwtService}
- * 4. Extract user ID dan roles dari token claims
- * 5. Set SecurityContext dengan authenticated user principal
- *
- * ### Token Format
- * Authorization header harus dalam format: `Bearer <jwt_token>`
- *
- * ### Error Responses
- * - **401 Unauthorized**: Token invalid atau expired
- * - **No token**: Request dilanjutkan tanpa authentication (endpoint public akan handle)
- *
- * ### Security Context
- * Setelah filter ini berhasil:
- * - `securityContext.getUserPrincipal().getName()` returns userId
- * - `securityContext.isUserInRole("ROLE")` checks role membership
- *
- * ### Priority
- * Filter ini berjalan dengan {@link Priorities#AUTHENTICATION} untuk memastikan
- * authentication dilakukan sebelum authorization checks.
- */
 @Provider
 @Priority(Priorities.AUTHENTICATION)
 public class JwtAuthenticationFilter implements ContainerRequestFilter {
 
     private static final String REALM = "JWT";
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String COOKIE_NAME = "auth_token";
 
     @Inject
     JwtService jwtService;
 
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
+        String token = null;
+
         // Get Authorization header
         String authHeader = requestContext.getHeaderString(HttpHeaders.AUTHORIZATION);
-
-        // Check if token exists
-        if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
-            // No token provided - let the endpoint handle authorization
-            // Some endpoints may be public (login, register, forgot-password)
-            return;
+        if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
+            token = authHeader.substring(BEARER_PREFIX.length());
+        } else {
+            Map<String, Cookie> cookies = requestContext.getCookies();
+            if (cookies != null && cookies.containsKey(COOKIE_NAME)) {
+                token = cookies.get(COOKIE_NAME).getValue();
+            }
         }
 
-        // Extract token
-        String token = authHeader.substring(BEARER_PREFIX.length());
+        if (token == null) {
+            return;
+        }
 
         // Validate token
         if (!jwtService.validateToken(token)) {

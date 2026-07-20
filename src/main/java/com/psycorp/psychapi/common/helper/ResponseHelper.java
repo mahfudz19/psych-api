@@ -49,7 +49,7 @@ public final class ResponseHelper {
         
         // Set cookie dengan token
         String cookieValue = String.format(
-            "token=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=Strict",
+            "auth_token=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=Strict",
             token, expiresIn
         );
         
@@ -68,7 +68,7 @@ public final class ResponseHelper {
         
         // Set cookie dengan token
         String cookieValue = String.format(
-            "token=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=Strict",
+            "auth_token=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=Strict",
             token, expiresIn
         );
         
