@@ -13,7 +13,7 @@ import jakarta.inject.Inject;
 public class SuperAdminService {
 
     @Inject
-    @ConfigProperty(name = "superadmin.emails", defaultValue = "admin@psychapi.com")
+    @ConfigProperty(name = "superadmin.emails", defaultValue = "admin@psycorp.com")
     String superAdminEmails;
 
     public boolean isSuperAdmin(String email) {

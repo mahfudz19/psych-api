@@ -341,23 +341,27 @@ public class AuthResource {
 
     @POST
     @Path("/logout")
-    @RolesAllowed("USER")
-    @SecurityRequirement(name = "Bearer")
+    @PermitAll
     @Operation(
         summary = "Logout user",
         description = """
-            Logout user dan invalidate session.
+            Logout user dan expire authentication cookie.
             
-            ### Authentication Required
-            Endpoint ini memerlukan JWT token yang valid di Authorization header.
+            ### How It Works
+            - Endpoint ini akan meng-expire cookie `auth_token` di client
+            - Browser akan otomatis menghapus cookie yang expired
+            - User harus login ulang untuk mendapatkan token baru
             
-            ### What Happens
-            - Token akan di-invalidate (jika ada token blacklist mechanism)
-            - Client harus login ulang untuk mendapatkan token baru
+            ### Authentication
+            Endpoint ini dapat diakses meskipun token invalid/expired (@PermitAll).
+            Jika token valid, server akan melakukan cleanup (audit trail).
+            Jika token invalid/expired, cookie tetap di-expire untuk keamanan.
             
-            ### Note
-            Saat ini logout bersifat client-side (hapus token dari client).
-            Server-side token invalidation akan diimplementasikan di masa depan.
+            ### Cookie Expiry
+            Response akan include `Set-Cookie` header dengan:
+            - `auth_token=` (empty value)
+            - `Max-Age=0` (immediate expiry)
+            - `Path=/` (same path as login)
             """
     )
     @APIResponse(
@@ -369,7 +373,7 @@ public class AuthResource {
             examples = {
                 @ExampleObject(
                     name = "LogoutSuccess",
-                    summary = "Logout successful",
+                    summary = "Logout successful with expired cookie",
                     value = """
                     {
                         "success": true,
@@ -383,10 +387,6 @@ public class AuthResource {
                 )
             }
         )
-    )
-    @APIResponse(
-        responseCode = "401",
-        description = "Unauthorized - Invalid or missing JWT token"
     )
     public Response logout(@Context SecurityContext securityContext) {
         // Extract userId jika token valid (untuk audit trail jika perlu)

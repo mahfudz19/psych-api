@@ -132,4 +132,4 @@ jwt:
     expires-at: ${JWT_VERIFY_EXPIRES_AT:true}
 
 superadmin:
-  emails: ${SUPERADMIN_EMAILS:admin@psychapi.com}
+  emails: ${SUPERADMIN_EMAILS:admin@psycorp.com}
