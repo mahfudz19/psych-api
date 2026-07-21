@@ -18,10 +18,11 @@ public interface JwtConfig {
 
     Verify verify();
 
+    
     interface SignKey {
-        @WithName("key.location")
-        @WithDefault("keys/privateKey.pem")
-        String keyLocation();
+        @WithName("secret")
+        @WithDefault("your-super-secret-key-at-least-32-chars")
+        String secret();
     }
 
     interface Verify {

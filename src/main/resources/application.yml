@@ -117,28 +117,19 @@ quarkus:
       # OpenAPI document paths
       path: ${QUARKUS_SMALLRYE_OPENAPI_PATH:/api/openapi}
 
-    # SmallRye JWT configuration (required for JWT signing)
-    # Using shared secret for simplicity (HS256 algorithm)
-    jwt:
-      sign:
-        secret: ${JWT_SECRET:VWVyeVNlY3JldEtleUZvckpXVFNpZ25pbmdQdXJwb3Nlc09ubHkxMjM0NTY3ODk=}
-
 jwt:
-  # Token expiration in seconds
-  # - Development: 604800 (7 days)
-  # - Staging: 86400 (1 day)
-  # - Production: 3600 (1 hour)
   expires-in: ${JWT_EXPIRES_IN:604800}
 
   # Token issuer identifier
   issuer: ${JWT_ISSUER:psych-api}
 
+  # Signing secret (HS256)
+  sign:
+    secret: ${JWT_SECRET:your-super-secret-key-at-least-32-chars}
+
   # Enable expiration verification
   verify:
     expires-at: ${JWT_VERIFY_EXPIRES_AT:true}
 
-security:
-  bcrypt:
-    # Work factor: 10-12 recommended
-    # Higher = more secure but slower
-    rounds: ${BCRYPT_ROUNDS:10}
+superadmin:
+  emails: ${SUPERADMIN_EMAILS:admin@psychapi.com}

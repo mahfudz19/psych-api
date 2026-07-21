@@ -25,11 +25,12 @@ public class JwtService {
         String userId,
         String email,
         List<String> roles,
+        Boolean isSuperAdmin,
         Instant issuedAt,
         Instant expiresAt
     ) {}
 
-    public String generateToken(User user) {
+    public String generateToken(User user, boolean isSuperAdmin) {
         if (user == null) {
             throw new IllegalArgumentException("User cannot be null");
         }
@@ -42,15 +43,8 @@ public class JwtService {
             Instant now = Instant.now();
             Instant expiry = now.plusSeconds(jwtConfig.expiresIn());
 
-            // Get secret from environment or use default
-            String secret = System.getenv("JWT_SECRET");
-            if (secret == null || secret.isEmpty()) {
-                secret = "PsychApiSuperSecretKeyForJWTSigning2024!ChangeThisInProduction";
-            }
-
-            Algorithm algorithm = Algorithm.HMAC256(secret);
-            
-            return JWT.create()
+            Algorithm algorithm = Algorithm.HMAC256(jwtConfig.sign().secret());
+            var jwtCreator = JWT.create()
                 // Standard claims (RFC 7519)
                 .withIssuer(jwtConfig.issuer())
                 .withSubject(user.id.toHexString())
@@ -59,10 +53,13 @@ public class JwtService {
                 
                 // Essential custom claims
                 .withClaim("email", user.getEmail())
-                .withClaim("roles", user.getRoles())
-                
-                // Sign with HS256 using shared secret
-                .sign(algorithm);
+                .withClaim("roles", user.getRoles());
+
+            if (isSuperAdmin) {
+                jwtCreator.withClaim("isSuperAdmin", true);
+            }
+
+            return jwtCreator.sign(algorithm);
         } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
             throw e;
         } catch (RuntimeException e) {
@@ -70,6 +67,10 @@ public class JwtService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate JWT token: " + e.getMessage(), e);
         }
+    }
+
+    public String generateToken(User user) {
+        return generateToken(user, false);
     }
 
     public TokenClaims parseClaims(String token) {
@@ -93,13 +94,15 @@ public class JwtService {
             List<String> roles = extractListClaim(payload, "roles");
             Long issuedAt = extractLongClaim(payload, "iat");
             Long expiresAt = extractLongClaim(payload, "exp");
+            Boolean isSuperAdmin = extractBooleanClaim(payload, "isSuperAdmin");
 
             // Validate expiration
-            if (expiresAt != null && Instant.now().isAfter(Instant.ofEpochSecond(expiresAt))) {
+            if (jwtConfig.verify().expiresAt() && expiresAt != null && Instant.now().isAfter(Instant.ofEpochSecond(expiresAt))) {
                 throw new ValidationException("TOKEN_EXPIRED", "JWT token has expired");
             }
 
-            return new TokenClaims(userId, email, roles, 
+            return new TokenClaims(userId, email, roles,
+                isSuperAdmin != null ? isSuperAdmin : false,
                 issuedAt != null ? Instant.ofEpochSecond(issuedAt) : null,
                 expiresAt != null ? Instant.ofEpochSecond(expiresAt) : null);
         } catch (ValidationException e) {
@@ -191,5 +194,10 @@ public class JwtService {
         }
         return null;
     }
-}
 
+    private Boolean extractBooleanClaim(String payload, String claimName) {
+        String regex = "\"" + claimName + "\"\\s*:\\s*(true|false)";
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(regex).matcher(payload);
+        return matcher.find() ? Boolean.valueOf(matcher.group(1)) : null;
+    }
+}

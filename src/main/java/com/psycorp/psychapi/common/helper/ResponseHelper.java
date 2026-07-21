@@ -118,4 +118,12 @@ public final class ResponseHelper {
                 .entity(ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, message))
                 .build();
     }
+
+    public static Response logoutSuccess(String message) {
+    String cookieValue = "auth_token=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict";
+    
+    return Response.ok(ApiResponse.success(null, message))
+            .header("Set-Cookie", cookieValue)
+            .build();
+}
 }

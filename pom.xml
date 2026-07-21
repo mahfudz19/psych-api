@@ -30,13 +30,7 @@
         </dependencies>
     </dependencyManagement>
 
-    <dependencies>
-        <!-- JWT Authentication -->
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-smallrye-jwt-build</artifactId>
-        </dependency>
-        
+    <dependencies>        
         <!-- Auth0 Java JWT for manual signing -->
         <dependency>
             <groupId>com.auth0</groupId>

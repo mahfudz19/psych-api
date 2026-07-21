@@ -13,7 +13,6 @@ import com.psycorp.psychapi.api.dto.AuthRequests.LoginRequest;
 import com.psycorp.psychapi.api.dto.AuthRequests.RegisterRequest;
 import com.psycorp.psychapi.common.helper.ResponseHelper;
 import com.psycorp.psychapi.common.response.ApiResponse;
-import com.psycorp.psychapi.config.JwtConfig;
 import com.psycorp.psychapi.domain.model.User;
 import com.psycorp.psychapi.domain.service.AuthService;
 import com.psycorp.psychapi.domain.service.AuthService.AuthenticationResult;
@@ -40,9 +39,6 @@ public class AuthResource {
 
     @Inject
     AuthService authService;
-
-    @Inject
-    JwtConfig jwtConfig;
 
     @POST
     @Path("/register")
@@ -164,9 +160,9 @@ public class AuthResource {
         );
         
         return ResponseHelper.authenticationSuccess(
-            result.user(), 
-            result.token(), 
-            jwtConfig.expiresIn(), 
+            result.user(),
+            result.token(),
+            result.expiresIn(),
             "Registration successful"
         );
     }
@@ -260,7 +256,7 @@ public class AuthResource {
         return ResponseHelper.authenticationSuccess(
             result.user(),
             result.token(),
-            jwtConfig.expiresIn(),
+            result.expiresIn(),
             "Login successful"
         );
     }
@@ -393,12 +389,17 @@ public class AuthResource {
         description = "Unauthorized - Invalid or missing JWT token"
     )
     public Response logout(@Context SecurityContext securityContext) {
-        // Extract userId dari authenticated context (JWT token)
-        String userId = securityContext.getUserPrincipal().getName();
+        // Extract userId jika token valid (untuk audit trail jika perlu)
+        String userId = null;
+        if (securityContext.getUserPrincipal() != null) {
+            userId = securityContext.getUserPrincipal().getName();
+        }
         
-        // Logout logic
-        authService.logout(userId);
+        // Server-side cleanup (optional, untuk audit trail)
+        if (userId != null) {
+            authService.logout(userId);
+        }
         
-        return ResponseHelper.ok("Logout successful");
+        return ResponseHelper.logoutSuccess("Logout successful");
     }
 }
