@@ -366,8 +366,11 @@ public class UserSeeder {
         System.out.println("✓ Created: Organization Member (referralCode: " + orgMember.getReferralCode() + ", referredBy: orgAdmin, inviteCode: " + orgMember.getInviteCode() + ")");
 
         // ==========================================
-        // ADMIN USER (Platform Administrator)
+        // SUPERADMIN USER (Platform Administrator)
         // ==========================================
+        // Note: This user will have superadmin access via SUPERADMIN_EMAILS environment variable.
+        // The email "admin@psycorp.com" is included in SUPERADMIN_EMAILS by default.
+        // No need to set ADMIN role - superadmin access is granted via JWT claim isSuperAdmin.
 
         User adminUser = User.create(
             "admin@psycorp.com",
@@ -379,11 +382,11 @@ public class UserSeeder {
         );
         adminUser.setPhone("+6281234567899");
         adminUser.setBio("Super Admin PsychCorp Platform");
-        adminUser.setRoles(List.of("USER", "ADMIN"));
+        adminUser.setRoles(List.of("USER"));  // Only USER role - superadmin access via env variable
         adminUser.setSubscriptionTier("enterprise");
         adminUser.setStatus("active");
         adminUser.persist();
-        System.out.println("✓ Created: Platform Administrator (referralCode: " + adminUser.getReferralCode() + ")");
+        System.out.println("✓ Created: Platform Administrator (referralCode: " + adminUser.getReferralCode() + ", superadmin via SUPERADMIN_EMAILS)");
 
         // ==========================================
         // SUMMARY
