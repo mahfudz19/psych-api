@@ -29,7 +29,7 @@ public class User extends PanacheMongoEntity {
     private String gender; // "male", "female"
 
     // === SYSTEM ROLES ===
-    private List<String> roles; // ["USER"], ["ADMIN"], ["ORGANIZATION"]
+    private List<String> roles; // ["USER"], ["ORGANIZATION"]
     
     // === ORGANIZATION RELATIONSHIP ===
     private ObjectId organizationId; // FK to organizations (nullable)
@@ -243,16 +243,32 @@ public class User extends PanacheMongoEntity {
         return user;
     }
 
+    /**
+     * Generate unique referral code from email and timestamp.
+     * Format: 3 chars prefix + 5 digits timestamp + 3 digits random
+     * Example: IND73914X52
+     *
+     * @param email user email
+     * @param createdAt creation timestamp
+     * @return unique 11-character referral code
+     */
     private static String generateReferralCode(String email, Instant createdAt) {
         if (email == null || email.isEmpty()) {
-            return "USR" + createdAt.getEpochSecond();
+            return "USR" + createdAt.getEpochSecond() + (int)(Math.random() * 1000);
         }
         
-        String prefix = email.substring(0, Math.min(3, email.length())).toUpperCase();
-        String timestamp = String.valueOf(createdAt.getEpochSecond());
-        String suffix = timestamp.length() > 6 ? timestamp.substring(timestamp.length() - 6) : timestamp;
+        // Extract first 3 alphabetic characters for prefix
+        String alphaOnly = email.replaceAll("[^a-zA-Z]", "");
+        String prefix = alphaOnly.substring(0, Math.min(3, alphaOnly.length())).toUpperCase();
         
-        return prefix + suffix;
+        // Use last 5 digits of timestamp
+        String timestamp = String.valueOf(createdAt.getEpochSecond());
+        String timeSuffix = timestamp.length() > 5 ? timestamp.substring(timestamp.length() - 5) : timestamp;
+        
+        // Add 3-digit random number for uniqueness (000-999)
+        String randomSuffix = String.format("%03d", (int)(Math.random() * 1000));
+        
+        return prefix + timeSuffix + randomSuffix;
     }
     
     public void executeUpdate(Bson update) {

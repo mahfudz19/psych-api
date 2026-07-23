@@ -36,8 +36,24 @@ public class UserSeeder {
         long orgCount = Organization.count();
         
         if (userCount > 0 || orgCount > 0) {
-            System.out.println("Seed already exists. Skipping user & organization seeding.");
-            return;
+            System.out.println("⚠️  Existing data found. Clearing old data before seeding...");
+            
+            // Clear existing data to avoid duplicate key errors
+            // This ensures clean slate for development
+            try {
+                // Delete all users first (organizations reference users)
+                User.deleteAll();
+                System.out.println("✅ Cleared " + userCount + " existing users");
+                
+                // Delete all organizations
+                Organization.deleteAll();
+                System.out.println("✅ Cleared " + orgCount + " existing organizations");
+                
+            } catch (Exception e) {
+                System.out.println("❌ Error clearing data: " + e.getMessage());
+                System.out.println("⚠️  Skipping seeding to avoid data corruption");
+                return;
+            }
         }
 
         System.out.println("Starting user & organization seeding...");
@@ -398,12 +414,12 @@ public class UserSeeder {
         System.out.println("Total Users: " + User.count());
         System.out.println("Total Organizations: " + Organization.count());
         System.out.println("\n📊 User Breakdown:");
-        System.out.println("  - Individual Free: 1 (referralCode: " + individualFree.getReferralCode() + ", totalReferrals: " + individualFree.getTotalReferrals() + ")");
-        System.out.println("  - Individual Premium: 1 (referralCode: " + individualPremium.getReferralCode() + ", referredBy: individualFree, totalReferrals: " + individualPremium.getTotalReferrals() + ")");
+        System.out.println("  - Individual Free: 1 (referralCode: " + individualFree.getReferralCode() + ")");
+        System.out.println("  - Individual Premium: 1 (referralCode: " + individualPremium.getReferralCode() + ", referredBy: individualFree)");
         System.out.println("  - Individual Enterprise: 1 (referralCode: " + individualEnterprise.getReferralCode() + ", referredBy: individualPremium)");
         System.out.println("  - Organization Owners: 4 (Trial, Free, Pro, Enterprise)");
-        System.out.println("  - Organization Admin: 1 (referralCode: " + orgAdmin.getReferralCode() + ", referredBy: orgOwnerPro, inviteCode: " + orgAdmin.getInviteCode() + ")");
-        System.out.println("  - Organization Member: 1 (referralCode: " + orgMember.getReferralCode() + ", referredBy: orgAdmin, inviteCode: " + orgMember.getInviteCode() + ")");
+        System.out.println("  - Organization Admin: 1 (referralCode: " + orgAdmin.getReferralCode() + ", referredBy: orgOwnerPro)");
+        System.out.println("  - Organization Member: 1 (referralCode: " + orgMember.getReferralCode() + ", referredBy: orgAdmin)");
         System.out.println("  - Platform Admin: 1");
         System.out.println("\n🏢 Organizations:");
         System.out.println("  - PT Startup Trial (free_trial)");
@@ -413,8 +429,6 @@ public class UserSeeder {
         System.out.println("\n🔗 Referral Chain:");
         System.out.println("  individualFree → individualPremium → individualEnterprise");
         System.out.println("  orgOwnerPro → orgAdmin → orgMember");
-        System.out.println("\n📨 Invitation System:");
-        System.out.println("  orgOwnerPro (inviteCode: INV-PRO-ABC123) → orgAdmin, orgMember");
         System.out.println("========================================\n");
     }
 }

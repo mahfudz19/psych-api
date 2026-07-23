@@ -23,7 +23,12 @@ quarkus:
   log:
     level: ${LOG_LEVEL:INFO}
     console:
-      json: ${LOG_CONSOLE_JSON:false}
+      json: ${LOG_CONSOLE_JSON:true}
+    category:
+      "com.psycorp.psychapi.domain.service.ReferralService":
+        level: ${LOG_LEVEL_REFERRAL:INFO}
+      "com.psycorp.psychapi.infrastructure.ratelimit.RateLimitService":
+        level: ${LOG_LEVEL_RATELIMIT:WARN}
 
   profile: ${QUARKUS_PROFILE:dev}
 

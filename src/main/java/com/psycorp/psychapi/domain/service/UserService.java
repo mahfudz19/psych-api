@@ -22,18 +22,22 @@ import com.psycorp.psychapi.infrastructure.security.PasswordEncoder;
 
 import io.quarkus.mongodb.panache.PanacheQuery;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 @ApplicationScoped
 public class UserService {
 
     // Fields yang bisa di-search untuk User
     private static final String[] SEARCH_FIELDS = {"email", "fullName", "phone", "bio"};
+    
+    @Inject
+    ReferralService referralService;
 
     public List<User> getAllUsers(String search, String filter, String sortBy, String sortOrder, int page, int limit) {
         // 1. Build search filter pada email, fullName, phone, dan bio
         Bson searchFilter = SearchBuilder.build(search, SEARCH_FIELDS);
         
-        // 2. Parse custom filter (contoh: "status:active", "roles:in:USER,ADMIN")
+        // 2. Parse custom filter (contoh: "status:active", "roles:in:USER,ORGANIZATION")
         Bson customFilter = FilterParser.parse(filter);
         
         // 3. Combine semua filters dengan $and
@@ -94,16 +98,13 @@ public class UserService {
                 "Email '" + email + "' is already registered");
         }
         
-        // 3. Validate referralCode (FAIL FAST - throw jika tidak ditemukan)
+        // 3. Validate referralCode using ReferralService (FAIL FAST - throw jika tidak ditemukan)
         User referrer = null;
         if (referralCode != null && !referralCode.isEmpty()) {
-            referrer = validateReferralCode(referralCode);
+            referrer = referralService.validateReferralCode(referralCode, null);
             
             // Prevent self-referral
-            if (referrer.getEmail().equals(email)) {
-                throw new ValidationException("INVALID_REFERRAL",
-                    "Cannot use your own referral code");
-            }
+            referralService.checkSelfReferral(referrer, email);
         }
         
         // 4. Determine inviter: inviteCode OR direct add
@@ -181,13 +182,11 @@ public class UserService {
         return user;
     }
 
+    // Note: validateReferralCode now delegated to ReferralService
+    // This method is kept for backward compatibility if needed elsewhere
+    @Deprecated
     private User validateReferralCode(String referralCode) {
-        User referrer = User.find("referralCode", referralCode).firstResult();
-        if (referrer == null) {
-            throw new ValidationException("INVALID_REFERRAL_CODE",
-                "Referral code '" + referralCode + "' is not valid");
-        }
-        return referrer;
+        return referralService.validateReferralCode(referralCode, null);
     }
 
     private User validateInviteCode(String inviteCode) {

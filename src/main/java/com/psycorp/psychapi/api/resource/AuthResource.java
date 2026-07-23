@@ -336,7 +336,7 @@ public class AuthResource {
         // userId sudah di-extract dari JWT token oleh JwtAuthenticationFilter
         User user = authService.getCurrentUserFromToken(securityContext);
         
-        return ResponseHelper.ok(user);
+        return ResponseHelper.ok(user, "User profile retrieved successfully");
     }
 
     @POST
