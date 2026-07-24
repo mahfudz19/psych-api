@@ -2,9 +2,12 @@ package com.psycorp.psychapi.domain.model;
 
 import java.time.Instant;
 
+import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 
 import io.quarkus.mongodb.panache.PanacheMongoEntity;
 import io.quarkus.mongodb.panache.common.MongoEntity;
@@ -90,4 +93,19 @@ public class Organization extends PanacheMongoEntity {
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
     public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
+
+    /**
+     * Execute partial update dengan Bson update document.
+     * Otomatis menambahkan updatedAt timestamp.
+     *
+     * @param update Bson update document
+     */
+    public void executeUpdate(Bson update) {
+        Bson updateWithTimestamp = Updates.combine(
+            update,
+            Updates.set("updatedAt", Instant.now())
+        );
+
+        Organization.mongoCollection().updateOne(Filters.eq("_id", this.id), updateWithTimestamp);
+    }
 }

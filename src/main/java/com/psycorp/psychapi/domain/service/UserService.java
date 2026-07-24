@@ -27,6 +27,9 @@ import jakarta.inject.Inject;
 @ApplicationScoped
 public class UserService {
 
+    @Inject
+    OrganizationService organizationService;
+
     // Fields yang bisa di-search untuk User
     private static final String[] SEARCH_FIELDS = {"email", "fullName", "phone", "bio"};
     
@@ -168,6 +171,11 @@ public class UserService {
         
         // 8. Persist user BARU ke database (sekali saja, tanpa update)
         user.persist();
+        
+        // 9. Jika accountType ORGANIZATION dan bukan invitation, create initial organization
+        if (accountType == AccountType.ORGANIZATION && inviter == null) {
+            organizationService.createInitialOrganization(user);
+        }
         
         // 9. Update stats referrer LAMA
         if (referrer != null) {

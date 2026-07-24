@@ -36,12 +36,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
-/**
- * REST Resource untuk referral management.
- * Menyediakan endpoints untuk regenerate, validate, dan查看 referral codes.
- * 
- * @author Architect
- */
 @Path("/api/v1/referral")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -353,10 +347,7 @@ public class ReferralResource {
 
         return ResponseHelper.ok(stats, "Referral statistics retrieved successfully");
     }
-    
-    /**
-     * Mask code untuk security (show only first 3 chars).
-     */
+
     private String maskCode(String code) {
         if (code == null || code.isEmpty()) {
             return "***";
