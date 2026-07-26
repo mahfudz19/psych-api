@@ -11,7 +11,6 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-import com.psycorp.psychapi.api.dto.OrganizationMemberRequests.InviteMemberRequest;
 import com.psycorp.psychapi.api.dto.OrganizationMemberRequests.MembersListRequest;
 import com.psycorp.psychapi.api.dto.OrganizationMemberRequests.RemoveMemberRequest;
 import com.psycorp.psychapi.api.dto.OrganizationMemberRequests.UpdateMemberRoleRequest;
@@ -171,84 +170,6 @@ public class OrganizationMemberResource {
         User member = memberService.getMemberById(orgId, memberId, userId);
 
         return ResponseHelper.ok(member, "Member retrieved successfully");
-    }
-
-    /**
-     * Invite member baru ke organization.
-     * Hanya owner dan admin yang bisa invite.
-     *
-     * @param orgId Organization ID
-     * @param request Invite request body
-     * @param securityContext Security context
-     * @return Response dengan data user yang diinvite
-     */
-    @POST
-    @Path("/invite")
-    @RolesAllowed("USER")
-    @SecurityRequirement(name = "Bearer")
-    @Operation(
-        summary = "Invite new member",
-        description = """
-            Menginvite member baru ke organization dengan email.
-            
-            ### Authorization
-            Hanya owner atau admin yang bisa invite member baru.
-            
-            ### Request
-            - **email**: Email user yang diinvite (required)
-            - **role**: Role yang ditawarkan, "member" atau "admin" (required)
-            - **message**: Pesan personal (optional)
-            """
-    )
-    @RequestBody(
-        description = "Invite member request",
-        required = true,
-        content = @Content(
-            schema = @Schema(implementation = InviteMemberRequest.class),
-            examples = {
-                @ExampleObject(
-                    name = "InviteMember",
-                    summary = "Invite new member",
-                    value = """
-                    {
-                        "email": "newmember@example.com",
-                        "role": "member",
-                        "message": "Welcome to our team!"
-                    }
-                    """
-                )
-            }
-        )
-    )
-    @APIResponse(
-        responseCode = "201",
-        description = "Member invited successfully",
-        content = @Content(
-            mediaType = "application/json",
-            schema = @Schema(implementation = ApiResponse.class)
-        )
-    )
-    @APIResponse(
-        responseCode = "400",
-        description = "Validation error"
-    )
-    @APIResponse(
-        responseCode = "403",
-        description = "Forbidden - Only owner or admin can invite members"
-    )
-    @APIResponse(
-        responseCode = "409",
-        description = "Email is already a member"
-    )
-    public Response inviteMember(
-            @PathParam("orgId") String orgId,
-            @Valid InviteMemberRequest request,
-            @Context SecurityContext securityContext) {
-        String userId = getUserIdFromSecurityContext(securityContext);
-
-        User invitedUser = memberService.inviteMember(orgId, userId, request);
-
-        return ResponseHelper.created(invitedUser, "Member invited successfully");
     }
 
     /**

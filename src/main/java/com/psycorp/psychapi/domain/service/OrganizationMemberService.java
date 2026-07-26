@@ -7,7 +7,6 @@ import java.util.UUID;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import com.psycorp.psychapi.api.dto.OrganizationMemberRequests.InviteMemberRequest;
 import com.psycorp.psychapi.api.dto.OrganizationMemberRequests.MembersListRequest;
 import com.psycorp.psychapi.api.dto.OrganizationMemberRequests.UpdateMemberRoleRequest;
 import com.psycorp.psychapi.common.util.FilterCombiner;
@@ -136,85 +135,7 @@ public class OrganizationMemberService {
 
         return user;
     }
-
-    /**
-     * Invite member baru ke organization.
-     * Jika email sudah terdaftar dan belum punya organization, set invitation fields.
-     * Jika email belum terdaftar, create placeholder user dengan invitation status pending.
-     *
-     * @param orgId Organization ID
-     * @param inviterId User ID yang menginvite
-     * @param request Invite request
-     * @return User yang diinvite
-     */
-    public User inviteMember(String orgId, String inviterId, InviteMemberRequest request) {
-        // 1. Validate organization exists dan inviter punya akses
-        Organization organization = organizationService.getOrganizationById(orgId);
-        organizationService.validateOrganizationAccess(organization, inviterId, "owner", "admin");
-
-        // 2. Validate role
-        validateMemberRole(request.role());
-
-        // 3. Check apakah email sudah menjadi member organization ini
-        User existingMember = User.find("email", request.email().trim().toLowerCase()).firstResult();
-        if (existingMember != null && existingMember.getOrganizationId() != null
-                && existingMember.getOrganizationId().equals(organization.id)) {
-            throw new ValidationException("EMAIL_ALREADY_MEMBER",
-                "Email is already a member of this organization");
-        }
-
-        // 4. Check seats availability (skip untuk trial dengan seats = -1)
-        if (organization.getSeats() != null && organization.getSeats() > 0) {
-            int seatsUsed = organization.getSeatsUsed() != null ? organization.getSeatsUsed() : 0;
-            
-            if (seatsUsed >= organization.getSeats()) {
-                throw new ValidationException("SEATS_LIMIT_REACHED",
-                    "Organization has reached maximum member seats limit");
-            }
-        }
-
-        // 5. Generate invitation code
-        String inviteCode = generateInviteCode();
-
-        if (existingMember != null) {
-            // Email sudah terdaftar tapi belum di organization ini
-            // Update user dengan invitation info
-            existingMember.setInvitedBy(new ObjectId(inviterId));
-            existingMember.setInvitedOrganizationId(organization.id);
-            existingMember.setInvitationStatus("pending");
-            existingMember.setInvitationSentAt(Instant.now());
-            existingMember.setInvitationRole(request.role());
-            existingMember.setInviteCode(inviteCode);
-            existingMember.setUpdatedAt(Instant.now());
-            existingMember.update();
-
-            return existingMember;
-        }
-
-        // 6. Email belum terdaftar, buat placeholder user
-        User invitedUser = new User();
-        invitedUser.setEmail(request.email().trim().toLowerCase());
-        invitedUser.setFullName(request.email().split("@")[0]); // Default name dari email prefix
-        invitedUser.setProvider("invitation");
-        invitedUser.setRoles(List.of("USER"));
-        invitedUser.setStatus("active");
-        invitedUser.setAccountType(User.AccountType.INDIVIDUAL);
-        invitedUser.setInvitedBy(new ObjectId(inviterId));
-        invitedUser.setInvitedOrganizationId(organization.id);
-        invitedUser.setInvitationStatus("pending");
-        invitedUser.setInvitationSentAt(Instant.now());
-        invitedUser.setInvitationRole(request.role());
-        invitedUser.setInviteCode(inviteCode);
-        invitedUser.setCreatedAt(Instant.now());
-        invitedUser.setUpdatedAt(Instant.now());
-        invitedUser.persist();
-
-        // 7. Update seats used
-        incrementSeatsUsed(organization);
-
-        return invitedUser;
-    }
-
+    
     /**
      * Update role member organization.
      * Hanya owner yang bisa update role.

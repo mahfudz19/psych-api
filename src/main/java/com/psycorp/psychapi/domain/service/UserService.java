@@ -190,13 +190,6 @@ public class UserService {
         return user;
     }
 
-    // Note: validateReferralCode now delegated to ReferralService
-    // This method is kept for backward compatibility if needed elsewhere
-    @Deprecated
-    private User validateReferralCode(String referralCode) {
-        return referralService.validateReferralCode(referralCode, null);
-    }
-
     private User validateInviteCode(String inviteCode) {
         User inviter = User.find("inviteCode", inviteCode).firstResult();
         if (inviter == null) {
