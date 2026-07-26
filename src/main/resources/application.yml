@@ -135,3 +135,9 @@ jwt:
 
 superadmin:
   emails: ${SUPERADMIN_EMAILS:admin@psycorp.com}
+
+# Seeder configuration
+seeder:
+  enabled: ${SEEDER_ENABLED:true}
+  auto-clear: ${SEEDER_AUTO_CLEAR:false}
+  environments: ${SEEDER_ENVIRONMENTS:dev,test}

@@ -247,7 +247,7 @@ public class OrganizationService {
         return Organization.count("ownerId", objectId) > 0;
     }
 
-    private void validateOrganizationAccess(Organization organization, String userId, String... allowedRoles) {
+    public void validateOrganizationAccess(Organization organization, String userId, String... allowedRoles) {
         User user = userService.getUserById(userId);
 
         // Check if user belongs to this organization
