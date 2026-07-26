@@ -12,7 +12,6 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import com.psycorp.psychapi.api.dto.OrganizationMemberRequests.MembersListRequest;
-import com.psycorp.psychapi.api.dto.OrganizationMemberRequests.RemoveMemberRequest;
 import com.psycorp.psychapi.api.dto.OrganizationMemberRequests.UpdateMemberRoleRequest;
 import com.psycorp.psychapi.common.helper.ResponseHelper;
 import com.psycorp.psychapi.common.response.ApiResponse;
@@ -255,7 +254,6 @@ public class OrganizationMemberResource {
      *
      * @param orgId Organization ID
      * @param memberId User ID member yang di-remove
-     * @param request Remove member request dengan confirmation
      * @param securityContext Security context
      * @return Response success message
      */
@@ -274,26 +272,7 @@ public class OrganizationMemberResource {
             ### Restrictions
             - Owner organization tidak bisa di-remove
             - Admin tidak bisa remove admin lain
-            - Harus menyertakan confirmation text: `REMOVE_MEMBER`
             """
-    )
-    @RequestBody(
-        description = "Remove member request",
-        required = true,
-        content = @Content(
-            schema = @Schema(implementation = RemoveMemberRequest.class),
-            examples = {
-                @ExampleObject(
-                    name = "RemoveMember",
-                    summary = "Remove member with confirmation",
-                    value = """
-                    {
-                        "confirmation": "REMOVE_MEMBER"
-                    }
-                    """
-                )
-            }
-        )
     )
     @APIResponse(
         responseCode = "200",
@@ -318,11 +297,10 @@ public class OrganizationMemberResource {
     public Response removeMember(
             @PathParam("orgId") String orgId,
             @PathParam("memberId") String memberId,
-            @Valid RemoveMemberRequest request,
             @Context SecurityContext securityContext) {
         String userId = getUserIdFromSecurityContext(securityContext);
 
-        memberService.removeMember(orgId, userId, memberId, request.confirmation());
+        memberService.removeMember(orgId, userId, memberId);
 
         return ResponseHelper.ok(null, "Member removed successfully");
     }

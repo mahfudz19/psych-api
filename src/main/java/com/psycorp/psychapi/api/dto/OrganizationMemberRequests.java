@@ -98,16 +98,4 @@ public final class OrganizationMemberRequests {
         String role
     ) {}
 
-    /**
-     * Request body untuk remove member dari organization.
-     */
-    public record RemoveMemberRequest(
-        @Schema(
-            description = "Confirmation text untuk remove member. Harus 'REMOVE_MEMBER'",
-            examples = "REMOVE_MEMBER",
-            required = true
-        )
-        @NotBlank(message = "Confirmation is required")
-        String confirmation
-    ) {}
 }

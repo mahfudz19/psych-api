@@ -178,17 +178,10 @@ public class OrganizationMemberService {
      * @param orgId Organization ID
      * @param removerId User ID yang melakukan remove
      * @param memberId User ID member yang di-remove
-     * @param confirmation Confirmation text
      * @return true jika berhasil
      */
-    public boolean removeMember(String orgId, String removerId, String memberId, String confirmation) {
-        // 1. Validate confirmation
-        if (!"REMOVE_MEMBER".equals(confirmation)) {
-            throw new ValidationException("CONFIRMATION_MISMATCH",
-                "Confirmation text must be 'REMOVE_MEMBER'");
-        }
-
-        // 2. Validate organization exists dan remover punya akses
+    public boolean removeMember(String orgId, String removerId, String memberId) {
+        // 1. Validate organization exists dan remover punya akses
         Organization organization = organizationService.getOrganizationById(orgId);
         organizationService.validateOrganizationAccess(organization, removerId, "owner", "admin");
 
