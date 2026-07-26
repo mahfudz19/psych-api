@@ -12,7 +12,7 @@ You can run your application in dev mode that enables live coding using:
 mvn quarkus:dev
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+> **_NOTE:_** Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
 
 ## Packaging and running the application
 
@@ -84,3 +84,82 @@ Easily start your REST Web Services
 Monitor your application's health using SmallRye Health
 
 [Related guide section...](https://quarkus.io/guides/smallrye-health)
+
+## Database Seeder
+
+This project includes a database seeder for populating sample data during development and testing.
+
+### Configuration
+
+The seeder is controlled via environment variables or `application.yml` configuration:
+
+```yaml
+seeder:
+  enabled: true # Enable/disable seeding
+  auto-clear: false # Clear existing data before seeding
+  environments: dev,test # Only run in these profiles
+```
+
+### Environment Variables
+
+| Variable              | Default    | Description                              |
+| --------------------- | ---------- | ---------------------------------------- |
+| `SEEDER_ENABLED`      | `true`     | Enable/disable seeder                    |
+| `SEEDER_AUTO_CLEAR`   | `false`    | Clear existing data before seeding       |
+| `SEEDER_ENVIRONMENTS` | `dev,test` | Comma-separated list of allowed profiles |
+
+### Usage
+
+The seeder runs automatically on application startup when:
+
+- `SEEDER_ENABLED=true` (default)
+- Current profile is in `SEEDER_ENVIRONMENTS` (default: `dev,test`)
+
+To force re-seeding with existing data:
+
+```bash
+export SEEDER_AUTO_CLEAR=true
+mvn quarkus:dev
+```
+
+To disable seeder:
+
+```bash
+export SEEDER_ENABLED=false
+mvn quarkus:dev
+```
+
+### Seed Data
+
+#### Users (9 sample users)
+
+- **Individual Free User** - `individual.free@example.com` / `password123`
+- **Individual Premium User** - `individual.premium@example.com` / `password123`
+- **Individual Enterprise User** - `individual.enterprise@example.com` / `password123`
+- **Organization Owner (Trial)** - `owner.trial@example.com` / `password123`
+- **Organization Owner (Free)** - `owner.free@example.com` / `password123`
+- **Organization Owner (Pro)** - `owner.pro@example.com` / `password123`
+- **Organization Owner (Enterprise)** - `owner.enterprise@example.com` / `password123`
+- **Organization Admin** - `admin.member@example.com` / `password123`
+- **Organization Member** - `regular.member@example.com` / `password123`
+- **Platform Admin** - `admin@psycorp.com` / `admin123`
+
+#### Organizations (4 sample organizations)
+
+- PT Startup Trial (free_trial plan)
+- CV Usaha Gratis (free plan)
+- PT Perusahaan Pro (pro plan)
+- PT Korporasi Enterprise (enterprise plan)
+
+#### Posts (2 sample posts)
+
+- Post 1 (published)
+- Post 2 (draft)
+
+### Best Practices Implemented
+
+1. **Idempotent** - Checks by unique identifier (email/title), not count
+2. **Non-destructive** - Doesn't delete existing data unless `auto-clear=true`
+3. **Environment-aware** - Only runs in specified profiles (dev/test)
+4. **Configurable** - Full control via environment variables
+5. **Well-logged** - Clear logging for debugging and tracking
