@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -84,41 +85,9 @@ public class OrganizationService {
             roles.add("ORGANIZATION");
             user.setRoles(roles);
         }
-
+        user.setInviteCode(generateInviteCode());
         user.setUpdatedAt(Instant.now());
         user.update();
-
-        return organization;
-    }
-
-    public Organization createInitialOrganization(User user) {
-        if (user == null || user.id == null) {
-            throw new ValidationException("INVALID_USER", "User must be persisted before creating organization");
-        }
-
-        // 1. Create organization dengan nama default
-        Organization organization = new Organization();
-        organization.setName(user.getFullName() + "'s Organization");
-        organization.setDescription("Organization created by " + user.getFullName());
-        organization.setEmail(user.getEmail());
-        organization.setOwnerId(user.id);
-        organization.setPlan("free_trial");
-        organization.setStatus(true);
-        organization.setTrialStartsAt(Instant.now());
-        organization.setTrialEndsAt(Instant.now().plus(TRIAL_DAYS, ChronoUnit.DAYS));
-        organization.setSeats(-1); // Unlimited untuk trial
-        organization.setSeatsUsed(1); // Owner adalah member pertama
-        organization.setCreatedAt(Instant.now());
-        organization.setUpdatedAt(Instant.now());
-
-        // 2. Persist organization
-        organization.persist();
-
-        // 3. Update user dengan organization info
-        user.setOrganizationId(organization.id);
-        user.setOrganizationName(organization.getName());
-        user.setOrganizationRole("owner");
-        user.setUpdatedAt(Instant.now());
 
         return organization;
     }
@@ -140,7 +109,6 @@ public class OrganizationService {
     public List<Organization> getOrganizationsByUserId(String userId, int page, int limit, String sortBy, String sortOrder) {
         // Build filter: ownerId = userId OR organizationId di user (untuk member)
         Bson ownerFilter = org.bson.Document.parse("{\"ownerId\": {\"$oid\": \"" + userId + "\"}}");
-        Bson memberFilter = org.bson.Document.parse("{\"_id\": {\"$oid\": \"" + userId + "\"}}");
 
         // Untuk saat ini, query berdasarkan ownerId
         Bson finalFilter = ownerFilter;
@@ -294,5 +262,9 @@ public class OrganizationService {
         if (!errors.isEmpty()) {
             throw new ValidationException("VALIDATION_ERROR", String.join(", ", errors));
         }
+    }
+
+    private String generateInviteCode() {
+        return "INV" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
     }
 }

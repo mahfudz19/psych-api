@@ -90,7 +90,7 @@ public class UserService {
         String invitedBy,
         String invitedOrganizationId,
         String invitationRole
-    ) {        
+    ) {
         // 1. Validate user data (email format, password strength, etc)
         validateUserData(email, password, fullName, null);
         
@@ -118,8 +118,8 @@ public class UserService {
         if (inviteCode != null && !inviteCode.isEmpty()) {
             // === SCENARIO A: Invite dengan code ===
             inviter = validateInviteCode(inviteCode);
-            orgId = inviter.getInvitedOrganizationId();
-            role = inviter.getInvitationRole() != null ? inviter.getInvitationRole() : "member";
+            orgId = inviter.getOrganizationId();
+            role =  "member";
             
         } else if (invitedBy != null && !invitedBy.isEmpty() && invitedOrganizationId != null && !invitedOrganizationId.isEmpty()) {
             // === SCENARIO B: Direct add ===
@@ -148,9 +148,6 @@ public class UserService {
                 throw new ValidationException("UNAUTHORIZED",
                     "Only organization owner or admin can add members directly. Your role: " + inviter.getOrganizationRole());
             }
-            
-            // 4d. Set role (default to "member" if not specified)
-            role = invitationRole != null && !invitationRole.isEmpty() ? invitationRole : "member";
         }
         
         // 5. Hash password
@@ -160,22 +157,21 @@ public class UserService {
         User user = User.create(email, hashedPassword, fullName, referrer, inviter, accountType);
         
         // 7. For direct add, override invitation info
-        if (invitedBy != null && !invitedBy.isEmpty() && invitedOrganizationId != null && !invitedOrganizationId.isEmpty()) {
-            user.setInvitedBy(new org.bson.types.ObjectId(invitedBy));
-            user.setInvitedOrganizationId(orgId);
-            user.setInvitationStatus("accepted");
-            user.setInvitationRole(role);
-            user.setOrganizationId(orgId);
+        if (inviteCode != null && !inviteCode.isEmpty() && inviter != null) {
+            user.setInvitedBy(inviter.getId());
+            user.setStatus("accepted");
             user.setOrganizationRole(role);
+            user.setOrganizationId(orgId);
+            
+        } else if (invitedBy != null && !invitedBy.isEmpty() && invitedOrganizationId != null && !invitedOrganizationId.isEmpty()) {
+            user.setInvitedBy(new org.bson.types.ObjectId(invitedBy));
+            user.setStatus("accepted");
+            user.setOrganizationRole(role);
+            user.setOrganizationId(orgId);
         }
         
         // 8. Persist user BARU ke database (sekali saja, tanpa update)
         user.persist();
-        
-        // 9. Jika accountType ORGANIZATION dan bukan invitation, create initial organization
-        if (accountType == AccountType.ORGANIZATION && inviter == null) {
-            organizationService.createInitialOrganization(user);
-        }
         
         // 9. Update stats referrer LAMA
         if (referrer != null) {
@@ -196,7 +192,7 @@ public class UserService {
             throw new ValidationException("INVALID_INVITE_CODE",
                 "Invitation code '" + inviteCode + "' is not valid");
         }
-        if (inviter.getInvitedOrganizationId() == null) {
+        if (inviter.getOrganizationId() == null) {
             throw new ValidationException("INVALID_INVITE_CODE",
                 "Invitation code '" + inviteCode + "' is not associated with any organization");
         }

@@ -75,6 +75,7 @@ public class User extends PanacheMongoEntity {
 
     // === GETTERS ===
     
+    public ObjectId getId() { return id; }
     public String getEmail() { return email; }
     public String getPassword() { return password; }
     public String getProvider() { return provider; }
