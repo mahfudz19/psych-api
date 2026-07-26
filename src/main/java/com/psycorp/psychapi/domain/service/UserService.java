@@ -148,6 +148,7 @@ public class UserService {
                 throw new ValidationException("UNAUTHORIZED",
                     "Only organization owner or admin can add members directly. Your role: " + inviter.getOrganizationRole());
             }
+            role =  "member";
         }
         
         // 5. Hash password

@@ -60,20 +60,6 @@ public class AuthService {
         return new AuthenticationResult(user, token, jwtConfig.expiresIn());
     }
 
-    /**
-     * Register user baru.
-     * 
-     * @param email Email user
-     * @param password Password user (plain text)
-     * @param fullName Nama lengkap user
-     * @param referralCode Kode referral (optional)
-     * @param accountType Tipe akun (INDIVIDUAL atau ORGANIZATION)
-     * @param inviteCode Kode undangan organization (optional)
-     * @param invitedBy User ID yang mengundang (optional)
-     * @param invitedOrganizationId Organization ID (optional)
-     * @param invitationRole Role di organization (optional)
-     * @return AuthenticationResult berisi user dan JWT token
-     */
     public AuthenticationResult register(
         String email,
         String password,

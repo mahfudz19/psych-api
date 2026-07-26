@@ -36,10 +36,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
-/**
- * REST API endpoints untuk mengelola members dalam organization.
- * Semua endpoint memerlukan authentication via JWT cookie atau Authorization header.
- */
 @Path("/api/v1/organizations/{orgId}")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -49,15 +45,6 @@ public class OrganizationMemberResource {
     @Inject
     OrganizationMemberService memberService;
 
-    /**
-     * Mendapatkan daftar semua members organization dengan pagination, search, sort, dan filter.
-     * Hanya owner dan admin yang bisa melihat semua members.
-     *
-     * @param orgId Organization ID dari path
-     * @param request Query parameters
-     * @param securityContext Security context untuk mendapatkan user ID
-     * @return Response dengan list members dan pagination meta
-     */
     @GET
     @Path("/members")
     @RolesAllowed("USER")
@@ -123,14 +110,6 @@ public class OrganizationMemberResource {
         return ResponseHelper.ok(members, "Members retrieved successfully", meta);
     }
 
-    /**
-     * Mendapatkan detail member organization berdasarkan userId.
-     *
-     * @param orgId Organization ID dari path
-     * @param memberId User ID member
-     * @param securityContext Security context
-     * @return Response dengan detail member
-     */
     @GET
     @Path("/members/{memberId}")
     @RolesAllowed("USER")
@@ -248,15 +227,6 @@ public class OrganizationMemberResource {
         return ResponseHelper.ok(member, "Member role updated successfully");
     }
 
-    /**
-     * Remove member dari organization.
-     * Owner dan admin bisa remove member. Owner tidak bisa di-remove.
-     *
-     * @param orgId Organization ID
-     * @param memberId User ID member yang di-remove
-     * @param securityContext Security context
-     * @return Response success message
-     */
     @DELETE
     @Path("/members/{memberId}")
     @RolesAllowed("USER")
@@ -305,14 +275,6 @@ public class OrganizationMemberResource {
         return ResponseHelper.ok(null, "Member removed successfully");
     }
 
-    /**
-     * Member meninggalkan organization.
-     * Owner tidak bisa leave, harus transfer ownership dulu.
-     *
-     * @param orgId Organization ID
-     * @param securityContext Security context
-     * @return Response dengan data user yang sudah leave
-     */
     @POST
     @Path("/leave")
     @RolesAllowed("USER")
@@ -362,12 +324,6 @@ public class OrganizationMemberResource {
         return ResponseHelper.ok(responseData, "Left organization successfully");
     }
 
-    /**
-     * Helper untuk extract user ID dari SecurityContext.
-     *
-     * @param securityContext Security context dari request
-     * @return User ID atau null jika tidak ada authentication
-     */
     private String getUserIdFromSecurityContext(SecurityContext securityContext) {
         if (securityContext == null || securityContext.getUserPrincipal() == null) {
             return null;
