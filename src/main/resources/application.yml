@@ -27,8 +27,6 @@ quarkus:
       "com.psycorp.psychapi.infrastructure.ratelimit.RateLimitService":
         level: ${LOG_LEVEL_RATELIMIT:WARN}
 
-  profile: ${QUARKUS_PROFILE:prod}
-
   smallrye:
     openapi:
       info:
