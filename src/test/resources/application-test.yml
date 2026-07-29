@@ -1,7 +1,7 @@
 # ===========================================
 # Quarkus Test Configuration
 # ===========================================
-# Configuration khusus untuk testing (QUARKUS_PROFILE=test)
+# Configuration khusus untuk testing
 # File ini otomatis di-load saat running tests
 #
 # Environment variables memiliki prioritas lebih tinggi
