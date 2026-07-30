@@ -22,7 +22,7 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
 
     private static final String REALM = "JWT";
     private static final String BEARER_PREFIX = "Bearer ";
-    private static final String COOKIE_NAME = "__session";
+    private static final String COOKIE_NAME = "auth_token";
 
     @Inject
     JwtService jwtService;
