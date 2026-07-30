@@ -57,5 +57,7 @@ steps:
       - >-
         JWT_SECRET=JWT_SECRET:1,
         MONGODB_URI=MONGODB_URI:1
+options:
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
 
 timeout: "1200s"
