@@ -1,0 +1,61 @@
+steps:
+  # 1. Build aplikasi Quarkus menjadi file .jar menggunakan Maven
+  - name: "maven:3.9-eclipse-temurin-17"
+    entrypoint: mvn
+    args: ["package", "-DskipTests"]
+
+  # 2. Bungkus ke dalam Docker menggunakan Dockerfile bawaan Quarkus
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-f"
+      - "src/main/docker/Dockerfile.jvm"
+      - "-t"
+      - "asia-southeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/psych-api:$COMMIT_SHA"
+      - "."
+
+  # 3. Push Docker Image ke Artifact Registry (Gudang Kontainer)
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "asia-southeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/psych-api:$COMMIT_SHA"
+
+  # 4. Deploy otomatis ke Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - "run"
+      - "deploy"
+      - "psych-api-dev"
+      - "--image"
+      - "asia-southeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/psych-api:$COMMIT_SHA"
+      - "--region"
+      - "asia-southeast1"
+      - "--platform"
+      - "managed"
+      - "--allow-unauthenticated"
+      - "--memory"
+      - "512Mi"
+      - "--cpu"
+      - "1"
+      - "--set-env-vars"
+      - >-
+        QUARKUS_PROFILE=dev,
+        APP_NAME=psych-api-dev,
+        APP_VERSION=$COMMIT_SHA,
+        HTTP_PORT=8080,
+        CORS_ENABLED=true,
+        CORS_ORIGINS=https://dev.psychapi.com,
+        CORS_METHODS=GET,POST,PATCH,PUT,DELETE,OPTIONS,
+        CORS_HEADERS=Content-Type,Authorization,X-Requested-With,Accept,Origin,
+        LOG_LEVEL=DEBUG,
+        LOG_CONSOLE_JSON=true,
+        SEEDER_ENABLED=true,
+        SEEDER_AUTO_CLEAR=true,
+        SEEDER_ENVIRONMENTS=dev
+      - "--update-secrets"
+      - >-
+        JWT_SECRET=JWT_SECRET:1,
+        MONGODB_URI=MONGODB_URI:1
+
+timeout: "1200s"

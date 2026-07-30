@@ -49,8 +49,8 @@ public final class ResponseHelper {
         
         // Set cookie dengan token
         String cookieValue = String.format(
-            "auth_token=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=None",
-            token, expiresIn
+            "%s=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=None",
+            getCookieName(), token, expiresIn
         );
         
         return Response.status(Response.Status.CREATED)
@@ -68,8 +68,8 @@ public final class ResponseHelper {
         
         // Set cookie dengan token
         String cookieValue = String.format(
-            "auth_token=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=None",
-            token, expiresIn
+            "%s=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=None",
+            getCookieName(), token, expiresIn
         );
         
         return Response.ok(ApiResponse.success(responseData, message))
@@ -120,10 +120,17 @@ public final class ResponseHelper {
     }
 
     public static Response logoutSuccess(String message) {
-    String cookieValue = "auth_token=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None";
-    
-    return Response.ok(ApiResponse.success(null, message))
-            .header("Set-Cookie", cookieValue)
-            .build();
-}
+        String cookieValue = String.format(
+            "%s=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None",
+            getCookieName()
+        );
+        
+        return Response.ok(ApiResponse.success(null, message))
+                .header("Set-Cookie", cookieValue)
+                .build();
+    }
+
+    private static String getCookieName() {
+        return System.getProperty("jwt.cookie-name", "auth_token");
+    }
 }

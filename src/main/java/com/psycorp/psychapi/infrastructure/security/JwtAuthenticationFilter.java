@@ -22,7 +22,6 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
 
     private static final String REALM = "JWT";
     private static final String BEARER_PREFIX = "Bearer ";
-    private static final String COOKIE_NAME = "auth_token";
 
     @Inject
     JwtService jwtService;
@@ -37,8 +36,8 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
             token = authHeader.substring(BEARER_PREFIX.length());
         } else {
             Map<String, Cookie> cookies = requestContext.getCookies();
-            if (cookies != null && cookies.containsKey(COOKIE_NAME)) {
-                token = cookies.get(COOKIE_NAME).getValue();
+            if (cookies != null && cookies.containsKey(jwtService.cookieName)) {
+                token = cookies.get(jwtService.cookieName).getValue();
             }
         }
 

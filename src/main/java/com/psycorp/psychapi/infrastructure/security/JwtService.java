@@ -5,10 +5,10 @@ import java.util.Date;
 import java.util.List;
 
 import org.bson.types.ObjectId;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.psycorp.psychapi.config.JwtConfig;
 import com.psycorp.psychapi.domain.model.User;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 
@@ -19,7 +19,24 @@ import jakarta.inject.Inject;
 public class JwtService {
 
     @Inject
-    JwtConfig jwtConfig;
+    @ConfigProperty(name = "jwt.expires-in", defaultValue = "604800")
+    public long expiresIn;
+
+    @Inject
+    @ConfigProperty(name = "jwt.issuer", defaultValue = "psych-api")
+    public String issuer;
+
+    @Inject
+    @ConfigProperty(name = "jwt.sign.secret", defaultValue = "your-super-secret-key-at-least-32-chars")
+    public String signSecret;
+
+    @Inject
+    @ConfigProperty(name = "jwt.verify.expires-at", defaultValue = "true")
+    public boolean verifyExpiresAt;
+
+    @Inject
+    @ConfigProperty(name = "jwt.cookie-name", defaultValue = "auth_token")
+    public String cookieName;
 
     public record TokenClaims(
         String userId,
@@ -41,12 +58,12 @@ public class JwtService {
         
         try {
             Instant now = Instant.now();
-            Instant expiry = now.plusSeconds(jwtConfig.expiresIn());
+            Instant expiry = now.plusSeconds(expiresIn);
 
-            Algorithm algorithm = Algorithm.HMAC256(jwtConfig.sign().secret());
+            Algorithm algorithm = Algorithm.HMAC256(signSecret);
             var jwtCreator = JWT.create()
                 // Standard claims (RFC 7519)
-                .withIssuer(jwtConfig.issuer())
+                .withIssuer(issuer)
                 .withSubject(user.id.toHexString())
                 .withIssuedAt(Date.from(now))
                 .withExpiresAt(Date.from(expiry))
@@ -97,7 +114,7 @@ public class JwtService {
             Boolean isSuperAdmin = extractBooleanClaim(payload, "isSuperAdmin");
 
             // Validate expiration
-            if (jwtConfig.verify().expiresAt() && expiresAt != null && Instant.now().isAfter(Instant.ofEpochSecond(expiresAt))) {
+            if (verifyExpiresAt && expiresAt != null && Instant.now().isAfter(Instant.ofEpochSecond(expiresAt))) {
                 throw new ValidationException("TOKEN_EXPIRED", "JWT token has expired");
             }
 

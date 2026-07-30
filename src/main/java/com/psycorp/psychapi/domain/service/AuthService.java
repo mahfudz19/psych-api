@@ -1,6 +1,5 @@
 package com.psycorp.psychapi.domain.service;
 
-import com.psycorp.psychapi.config.JwtConfig;
 import com.psycorp.psychapi.domain.model.User;
 import com.psycorp.psychapi.infrastructure.security.JwtService;
 import com.psycorp.psychapi.infrastructure.security.SuperAdminService;
@@ -10,7 +9,7 @@ import jakarta.inject.Inject;
 
 /**
  * Service layer untuk orchestrate authentication flow.
- * 
+ *
  * Service ini memisahkan business logic authentication dari Resource layer,
  * sehingga AuthResource hanya bertugas handle HTTP request/response.
  */
@@ -25,9 +24,6 @@ public class AuthService {
 
     @Inject
     SuperAdminService superAdminService;
-
-    @Inject
-    JwtConfig jwtConfig;
 
     /**
      * Hasil dari authentication yang berhasil.
@@ -57,7 +53,7 @@ public class AuthService {
         String token = jwtService.generateToken(user, isSuperAdmin);
         
         // 4. Return result dengan expiresIn
-        return new AuthenticationResult(user, token, jwtConfig.expiresIn());
+        return new AuthenticationResult(user, token, jwtService.expiresIn);
     }
 
     public AuthenticationResult register(
@@ -91,7 +87,7 @@ public class AuthService {
         String token = jwtService.generateToken(user, isSuperAdmin);
         
         // 4. Return result dengan expiresIn
-        return new AuthenticationResult(user, token, jwtConfig.expiresIn());
+        return new AuthenticationResult(user, token, jwtService.expiresIn);
     }
 
     public void logout(String userId) {
