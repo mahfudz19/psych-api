@@ -82,7 +82,6 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
                     return Boolean.TRUE.equals(claims.isSuperAdmin());
                 }
                 
-                // Check if user has the specified role
                 List<String> roles = claims.roles();
                 return roles != null && roles.contains(role);
             }
