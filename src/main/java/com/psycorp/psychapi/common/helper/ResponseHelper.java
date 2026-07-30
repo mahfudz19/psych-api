@@ -49,7 +49,7 @@ public final class ResponseHelper {
         
         // Set cookie dengan token
         String cookieValue = String.format(
-            "auth_token=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=None",
+            "__session=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=None",
             token, expiresIn
         );
         
@@ -68,7 +68,7 @@ public final class ResponseHelper {
         
         // Set cookie dengan token
         String cookieValue = String.format(
-            "auth_token=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=None",
+            "__session=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=None",
             token, expiresIn
         );
         
@@ -120,7 +120,7 @@ public final class ResponseHelper {
     }
 
     public static Response logoutSuccess(String message) {
-    String cookieValue = "auth_token=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None";
+    String cookieValue = "__session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None";
     
     return Response.ok(ApiResponse.success(null, message))
             .header("Set-Cookie", cookieValue)

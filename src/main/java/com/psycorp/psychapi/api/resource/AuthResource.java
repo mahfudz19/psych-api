@@ -348,7 +348,7 @@ public class AuthResource {
             Logout user dan expire authentication cookie.
             
             ### How It Works
-            - Endpoint ini akan meng-expire cookie `auth_token` di client
+            - Endpoint ini akan meng-expire cookie `__session` di client
             - Browser akan otomatis menghapus cookie yang expired
             - User harus login ulang untuk mendapatkan token baru
             
@@ -359,7 +359,7 @@ public class AuthResource {
             
             ### Cookie Expiry
             Response akan include `Set-Cookie` header dengan:
-            - `auth_token=` (empty value)
+            - `__session=` (empty value)
             - `Max-Age=0` (immediate expiry)
             - `Path=/` (same path as login)
             """

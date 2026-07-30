@@ -55,7 +55,7 @@ public class OrganizationMemberResource {
             Mengambil daftar semua members dalam organization dengan pagination, search, sort, dan filter.
             
             ### Authentication Required
-            Endpoint ini memerlukan JWT token yang valid di cookie `auth_token` atau Authorization header.
+            Endpoint ini memerlukan JWT token yang valid di cookie `__session` atau Authorization header.
             
             ### Authorization
             Hanya owner atau admin organization yang bisa melihat semua members.
