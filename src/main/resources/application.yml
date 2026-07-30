@@ -2,7 +2,6 @@ quarkus:
   package:
     jar:
       enabled: true
-      type: uber-jar
   application:
     name: ${APP_NAME:psych-api}
     version: ${APP_VERSION:1.0.0}
