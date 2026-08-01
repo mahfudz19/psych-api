@@ -117,7 +117,7 @@ jwt:
   issuer: ${JWT_ISSUER:psych-api}
 
   # Cookie name for authentication token
-  cookie-name: ${COOKIE_NAME:auth_token}
+  cookie-name: ${COOKIE_NAME:__session}
 
   # Signing secret (HS256)
   sign:

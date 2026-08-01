@@ -35,7 +35,7 @@ public class JwtService {
     public boolean verifyExpiresAt;
 
     @Inject
-    @ConfigProperty(name = "jwt.cookie-name", defaultValue = "auth_token")
+    @ConfigProperty(name = "jwt.cookie-name", defaultValue = "__session")
     public String cookieName;
 
     public record TokenClaims(

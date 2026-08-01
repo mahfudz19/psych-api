@@ -58,7 +58,7 @@ public class OrganizationResource {
             Membuat organization baru untuk user yang sedang login.
             
             ### Authentication Required
-            Endpoint ini memerlukan JWT token yang valid di cookie `auth_token` atau Authorization header.
+            Endpoint ini memerlukan JWT token yang valid di cookie `COOKIE_NAME` atau Authorization header.
             
             ### Request Requirements
             - **name**: Nama organization (required)
@@ -173,7 +173,7 @@ public class OrganizationResource {
             Mengambil daftar organization yang dimiliki oleh user yang sedang login.
             
             ### Authentication Required
-            Endpoint ini memerlukan JWT token yang valid di cookie `auth_token` atau Authorization header.
+            Endpoint ini memerlukan JWT token yang valid di cookie `COOKIE_NAME` atau Authorization header.
             
             ### Query Parameters
             - **page**: Page number (default: 1)

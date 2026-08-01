@@ -131,6 +131,6 @@ public final class ResponseHelper {
     }
 
     private static String getCookieName() {
-        return System.getProperty("jwt.cookie-name", "auth_token");
+        return System.getProperty("jwt.cookie-name", "__session");
     }
 }
