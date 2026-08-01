@@ -46,8 +46,6 @@ steps:
         HTTP_PORT=8080,
         CORS_ENABLED=true,
         CORS_ORIGINS=https://dev.psychapi.com,
-        CORS_METHODS=GET,POST,PATCH,PUT,DELETE,OPTIONS,
-        CORS_HEADERS=Content-Type,Authorization,Requested-With,Accept,Origin,
         LOG_LEVEL=DEBUG,
         LOG_CONSOLE_JSON=true,
         SEEDER_ENABLED=true,
