@@ -119,6 +119,9 @@ jwt:
   # Cookie name for authentication token
   cookie-name: ${COOKIE_NAME:__session}
 
+  # Cookie domain for cross-subdomain authentication
+  cookie-domain: ${JWT_COOKIE_DOMAIN:/}
+
   # Signing secret (HS256)
   sign:
     secret: ${JWT_SECRET:your-super-secret-key-at-least-32-chars}

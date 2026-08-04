@@ -48,10 +48,7 @@ public final class ResponseHelper {
         );
         
         // Set cookie dengan token
-        String cookieValue = String.format(
-            "%s=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=None",
-            getCookieName(), token, expiresIn
-        );
+        String cookieValue = buildCookieString(token, expiresIn);
         
         return Response.status(Response.Status.CREATED)
                 .entity(ApiResponse.success(responseData, message))
@@ -67,10 +64,7 @@ public final class ResponseHelper {
         );
         
         // Set cookie dengan token
-        String cookieValue = String.format(
-            "%s=%s; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=None",
-            getCookieName(), token, expiresIn
-        );
+        String cookieValue = buildCookieString(token, expiresIn);
         
         return Response.ok(ApiResponse.success(responseData, message))
                 .header("Set-Cookie", cookieValue)
@@ -121,8 +115,9 @@ public final class ResponseHelper {
 
     public static Response logoutSuccess(String message) {
         String cookieValue = String.format(
-            "%s=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None",
-            getCookieName()
+            "%s=; Domain=%s; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax",
+            getCookieName(),
+            getCookieDomain()
         );
         
         return Response.ok(ApiResponse.success(null, message))
@@ -132,5 +127,22 @@ public final class ResponseHelper {
 
     private static String getCookieName() {
         return System.getProperty("jwt.cookie-name", "__session");
+    }
+
+    private static String getCookieDomain() {
+        String domain = System.getProperty("jwt.cookie-domain", "/");
+        return domain != null ? domain : "";
+    }
+
+    private static String buildCookieString(String token, long expiresIn) {
+        long validExpiresIn = Math.max(expiresIn, 604800);
+        
+        String domain = getCookieDomain();
+        String domainPart = domain.isEmpty() ? "" : "Domain=" + domain + "; ";
+        
+        return String.format(
+            "%s=%s; %sPath=/; Max-Age=%d; HttpOnly; Secure; SameSite=Lax",
+            getCookieName(), token, domainPart, validExpiresIn
+        );
     }
 }
