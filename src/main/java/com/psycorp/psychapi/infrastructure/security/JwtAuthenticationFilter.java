@@ -3,14 +3,12 @@ package com.psycorp.psychapi.infrastructure.security;
 import java.io.IOException;
 import java.security.Principal;
 import java.util.List;
-import java.util.Map;
 
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Priorities;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
-import jakarta.ws.rs.core.Cookie;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
@@ -35,13 +33,23 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
             token = authHeader.substring(BEARER_PREFIX.length());
         } else {
-            Map<String, Cookie> cookies = requestContext.getCookies();
-            if (cookies != null && cookies.containsKey(jwtService.cookieName)) {
-                token = cookies.get(jwtService.cookieName).getValue();
+            String cookieName = jwtService != null && jwtService.cookieName != null
+                ? jwtService.cookieName
+                : "__session";
+            
+            String cookieHeader = requestContext.getHeaderString(HttpHeaders.COOKIE);
+            
+            if (cookieHeader != null && !cookieHeader.isEmpty()) {
+                token = extractCookieValue(cookieHeader, cookieName);
             }
         }
 
         if (token == null) {
+            requestContext.abortWith(
+                Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"success\": false, \"message\": \"Missing token\", \"code\": \"UNAUTHORIZED\"}")
+                    .build()
+            );
             return;
         }
 
@@ -95,5 +103,16 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
                 return REALM;
             }
         });
+    }
+
+    private String extractCookieValue(String cookieHeader, String cookieName) {
+        String[] cookies = cookieHeader.split(";");
+        for (String cookie : cookies) {
+            String[] parts = cookie.trim().split("=", 2);
+            if (parts.length == 2 && parts[0].trim().equals(cookieName)) {
+                return parts[1].trim();
+            }
+        }
+        return null;
     }
 }

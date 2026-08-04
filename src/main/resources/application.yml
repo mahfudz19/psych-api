@@ -120,7 +120,8 @@ jwt:
   cookie-name: ${COOKIE_NAME:__session}
 
   # Cookie domain for cross-subdomain authentication
-  cookie-domain: ${JWT_COOKIE_DOMAIN}
+  cookie-domain: ${JWT_COOKIE_DOMAIN:.stimi-yapmi.ac.id}
+  secure-cookie: ${JWT_SECURE_COOKIE:false}
 
   # Signing secret (HS256)
   sign:

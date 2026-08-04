@@ -114,10 +114,12 @@ public final class ResponseHelper {
     }
 
     public static Response logoutSuccess(String message) {
+        String secureFlag = isSecureCookie() ? "Secure; " : "";
         String cookieValue = String.format(
-            "%s=; Domain=%s; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax",
+            "%s=; Domain=%s; Path=/; %sMax-Age=0; HttpOnly; SameSite=Lax",
             getCookieName(),
-            getCookieDomain()
+            getCookieDomain(),
+            secureFlag
         );
         
         return Response.ok(ApiResponse.success(null, message))
@@ -134,15 +136,21 @@ public final class ResponseHelper {
         return domain != null && !domain.isEmpty() ? domain : "";
     }
 
+    private static boolean isSecureCookie() {
+        String secure = System.getProperty("jwt.secure-cookie", "false");
+        return "true".equalsIgnoreCase(secure);
+    }
+
     private static String buildCookieString(String token, long expiresIn) {
         long validExpiresIn = Math.max(expiresIn, 604800);
         
         String domain = getCookieDomain();
         String domainPart = domain.isEmpty() ? "" : "Domain=" + domain + "; ";
+        String secureFlag = isSecureCookie() ? "Secure; " : "";
         
         return String.format(
-            "%s=%s; %sPath=/; Max-Age=%d; HttpOnly; Secure; SameSite=Lax",
-            getCookieName(), token, domainPart, validExpiresIn
+            "%s=%s; %sPath=/; %sMax-Age=%d; HttpOnly; SameSite=Lax",
+            getCookieName(), token, domainPart, secureFlag, validExpiresIn
         );
     }
 }
