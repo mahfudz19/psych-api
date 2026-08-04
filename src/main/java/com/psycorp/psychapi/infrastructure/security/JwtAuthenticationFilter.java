@@ -45,11 +45,6 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
         }
 
         if (token == null) {
-            requestContext.abortWith(
-                Response.status(Response.Status.UNAUTHORIZED)
-                    .entity("{\"success\": false, \"message\": \"Missing token\", \"code\": \"UNAUTHORIZED\"}")
-                    .build()
-            );
             return;
         }
 
