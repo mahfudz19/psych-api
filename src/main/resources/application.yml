@@ -120,7 +120,7 @@ jwt:
   cookie-name: ${COOKIE_NAME:__session}
 
   # Cookie domain for cross-subdomain authentication
-  cookie-domain: ${JWT_COOKIE_DOMAIN:/}
+  cookie-domain: ${JWT_COOKIE_DOMAIN}
 
   # Signing secret (HS256)
   sign:

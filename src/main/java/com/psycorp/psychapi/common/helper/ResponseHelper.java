@@ -130,8 +130,8 @@ public final class ResponseHelper {
     }
 
     private static String getCookieDomain() {
-        String domain = System.getProperty("jwt.cookie-domain", "/");
-        return domain != null ? domain : "";
+        String domain = System.getProperty("jwt.cookie-domain", "");
+        return domain != null && !domain.isEmpty() ? domain : "";
     }
 
     private static String buildCookieString(String token, long expiresIn) {
