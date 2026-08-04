@@ -39,7 +39,7 @@ steps:
       - "--cpu"
       - "1"
       - "--set-env-vars"
-      - "QUARKUS_PROFILE=dev,APP_NAME=psych-api-dev,APP_VERSION=$COMMIT_SHA,HTTP_PORT=8080,CORS_ENABLED=true,CORS_ORIGINS=https://psych-addf2.web.app,LOG_LEVEL=DEBUG,LOG_CONSOLE_JSON=true,SEEDER_ENABLED=true,SEEDER_AUTO_CLEAR=true,SEEDER_ENVIRONMENTS=dev,MONGODB_DATABASE=psych-dev"
+      - "QUARKUS_PROFILE=dev,APP_NAME=psych-api-dev,APP_VERSION=$COMMIT_SHA,HTTP_PORT=8080,CORS_ENABLED=true,CORS_ORIGINS=https://app-test.stimi-yapmi.ac.id,LOG_LEVEL=DEBUG,LOG_CONSOLE_JSON=true,SEEDER_ENABLED=true,SEEDER_AUTO_CLEAR=true,SEEDER_ENVIRONMENTS=dev,MONGODB_DATABASE=psych-dev"
       - "--update-secrets"
       - "JWT_SECRET=JWT_SECRET:1,MONGODB_URI=MONGODB_URI:1"
 
