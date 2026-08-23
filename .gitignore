@@ -42,8 +42,3 @@ nb-configuration.xml
 /.quarkus/cli/plugins/
 # TLS Certificates
 .certs/
-
-# RSA Keys for JWT
-src/main/resources/keys/
-
-plans
