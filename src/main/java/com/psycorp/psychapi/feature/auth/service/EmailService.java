@@ -25,7 +25,7 @@ public class EmailService {
      * Mengirim email verifikasi secara asinkron (non-blocking).
      */
     public void sendVerificationEmail(String toEmail, String fullName, String plainToken) {
-        String verifyUrl = frontendUrl + "/verify-email?email=" + toEmail + "&token=" + plainToken;
+        String verifyUrl = frontendUrl + "?email=" + toEmail + "&token=" + plainToken;
 
         String htmlBody = """
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
