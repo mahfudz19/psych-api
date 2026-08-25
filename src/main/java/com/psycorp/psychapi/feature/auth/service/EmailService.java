@@ -4,7 +4,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import io.quarkus.mailer.Mail;
-import io.quarkus.mailer.reactive.ReactiveMailer;
+import io.quarkus.mailer.Mailer;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -12,18 +12,14 @@ import jakarta.inject.Inject;
 public class EmailService {
 
     @Inject
-    ReactiveMailer reactiveMailer;
+    Mailer mailer;
 
     @Inject
     Logger log;
 
-    // URL Frontend, bisa di-set di application.properties (misal: app.frontend.url=http://localhost:5173)
     @ConfigProperty(name = "app.frontend.url", defaultValue = "http://localhost:5173")
     String frontendUrl;
 
-    /**
-     * Mengirim email verifikasi secara asinkron (non-blocking).
-     */
     public void sendVerificationEmail(String toEmail, String fullName, String plainToken) {
         String verifyUrl = frontendUrl + "?email=" + toEmail + "&token=" + plainToken;
 
@@ -40,12 +36,11 @@ public class EmailService {
             </div>
             """.formatted(fullName, verifyUrl);
 
-        // Eksekusi asinkron di background thread
-        reactiveMailer.send(
-            Mail.withHtml(toEmail, "Verifikasi Akun Psych Anda", htmlBody)
-        ).subscribe().with(
-            success -> log.infof("✅ Email verifikasi berhasil dikirim (asinkron) ke: %s", toEmail),
-            failure -> log.error("❌ Gagal mengirim email ke: " + toEmail, failure) 
-        );
+        try {
+            mailer.send(Mail.withHtml(toEmail, "Verifikasi Akun Psych Anda", htmlBody));
+            log.infof("✅ Email verifikasi berhasil dikirim ke: %s", toEmail);
+        } catch (Exception e) {
+            log.error("❌ Gagal mengirim email ke: " + toEmail, e);
+        }
     }
 }
