@@ -8,8 +8,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.bson.conversions.Bson;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
@@ -28,7 +26,6 @@ import jakarta.inject.Inject;
 @ApplicationScoped
 public class ReferralService {
     
-    private static final Logger log = LoggerFactory.getLogger(ReferralService.class);
     
     // Characters yang digunakan untuk referral code (uppercase alphanumeric)
     private static final String CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -69,14 +66,11 @@ public class ReferralService {
         } while (attempts < maxAttempts && User.find("referralCode", code).firstResult() != null);
         
         if (attempts >= maxAttempts) {
-            log.error("Failed to generate unique referral code after {} attempts", attempts);
             throw new ValidationException("REFERRAL_CODE_GENERATION_FAILED", 
                 "Unable to generate unique referral code. Please try again.");
         }
         
         user.setReferralCode(code);
-        
-        log.info("Referral code generated: userId={}, email={}", userId, user.getEmail());
         
         return code;
     }
@@ -101,9 +95,7 @@ public class ReferralService {
         
         // Mask code untuk logging
         String maskedCode = maskCode(referralCode);
-        
-        log.info("Referral code validation attempt: code={}, ip={}", maskedCode, maskIp(ipAddress));
-        
+                
         if (referralCode == null || referralCode.trim().isEmpty()) {
             throw new ValidationException("INVALID_REFERRAL_CODE", 
                 "Referral code is required");
@@ -112,8 +104,6 @@ public class ReferralService {
         // Step 1: Find by current referralCode
         User referrer = User.find("referralCode", referralCode.trim()).firstResult();
         if (referrer != null) {
-            log.info("Referral code validated successfully: code={}, referrerId={}, source=current", 
-                maskedCode, referrer.id.toHexString());
             return referrer;
         }
         
@@ -121,15 +111,10 @@ public class ReferralService {
         Bson archivedQuery = Filters.eq("referralCodeHistory.code", referralCode.trim());
         referrer = User.find(archivedQuery).firstResult();
         if (referrer != null) {
-            log.info("Referral code validated from archive: code={}, referrerId={}", 
-                maskedCode, referrer.id.toHexString());
             return referrer;
         }
         
         // Step 3: Not found
-        log.warn("Invalid referral code: code={}, ip={}, reason=NOT_FOUND", 
-            maskedCode, maskIp(ipAddress));
-        
         throw new ValidationException("INVALID_REFERRAL_CODE", 
             "Referral code '" + maskedCode + "' is not valid");
     }
@@ -183,9 +168,6 @@ public class ReferralService {
         user.setUpdatedAt(Instant.now());
         user.update();
         
-        log.info("Referral code regenerated: userId={}, oldCode={}, newCode={}, reason={}", 
-            userId, maskCode(oldCode), maskCode(newCode), reason);
-        
         return newCode;
     }
     
@@ -211,9 +193,6 @@ public class ReferralService {
             Filters.eq("_id", user.id),
             update
         );
-        
-        log.debug("Archived referral code: userId={}, oldCode={}, newCode={}", 
-            user.id.toHexString(), maskCode(oldCode), maskCode(newCode));
     }
     
     /**
@@ -255,9 +234,7 @@ public class ReferralService {
      * @throws ValidationException jika self-referral detected
      */
     public void checkSelfReferral(User referrer, String newUserEmail) {
-        if (referrer.getEmail().equals(newUserEmail)) {
-            log.warn("Self-referral attempt detected: email={}", newUserEmail);
-            
+        if (referrer.getEmail().equals(newUserEmail)) {           
             throw new ValidationException("INVALID_REFERRAL", 
                 "Cannot use your own referral code");
         }
@@ -290,21 +267,5 @@ public class ReferralService {
             return "***";
         }
         return code.substring(0, 3) + "***";
-    }
-    
-    /**
-     * Mask IP address untuk logging (privacy).
-     * 
-     * @param ip IP address untuk mask
-     * @return Masked IP
-     */
-    private String maskIp(String ip) {
-        if (ip == null || ip.isEmpty()) {
-            return "***";
-        }
-        if (ip.contains(".")) {
-            return ip.replaceAll("\\.\\d+$", ".***");
-        }
-        return "***";
     }
 }
