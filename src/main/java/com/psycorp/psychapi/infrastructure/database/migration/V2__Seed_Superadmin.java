@@ -52,7 +52,7 @@ public class V2__Seed_Superadmin {
                 .append("bio", null)
                 .append("dateOfBirth", null)
                 .append("gender", null)
-                .append("roles", java.util.Arrays.asList("SUPERADMIN", "USER"))
+                .append("roles", java.util.Arrays.asList("SUPERADMIN", "USER", "ORGANIZATION"))
                 .append("organizationId", null)
                 .append("organizationRole", null)
                 .append("organizationName", null)
@@ -73,13 +73,13 @@ public class V2__Seed_Superadmin {
                 .append("invitationSentAt", null)
                 .append("invitationAcceptedAt", null)
                 .append("invitationRole", null)
-                .append("status", "active")
+                .append("status", "ACTIVE")
                 .append("lastLoginAt", null)
                 .append("loginAttempts", 0)
                 .append("createdAt", Instant.now())
                 .append("updatedAt", Instant.now())
                 .append("deletedAt", null)
-                .append("accountType", "INDIVIDUAL");
+                .append("accountType", "ORGANIZATION");
         
         users.insertOne(superadmin);
     }
