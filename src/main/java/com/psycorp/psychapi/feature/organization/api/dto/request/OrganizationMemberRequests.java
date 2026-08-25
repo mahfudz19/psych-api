@@ -71,6 +71,13 @@ public final class OrganizationMemberRequests {
         - Admin tidak bisa remove admin lain
         """;
     
+    public static final String JOIN_ORGANIZATION_DESCRIPTION = """
+        Member join organization.
+        
+        ### Restrictions
+        - Member atau admin bisa join
+        """;
+
     public static final String LEAVE_ORGANIZATION_DESCRIPTION = """
         Member meninggalkan organization.
         

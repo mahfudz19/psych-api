@@ -196,6 +196,54 @@ public class OrganizationMemberService {
     }
 
     /**
+     * Member join organization.
+     *
+     * @param orgId Organization ID
+     * @param currentUser User yang ingin leave
+     */
+    public User joinOrganization(String orgId, User currentUser) {
+        // 1. Validate organization exists
+        Organization organization = getOrganizationById(orgId);
+
+        // 2. Validasi: Pastikan user belum tergabung dalam organisasi manapun
+        if (currentUser.getOrganizationId() != null) {
+            throw new ValidationException("ALREADY_IN_ORGANIZATION", 
+                "User is already a member of an organization. Please leave your current organization first.");
+        }
+
+        // 3. Siapkan role ORGANIZATION untuk user
+        List<String> roles = currentUser.getRoles();
+        if (roles == null) {
+            roles = new java.util.ArrayList<>();
+        }
+        if (!roles.contains("ORGANIZATION")) {
+            roles.add("ORGANIZATION");
+        }
+
+        // 4. Update data User menggunakan DocumentUpdater
+        DocumentUpdater updater = DocumentUpdater.update()
+            .set("organizationId", organization.getId())
+            .set("organizationName", organization.getName())
+            .set("organizationRole", "member") // Default role saat join
+            .set("accountType", User.AccountType.ORGANIZATION)
+            .set("roles", roles);
+
+        currentUser.executeUpdate(updater.build());
+
+        // 5. Increment seats used pada Organization
+        incrementSeatsUsed(organization);
+
+        // 6. Update state object di memory agar return valuenya sesuai (untuk response API)
+        currentUser.setOrganizationId(organization.getId());
+        currentUser.setOrganizationName(organization.getName());
+        currentUser.setOrganizationRole("member");
+        currentUser.setAccountType(User.AccountType.ORGANIZATION);
+        currentUser.setRoles(roles);
+
+        return currentUser;
+    }
+
+    /**
      * Member meninggalkan organization.
      * Owner tidak bisa leave, harus transfer ownership dulu.
      *
@@ -302,5 +350,18 @@ public class OrganizationMemberService {
             throw new NotFoundException("ORGANIZATION_NOT_FOUND", "Organization with id " + orgId + " not found");
         }
         return organization;
+    }
+
+    private void incrementSeatsUsed(Organization organization) {
+        int currentSeats = Objects.requireNonNullElse(organization.getSeatsUsed(), 0);
+        
+        // Validasi: Cek apakah kursi masih tersedia (jika seats tidak null / unlimited)
+        if (organization.getSeats() != null && currentSeats >= organization.getSeats()) {
+            throw new ValidationException("SEATS_FULL", "Organization has reached its maximum seats limit");
+        }
+
+        DocumentUpdater updater = DocumentUpdater.update()
+            .set("seatsUsed", currentSeats + 1);
+        organization.executeUpdate(updater.build());
     }
 }

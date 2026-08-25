@@ -18,6 +18,7 @@ import com.psycorp.psychapi.feature.user.service.UserService;
 import com.psycorp.psychapi.shared.response.PaginationMeta;
 import com.psycorp.psychapi.shared.response.ResponseHelper;
 
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.BeanParam;
@@ -33,6 +34,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 @Path("/api/v1/users")
+@Authenticated
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Users", description = "API untuk mengelola users")
@@ -75,11 +77,7 @@ public class UserResource {
 
     @POST
     @Operation(summary = "Create a new user")
-    @RequestBody(
-        description = "Create user request",
-        required = true,
-        content = @Content(schema = @Schema(implementation = CreateUserRequest.class))
-    )
+    @RequestBody(description = "Create user request", required = true, content = @Content(schema = @Schema(implementation = CreateUserRequest.class)))
     @APIResponse(responseCode = "201", description = "User created successfully")
     @APIResponse(responseCode = "409", description = "Email already exists")
     @APIResponse(responseCode = "422", description = "Validation error")

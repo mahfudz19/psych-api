@@ -158,13 +158,11 @@ public class UserService {
         // 7. For direct add, override invitation info
         if (inviteCode != null && !inviteCode.isEmpty() && inviter != null) {
             user.setInvitedBy(inviter.getId());
-            user.setStatus(Status.ACTIVE);
             user.setOrganizationRole(role);
             user.setOrganizationId(orgId);
             
         } else if (invitedBy != null && !invitedBy.isEmpty() && invitedOrganizationId != null && !invitedOrganizationId.isEmpty()) {
             user.setInvitedBy(new org.bson.types.ObjectId(invitedBy));
-            user.setStatus(Status.ACTIVE);
             user.setOrganizationRole(role);
             user.setOrganizationId(orgId);
         }

@@ -8,6 +8,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import static com.psycorp.psychapi.feature.organization.api.dto.request.OrganizationMemberRequests.JOIN_ORGANIZATION_DESCRIPTION;
 import static com.psycorp.psychapi.feature.organization.api.dto.request.OrganizationMemberRequests.LEAVE_ORGANIZATION_DESCRIPTION;
 import static com.psycorp.psychapi.feature.organization.api.dto.request.OrganizationMemberRequests.MEMBERS_LIST_DESCRIPTION;
 import static com.psycorp.psychapi.feature.organization.api.dto.request.OrganizationMemberRequests.MEMBER_DETAIL_DESCRIPTION;
@@ -17,6 +18,7 @@ import com.psycorp.psychapi.feature.organization.api.dto.request.OrganizationMem
 import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationMemberResponse;
 import com.psycorp.psychapi.feature.organization.service.OrganizationMemberService;
 import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.shared.response.PaginationMeta;
 import com.psycorp.psychapi.shared.response.ResponseHelper;
 
@@ -37,9 +39,8 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-@Path("/api/v1/organizations/{orgId}")
+@Path("/api/v1/organizations/{orgId}/members")
 @Authenticated
-@RolesAllowed("ORGANIZATION")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Organization Members", description = "API untuk mengelola members organization")
@@ -49,7 +50,7 @@ public class OrganizationMemberResource {
     OrganizationMemberService memberService;
 
     @GET
-    @Path("/members")
+    @RolesAllowed("ORGANIZATION")
     @Operation(summary = "Get all organization members", description = MEMBERS_LIST_DESCRIPTION)
     @APIResponse(responseCode = "200", description = "Members retrieved successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrganizationMemberResponse.class)))
     @APIResponse(responseCode = "403", description = "Forbidden - Only owner or admin can view all members")
@@ -74,7 +75,8 @@ public class OrganizationMemberResource {
     }
 
     @GET
-    @Path("/members/{memberId}")
+    @Path("/{memberId}")
+    @RolesAllowed("ORGANIZATION")
     @Operation(summary = "Get member detail", description = MEMBER_DETAIL_DESCRIPTION)
     @APIResponse(responseCode = "200", description = "Member retrieved successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrganizationMemberResponse.class)))
     @APIResponse(responseCode = "403", description = "Forbidden - User is not a member of this organization")
@@ -93,7 +95,8 @@ public class OrganizationMemberResource {
     }
 
     @PATCH
-    @Path("/members/{memberId}/role")
+    @Path("/{memberId}/role")
+    @RolesAllowed("ORGANIZATION")
     @Operation(summary = "Update member role", description = UpdateMemberRoleRequest.DESCRIPTION)
     @APIResponse(responseCode = "200", description = "Member role updated successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrganizationMemberResponse.class)))
     @APIResponse(responseCode = "400", description = "Validation error atau cannot change owner role")
@@ -114,7 +117,8 @@ public class OrganizationMemberResource {
     }
 
     @DELETE
-    @Path("/members/{memberId}")
+    @Path("/{memberId}/kick")
+    @RolesAllowed("ORGANIZATION")
     @Operation(summary = "Remove member from organization", description = REMOVE_MEMBER_DESCRIPTION)
     @APIResponse(responseCode = "200", description = "Member removed successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrganizationMemberResponse.class)))
     @APIResponse(responseCode = "400", description = "Validation error atau cannot remove owner")
@@ -133,7 +137,26 @@ public class OrganizationMemberResource {
     }
 
     @PATCH
-    @Path("/leave")
+    @Path("join")
+    @Operation(summary = "Join organization", description = JOIN_ORGANIZATION_DESCRIPTION)
+    @APIResponse(responseCode = "200", description = "Joined organization successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrganizationMemberResponse.class)))
+    public Response joinOrganization(
+            @PathParam("orgId") String orgId,
+            @Context ContainerRequestContext requestContext
+        ) {
+        User currentUser = (User) requestContext.getProperty("validatedUser");
+        if (currentUser == null) throw new ValidationException("USER_NOT_FOUND", "User not found");
+
+        User user = memberService.joinOrganization(orgId, currentUser);
+        OrganizationMemberResponse response = OrganizationMemberResponse.fromEntity(user);
+
+        return ResponseHelper.ok(response, "Joined organization successfully");
+    }
+
+
+    @PATCH
+    @Path("leave")
+    @RolesAllowed("ORGANIZATION")
     @Operation(summary = "Leave organization", description = LEAVE_ORGANIZATION_DESCRIPTION)
     @APIResponse(responseCode = "200", description = "Left organization successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrganizationMemberResponse.class)))
     @APIResponse(responseCode = "400", description = "Owner cannot leave organization")
@@ -144,7 +167,8 @@ public class OrganizationMemberResource {
             @Context ContainerRequestContext requestContext
         ) {
         User currentUser = (User) requestContext.getProperty("validatedUser");
-
+        if (currentUser == null) throw new ValidationException("USER_NOT_FOUND", "User not found");
+        
         User user = memberService.leaveOrganization(orgId, currentUser);
         OrganizationMemberResponse response = OrganizationMemberResponse.fromEntity(user);
 
