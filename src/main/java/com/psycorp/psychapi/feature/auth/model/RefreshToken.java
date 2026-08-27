@@ -37,7 +37,7 @@ public class RefreshToken extends PanacheMongoEntity {
     private Instant rotatedAt;     // Time when token was rotated
     
     // === REVOCATION INFO ===
-    private String revokeReason;   // "LOGOUT", "USER_REQUESTED", "TOKEN_REUSE_DETECTED", "SECURITY_ALERT"
+    private String revokeReason;   // "LOGOUT", "USER_REQUESTED", "TOKEN_REUSE_DETECTED", "SECURITY_ALERT" , "PASSWORD_CHANGED"
     private ObjectId replacedBy;   // Reference ke new token (setelah rotation)
     
     // === TIMESTAMPS ===
@@ -76,7 +76,8 @@ public class RefreshToken extends PanacheMongoEntity {
         LOGOUT("LOGOUT"),
         USER_REQUESTED("USER_REQUESTED"),
         TOKEN_REUSE_DETECTED("TOKEN_REUSE_DETECTED"),
-        SECURITY_ALERT("SECURITY_ALERT");
+        SECURITY_ALERT("SECURITY_ALERT"),
+        PASSWORD_CHANGED("PASSWORD_CHANGED");
         
         private final String value;
         

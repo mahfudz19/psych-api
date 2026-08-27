@@ -14,9 +14,11 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityScheme;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import com.psycorp.psychapi.feature.auth.api.dto.request.AuthRequest;
+import com.psycorp.psychapi.feature.auth.api.dto.request.ForgotPasswordRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.LogoutRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.RegisterRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.ResendVerifyEmailRequest;
+import com.psycorp.psychapi.feature.auth.api.dto.request.ResetPasswordRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.SessionListRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.VerifyEmailRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.response.LoginResponse;
@@ -225,21 +227,10 @@ public class AuthResource {
 
     @GET
     @Path("/sessions")
-    @Operation(
-        summary = "Get all user sessions",
-        description = "Mengambil daftar semua sesi login user dengan pagination."
-    )
+    @Operation(summary = "Get all user sessions", description = "Mengambil daftar semua sesi login user dengan pagination.")
     @Authenticated
-    @APIResponse(
-        responseCode = "200", 
-        description = "Sessions retrieved successfully", 
-        content = @Content(schema = @Schema(implementation = ApiResponse.class))
-    )
-    @APIResponse(
-        responseCode = "401", 
-        description = "Unauthorized", 
-        content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))
-    )
+    @APIResponse(responseCode = "200",  description = "Sessions retrieved successfully",  content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @APIResponse(responseCode = "401",  description = "Unauthorized",  content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     public Response getSessions(
         @BeanParam SessionListRequest request,
         @Parameter(description = "HTTP Headers dengan Authorization header", required = true)
@@ -269,5 +260,33 @@ public class AuthResource {
 
         // Return response
         return ResponseHelper.ok(sessions, "Sessions retrieved successfully", meta);
+    }
+
+    @POST
+    @Path("/forgot-password")
+    @Operation(summary = "Request reset password link", description = ForgotPasswordRequest.DESCRIPTION)
+    @APIResponse(responseCode = "200", description = "Reset link sent if email exists", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @APIResponse(responseCode = "400", description = "Validation failed", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    @APIResponse(responseCode = "500", description = "Internal server error", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    public Response forgotPassword(@Valid ForgotPasswordRequest request) {
+        authService.forgotPassword(request.email());
+        return ResponseHelper.ok(
+            null, 
+            "Jika email terdaftar di sistem kami, tautan untuk mengatur ulang kata sandi telah dikirim."
+        );
+    }
+
+    @POST
+    @Path("/reset-password")
+    @Operation(summary = "Reset password with token", description = ResetPasswordRequest.DESCRIPTION)
+    @APIResponse(responseCode = "200", description = "Password reset successfully", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @APIResponse(responseCode = "400", description = "Validation failed or invalid/expired token", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    @APIResponse(responseCode = "500", description = "Internal server error", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    public Response resetPassword(@Valid ResetPasswordRequest request) {
+        authService.resetPassword(request.token(), request.newPassword());
+        return ResponseHelper.ok(
+            null, 
+            "Kata sandi berhasil diperbarui. Silakan login kembali dengan kata sandi baru Anda."
+        );
     }
 }

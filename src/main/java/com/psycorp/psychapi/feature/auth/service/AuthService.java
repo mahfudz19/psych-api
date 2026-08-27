@@ -24,6 +24,7 @@ import com.psycorp.psychapi.feature.user.model.User;
 import com.psycorp.psychapi.feature.user.model.User.AccountType;
 import com.psycorp.psychapi.feature.user.service.UserService;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
+import com.psycorp.psychapi.infrastructure.security.PasswordEncoder;
 import com.psycorp.psychapi.shared.util.DocumentUpdater;
 import com.psycorp.psychapi.shared.util.MongoFilter;
 import com.psycorp.psychapi.shared.util.ValidationUtils;
@@ -372,4 +373,45 @@ public class AuthService {
         return RefreshToken.count(filter);
     }
 
+    /**
+     * Meminta tautan reset password (Lupa Password).
+     */
+    @Transactional
+    public void forgotPassword(String email) {
+        User user = User.find("email", email).firstResult();
+        if (user == null) {
+            return; 
+        }
+        if (User.Status.DELETED.equals(user.getStatus()) || User.Status.SUSPENDED.equals(user.getStatus())) {
+            return;
+        }
+        String plainToken = UUID.randomUUID().toString();
+        String hashedToken = hashToken(plainToken);
+        Instant expiresAt = Instant.now().plus(15, ChronoUnit.MINUTES);
+        user.applyPasswordResetToken(hashedToken, expiresAt);
+
+        emailService.sendResetPasswordEmail(user.getEmail(), user.getFullName(), plainToken);
+    }
+
+    /**
+     * Mengeksekusi penggantian password menggunakan token.
+     */
+    @Transactional
+    public void resetPassword(String plainToken, String newPassword) {
+        String hashedToken = hashToken(plainToken);
+
+        User user = User.find("resetPasswordToken", hashedToken).firstResult();
+        if (user == null) {
+            throw new ValidationException("INVALID_TOKEN", "Tautan pengaturan ulang kata sandi tidak valid atau salah.");
+        }
+
+        if (user.getResetPasswordExpiresAt() == null || Instant.now().isAfter(user.getResetPasswordExpiresAt())) {
+            throw new ValidationException("TOKEN_EXPIRED", "Tautan pengaturan ulang kata sandi sudah kedaluwarsa. Silakan minta tautan baru.");
+        }
+
+        String newHashedPassword = PasswordEncoder.hash(newPassword);
+        user.resetPassword(newHashedPassword);
+
+        RefreshToken.revokeAllByUserId(user.getId(), RefreshToken.RevokeReason.fromValue("PASSWORD_CHANGED"));
+    }
 }

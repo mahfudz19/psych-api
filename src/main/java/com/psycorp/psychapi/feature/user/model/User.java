@@ -79,6 +79,10 @@ public class User extends PanacheMongoEntity {
     // === ACCOUNT TYPE ===
     private AccountType accountType; // INDIVIDUAL / ORGANIZATION
 
+    // === PASSWORD RESET SYSTEM ===
+    private String resetPasswordToken;
+    private Instant resetPasswordExpiresAt;
+
     public User() {}
 
     // === GETTERS ===
@@ -135,6 +139,10 @@ public class User extends PanacheMongoEntity {
     public Instant getVerificationExpiresAt() { return verificationExpiresAt; }
     public Instant getExpiredAt() { return expiredAt; }
 
+    // Letakkan di area GETTERS
+    public String getResetPasswordToken() { return resetPasswordToken; }
+    public Instant getResetPasswordExpiresAt() { return resetPasswordExpiresAt; }
+
     // === SETTERS ===
     
     public void setEmail(String email) { this.email = email; }
@@ -185,6 +193,10 @@ public class User extends PanacheMongoEntity {
     public void setVerificationToken(String verificationToken) { this.verificationToken = verificationToken; }
     public void setVerificationExpiresAt(Instant verificationExpiresAt) { this.verificationExpiresAt = verificationExpiresAt; }
     public void setExpiredAt(Instant expiredAt) { this.expiredAt = expiredAt; }
+
+    // Letakkan di area SETTERS
+    public void setResetPasswordToken(String resetPasswordToken) { this.resetPasswordToken = resetPasswordToken; }
+    public void setResetPasswordExpiresAt(Instant resetPasswordExpiresAt) { this.resetPasswordExpiresAt = resetPasswordExpiresAt; }
 
     public enum AccountType {
         INDIVIDUAL("individual"),
@@ -410,5 +422,39 @@ public class User extends PanacheMongoEntity {
         
         public String getReplacedBy() { return replacedBy; }
         public void setReplacedBy(String replacedBy) { this.replacedBy = replacedBy; }
+    }
+
+    /**
+     * Memperbarui token lupa password ke memori dan database secara instan.
+     */
+    public void applyPasswordResetToken(String hashedToken, Instant expiresAt) {
+        this.resetPasswordToken = hashedToken;
+        this.resetPasswordExpiresAt = expiresAt;
+        this.updatedAt = Instant.now();
+
+        Bson update = Updates.combine(
+            Updates.set("resetPasswordToken", this.resetPasswordToken),
+            Updates.set("resetPasswordExpiresAt", this.resetPasswordExpiresAt)
+        );
+
+        this.executeUpdate(update);
+    }
+
+    /**
+     * Mengeksekusi penggantian password sekaligus membersihkan token reset.
+     */
+    public void resetPassword(String newHashedPassword) {
+        this.password = newHashedPassword;
+        this.resetPasswordToken = null;
+        this.resetPasswordExpiresAt = null;
+        this.updatedAt = Instant.now();
+
+        Bson update = Updates.combine(
+            Updates.set("password", this.password),
+            Updates.unset("resetPasswordToken"),
+            Updates.unset("resetPasswordExpiresAt")
+        );
+
+        this.executeUpdate(update);
     }
 }
