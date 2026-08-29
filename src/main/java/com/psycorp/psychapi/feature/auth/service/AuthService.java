@@ -12,7 +12,6 @@ import java.util.UUID;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.jboss.logging.Logger;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -51,8 +50,6 @@ public class AuthService {
     
     @Inject
     EmailService emailService;
-
-    private static final Logger LOG = Logger.getLogger(AuthService.class);
 
     @ConfigProperty(name = "google.client.id")
     String googleClientId;
@@ -495,12 +492,13 @@ public class AuthService {
 
         } catch (java.security.GeneralSecurityException | java.io.IOException e) {
             throw new ValidationException("AUTH_FAILED", "Gagal memvalidasi token Google: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("INVALID_TOKEN_FORMAT", "Format token tidak valid. Pastikan Anda mengirimkan ID Token (JWT) Google.");
         } catch (ValidationException ve) {
             throw ve;
         } catch (RuntimeException e) {
-            LOG.error("Terjadi kesalahan sistem saat registrasi Google SSO", e);
             throw new ValidationException("AUTH_FAILED", "Gagal mengautentikasi akun Google: " + e.toString());
-        }    
+        }
     }
 
     /**
@@ -585,10 +583,11 @@ public class AuthService {
 
         } catch (java.security.GeneralSecurityException | java.io.IOException e) {
             throw new ValidationException("AUTH_FAILED", "Gagal memvalidasi token Google: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("INVALID_TOKEN_FORMAT", "Format token tidak valid. Pastikan Anda mengirimkan ID Token (JWT) Google.");
         } catch (ValidationException ve) {
             throw ve;
         } catch (RuntimeException e) {
-            LOG.error("Terjadi kesalahan sistem saat registrasi Google SSO", e);
             throw new ValidationException("AUTH_FAILED", "Gagal melakukan registrasi Google: " + e.toString());
         }
     }
