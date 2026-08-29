@@ -7,6 +7,8 @@ import java.util.List;
 
 import org.bson.Document;
 import org.bson.types.ObjectId;
+import org.eclipse.microprofile.config.ConfigProvider;
+import org.jboss.logging.Logger;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -17,44 +19,20 @@ import io.mongock.api.annotations.Execution;
 import io.mongock.api.annotations.RollbackExecution;
 import io.quarkus.arc.profile.IfBuildProfile;
 
-/**
- * Migration Dev: Insert dummy data untuk development dan testing.
- * Hanya aktif pada profile 'dev' atau 'test'.
- *
- * Data yang di-insert:
- * - 9 users dengan berbagai role dan subscription tier
- * - 4 organizations dengan berbagai plan (free_trial, free, pro, enterprise)
- * - Referral relationships antar users (referralIds, referredBy, referredAt)
- * - Referral earnings tracking (referralEarnings)
- * - Organization memberships (organizationId, organizationRole, organizationName)
- * - Invitation tracking (inviteCode, invitedBy, invitedOrganizationId, invitationStatus, dll)
- * - Revenue share percentage untuk organization owners
- * - Trial period untuk organization free_trial (trialStartsAt, trialEndsAt)
- * - Subscription expiry untuk premium/enterprise users
- *
- * Referral Chain:
- * - individualFree → individualPremium → individualEnterprise
- * - ownerPro → adminMember → regularMember
- *
- * Organizations:
- * - PT Startup Trial (free_trial, 14 days trial)
- * - CV Usaha Gratis (free plan, max 5 seats)
- * - PT Perusahaan Pro (pro plan, 50 seats, 3 members)
- * - PT Korporasi Enterprise (enterprise plan, unlimited seats)
- */
 @IfBuildProfile("dev")
 @ChangeUnit(id = "Dev__Insert_Dummy_Data", order = "999", author = "mahfudz")
 public class Dev__Insert_Dummy_Data {
 
+    private static final Logger LOG = Logger.getLogger(Dev__Insert_Dummy_Data.class);
     private static final String DEFAULT_PASSWORD = "password123";
 
-    /**
-     * Execution method untuk insert dummy data.
-     * 
-     * @param mongoDatabase Database MongoDB untuk operasi seeding
-     */
     @Execution
     public void execution(MongoDatabase mongoDatabase) {
+        String activeProfile = ConfigProvider.getConfig().getValue("quarkus.profile", String.class);
+        LOG.info("🔍 [MONGOCK CHECK] Profil aktif saat ini terdeteksi sebagai: " + activeProfile);
+        if (!"dev".equals(activeProfile) && !"test".equals(activeProfile)) {
+            return;
+        }
         MongoCollection<Document> users = mongoDatabase.getCollection("users");
         MongoCollection<Document> organizations = mongoDatabase.getCollection("organizations");
         
@@ -439,6 +417,11 @@ public class Dev__Insert_Dummy_Data {
      */
     @RollbackExecution
     public void rollbackExecution(MongoDatabase mongoDatabase) {
+        String activeProfile = ConfigProvider.getConfig().getValue("quarkus.profile", String.class);
+        LOG.info("🔍 [MONGOCK ROLLBACK CHECK] Profil aktif: " + activeProfile);
+        if (!"dev".equals(activeProfile) && !"test".equals(activeProfile)) {
+            return; 
+        }
         MongoCollection<Document> users = mongoDatabase.getCollection("users");
         MongoCollection<Document> organizations = mongoDatabase.getCollection("organizations");
         
@@ -467,24 +450,7 @@ public class Dev__Insert_Dummy_Data {
     private String getPasswordHash(String password) {
         return PasswordEncoder.hash(password);
     }
-    
-    /**
-     * Helper method untuk membuat user document.
-     *
-     * @param id ObjectId user
-     * @param email Email user
-     * @param fullName Nama lengkap
-     * @param accountType Tipe akun (INDIVIDUAL atau ORGANIZATION)
-     * @param roles List role user
-     * @param subscriptionTier Tier subscription (free, premium, enterprise)
-     * @param phone Nomor telepon
-     * @param bio Bio/deskripsi user
-     * @param referredBy ObjectId user yang merefer
-     * @param invitedBy ObjectId user yang invite
-     * @param invitedOrganizationId ObjectId organization yang di-invite
-     * @param referralEarnings Pendapatan dari referral (default 0.0)
-     * @return Document user yang sudah lengkap
-     */
+
     private Document createUserDocument(ObjectId id, String email, String fullName,
                                         String accountType, List<String> roles,
                                         String subscriptionTier, String phone,
