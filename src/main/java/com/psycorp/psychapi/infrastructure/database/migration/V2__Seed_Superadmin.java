@@ -11,36 +11,23 @@ import io.mongock.api.annotations.ChangeUnit;
 import io.mongock.api.annotations.Execution;
 import io.mongock.api.annotations.RollbackExecution;
 
-/**
- * Migration V2: Seed akun Superadmin dengan struktur User yang lengkap.
- * Membuat akun superadmin default dengan email admin@psycorp.com.
- */
 @ChangeUnit(id = "V2__Seed_Superadmin", order = "002", author = "mahfudz")
 public class V2__Seed_Superadmin {
 
     private static final String SUPERADMIN_EMAIL = "admin@psycorp.com";
     private static final String DEFAULT_PASSWORD = "admin123";
 
-    /**
-     * Execution method untuk insert akun superadmin jika belum ada.
-     * 
-     * @param mongoDatabase Database MongoDB untuk operasi seeding
-     */
     @Execution
     public void execution(MongoDatabase mongoDatabase) {
         MongoCollection<Document> users = mongoDatabase.getCollection("users");
         
-        // Cek apakah superadmin sudah ada
         long count = users.countDocuments(new Document("email", SUPERADMIN_EMAIL));
         if (count > 0) {
-            // Superadmin sudah ada, skip seeding
             return;
         }
         
-        // Generate referral code untuk superadmin
         String referralCode = generateReferralCode(SUPERADMIN_EMAIL, Instant.now());
         
-        // Buat dokumen superadmin dengan struktur lengkap sesuai model User
         Document superadmin = new Document()
                 .append("email", SUPERADMIN_EMAIL)
                 .append("password", hashPassword(DEFAULT_PASSWORD))
@@ -81,39 +68,21 @@ public class V2__Seed_Superadmin {
                 .append("deletedAt", null)
                 .append("accountType", "ORGANIZATION");
         
+        superadmin.entrySet().removeIf(entry -> entry.getValue() == null);
+        
         users.insertOne(superadmin);
     }
 
-    /**
-     * Rollback execution untuk menghapus akun superadmin jika migration gagal.
-     * 
-     * @param mongoDatabase Database MongoDB untuk operasi rollback
-     */
     @RollbackExecution
     public void rollbackExecution(MongoDatabase mongoDatabase) {
         MongoCollection<Document> users = mongoDatabase.getCollection("users");
         users.deleteOne(new Document("email", SUPERADMIN_EMAIL));
     }
-    
-    /**
-     * Hash password menggunakan BCrypt.
-     * 
-     * @param password Password plain text
-     * @return Hashed password
-     */
+
     private String hashPassword(String password) {
-        // Menggunakan BCrypt dengan work factor 10 (default yang aman)
         return org.mindrot.jbcrypt.BCrypt.hashpw(password, org.mindrot.jbcrypt.BCrypt.gensalt(10));
     }
-    
-    /**
-     * Generate unique referral code dari email dan timestamp.
-     * Format: 3 chars prefix + 5 digits timestamp + 3 digits random
-     * 
-     * @param email User email
-     * @param createdAt Creation timestamp
-     * @return Unique 11-character referral code
-     */
+
     private String generateReferralCode(String email, Instant createdAt) {
         if (email == null || email.isEmpty()) {
             return "ADM" + createdAt.getEpochSecond() + (int)(Math.random() * 1000);

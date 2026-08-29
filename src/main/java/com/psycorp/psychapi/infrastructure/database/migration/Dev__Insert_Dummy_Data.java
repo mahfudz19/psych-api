@@ -8,7 +8,6 @@ import java.util.List;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.eclipse.microprofile.config.ConfigProvider;
-import org.jboss.logging.Logger;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -23,13 +22,11 @@ import io.quarkus.arc.profile.IfBuildProfile;
 @ChangeUnit(id = "Dev__Insert_Dummy_Data", order = "999", author = "mahfudz")
 public class Dev__Insert_Dummy_Data {
 
-    private static final Logger LOG = Logger.getLogger(Dev__Insert_Dummy_Data.class);
     private static final String DEFAULT_PASSWORD = "password123";
 
     @Execution
     public void execution(MongoDatabase mongoDatabase) {
         String activeProfile = ConfigProvider.getConfig().getValue("quarkus.profile", String.class);
-        LOG.info("🔍 [MONGOCK CHECK] Profil aktif saat ini terdeteksi sebagai: " + activeProfile);
         if (!"dev".equals(activeProfile) && !"test".equals(activeProfile)) {
             return;
         }
@@ -418,7 +415,6 @@ public class Dev__Insert_Dummy_Data {
     @RollbackExecution
     public void rollbackExecution(MongoDatabase mongoDatabase) {
         String activeProfile = ConfigProvider.getConfig().getValue("quarkus.profile", String.class);
-        LOG.info("🔍 [MONGOCK ROLLBACK CHECK] Profil aktif: " + activeProfile);
         if (!"dev".equals(activeProfile) && !"test".equals(activeProfile)) {
             return; 
         }
@@ -451,14 +447,9 @@ public class Dev__Insert_Dummy_Data {
         return PasswordEncoder.hash(password);
     }
 
-    private Document createUserDocument(ObjectId id, String email, String fullName,
-                                        String accountType, List<String> roles,
-                                        String subscriptionTier, String phone,
-                                        String bio, ObjectId referredBy,
-                                        ObjectId invitedBy, ObjectId invitedOrganizationId,
-                                        double referralEarnings) {
+    private Document createUserDocument(ObjectId id, String email, String fullName, String accountType, List<String> roles, String subscriptionTier, String phone, String bio, ObjectId referredBy, ObjectId invitedBy, ObjectId invitedOrganizationId, double referralEarnings) {
         
-        return new Document("_id", id)
+        Document doc = new Document("_id", id)
             .append("email", email)
             .append("password", getPasswordHash(DEFAULT_PASSWORD))
             .append("fullName", fullName)
@@ -497,17 +488,16 @@ public class Dev__Insert_Dummy_Data {
             .append("updatedAt", Instant.now())
             .append("deletedAt", null)
             .append("accountType", accountType);
+
+        doc.entrySet().removeIf(entry -> entry.getValue() == null);
+        return doc;
     }
     
     /**
      * Helper method untuk membuat organization document.
      */
-    private Document createOrganizationDocument(ObjectId id, String name, String description,
-                                                 String website, String logo, String address,
-                                                 String phone, String email, Boolean status,
-                                                 String plan, ObjectId ownerId, 
-                                                 Integer seats, Integer seatsUsed) {
-        return new Document("_id", id)
+    private Document createOrganizationDocument(ObjectId id, String name, String description, String website, String logo, String address, String phone, String email, Boolean status, String plan, ObjectId ownerId,  Integer seats, Integer seatsUsed) {
+        Document doc = new Document("_id", id)
             .append("name", name)
             .append("description", description)
             .append("website", website)
@@ -529,6 +519,9 @@ public class Dev__Insert_Dummy_Data {
             .append("createdAt", Instant.now())
             .append("updatedAt", Instant.now())
             .append("deletedAt", null);
+
+        doc.entrySet().removeIf(entry -> entry.getValue() == null);
+        return doc;
     }
     
     /**
