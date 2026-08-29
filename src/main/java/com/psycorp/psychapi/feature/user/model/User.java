@@ -268,7 +268,7 @@ public class User extends PanacheMongoEntity {
         
         // WAJIB
         user.email = email;
-        user.password = password;
+        if (password != null) user.password = password;
         user.fullName = fullName;
         user.provider = "local";
         user.roles = List.of("USER");

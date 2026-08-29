@@ -8,6 +8,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import com.psycorp.psychapi.feature.auth.api.dto.response.UserInfoResponse;
 import static com.psycorp.psychapi.feature.organization.api.dto.request.OrganizationMemberRequests.JOIN_ORGANIZATION_DESCRIPTION;
 import static com.psycorp.psychapi.feature.organization.api.dto.request.OrganizationMemberRequests.LEAVE_ORGANIZATION_DESCRIPTION;
 import static com.psycorp.psychapi.feature.organization.api.dto.request.OrganizationMemberRequests.MEMBERS_LIST_DESCRIPTION;
@@ -148,7 +149,7 @@ public class OrganizationMemberResource {
         if (currentUser == null) throw new ValidationException("USER_NOT_FOUND", "User not found");
 
         User user = memberService.joinOrganization(orgId, currentUser);
-        OrganizationMemberResponse response = OrganizationMemberResponse.fromEntity(user);
+        UserInfoResponse response = UserInfoResponse.from(user);
 
         return ResponseHelper.ok(response, "Joined organization successfully");
     }

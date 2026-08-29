@@ -15,6 +15,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import com.psycorp.psychapi.feature.auth.api.dto.request.AuthRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.ForgotPasswordRequest;
+import com.psycorp.psychapi.feature.auth.api.dto.request.GoogleLoginRequest;
+import com.psycorp.psychapi.feature.auth.api.dto.request.GoogleRegisterRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.LogoutRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.RegisterRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.ResendVerifyEmailRequest;
@@ -139,10 +141,11 @@ public class AuthResource {
 
     @POST
     @Path("/login")
-    public Response login(@Valid AuthRequest request, 
-                        @CookieParam("refresh_token") String refreshCookie, 
-                        @Context HttpHeaders headers) {
-        
+    public Response login(
+        @Valid AuthRequest request, 
+        @CookieParam("refresh_token") String refreshCookie, 
+        @Context HttpHeaders headers
+    ) {    
         DeviceInfo deviceInfo = deviceService.extractDeviceInfo(headers, httpServerRequest);
         List<NewCookie> cookies = new ArrayList<>();
 
@@ -288,5 +291,51 @@ public class AuthResource {
             null, 
             "Kata sandi berhasil diperbarui. Silakan login kembali dengan kata sandi baru Anda."
         );
+    }
+
+    @POST
+    @Path("/google/login")
+    @Operation(summary = "Login dengan Google", description = "Autentikasi menggunakan Google ID Token untuk akun yang sudah ada.")
+    @APIResponse(responseCode = "200", description = "Login Google berhasil", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @APIResponse(responseCode = "400", description = "Token tidak valid atau email belum terdaftar", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    public Response googleLogin(@Valid GoogleLoginRequest request, @Context HttpHeaders headers) {
+        // Ambil data perangkat dari headers
+        DeviceInfo deviceInfo = deviceService.extractDeviceInfo(headers, httpServerRequest);
+        
+        // Panggil service khusus untuk login (Hanya menerima akun yang sudah ada)
+        LoginResponse response = authService.googleLoginOnly(request.token(), deviceInfo);
+        
+        // Pasang cookie HTTPOnly
+        List<NewCookie> cookies = List.of(cookieHelper.createRefreshCookie(response.refreshToken()));
+        return ResponseHelper.ok(response, "Login Google berhasil", cookies);
+    }
+
+    @POST
+    @Path("/google/register")
+    @Operation(summary = "Registrasi dengan Google", description = GoogleRegisterRequest.DESCRIPTION)
+    @APIResponse(responseCode = "201", description = "Registrasi Google berhasil", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @APIResponse(responseCode = "400", description = "Validasi gagal, token tidak valid, atau email sudah terdaftar", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    public Response googleRegister(@Valid GoogleRegisterRequest request, @Context HttpHeaders headers) {
+        // Validasi logika benturan (Mutual Exclusivity) dari sistem undangan
+        request.isValid();
+        
+        // Ambil data perangkat dari headers
+        DeviceInfo deviceInfo = deviceService.extractDeviceInfo(headers, httpServerRequest);
+        
+        // Panggil service khusus untuk registrasi (Termasuk logika referral dan organization)
+        LoginResponse response = authService.googleRegister(
+            request.token(),
+            request.accountType(),
+            request.referralCode(),
+            request.inviteCode(),
+            request.invitedBy(),
+            request.invitedOrganizationId(),
+            request.invitationRole(),
+            deviceInfo
+        );
+        
+        // Pasang cookie HTTPOnly (karena Google SSO langsung aktif tanpa perlu verifikasi email)
+        List<NewCookie> cookies = List.of(cookieHelper.createRefreshCookie(response.refreshToken()));
+        return ResponseHelper.created(response, "Registrasi Google berhasil", cookies);
     }
 }

@@ -5,12 +5,18 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import com.mongodb.client.model.Filters;
 import com.psycorp.psychapi.feature.auth.api.dto.response.LoginResponse;
 import com.psycorp.psychapi.feature.auth.api.dto.response.SessionResponse;
@@ -44,6 +50,9 @@ public class AuthService {
     
     @Inject
     EmailService emailService;
+
+    @ConfigProperty(name = "google.client.id")
+    String googleClientId;
     /**
      * Register user baru dan generate tokens.
      */
@@ -413,5 +422,163 @@ public class AuthService {
         user.resetPassword(newHashedPassword);
 
         RefreshToken.revokeAllByUserId(user.getId(), RefreshToken.RevokeReason.fromValue("PASSWORD_CHANGED"));
+    }
+
+    /**
+     * Authenticate user menggunakan Google ID Token HANYA untuk akun yang sudah ada.
+     */
+    @Transactional
+    public LoginResponse googleLoginOnly(String idTokenString, DeviceInfo deviceInfo) {
+        try {
+            NetHttpTransport transport = new NetHttpTransport();
+            GsonFactory jsonFactory = new GsonFactory();
+
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(transport, jsonFactory)
+                .setAudience(Collections.singletonList(googleClientId))
+                .build();
+
+            GoogleIdToken idToken = verifier.verify(idTokenString);
+            if (idToken == null) {
+                throw new ValidationException("INVALID_TOKEN", "Token Google tidak valid atau sudah kedaluwarsa.");
+            }
+
+            String email = idToken.getPayload().getEmail();
+            String googleId = idToken.getPayload().getSubject();
+
+            User user = User.find("email", email).firstResult();
+            
+            // TOLAK JIKA BELUM TERDAFTAR
+            if (user == null) {
+                throw new ValidationException("USER_NOT_FOUND", "Akun Anda belum terdaftar. Silakan mendaftar terlebih dahulu.");
+            }
+
+            // CEK STATUS BANNED/DELETED
+            if (User.Status.SUSPENDED.equals(user.getStatus()) || User.Status.DELETED.equals(user.getStatus())) {
+                throw new ValidationException("ACCOUNT_INACTIVE", "Akun Anda ditangguhkan atau dihapus.");
+            }
+
+            boolean needUpdate = false;
+            
+            // SINKRONISASI JIKA SEBELUMNYA DAFTAR MANUAL
+            if (user.getProviderId() == null || !user.getProvider().equals("google")) {
+                user.setProvider("google");
+                user.setProviderId(googleId);
+                needUpdate = true;
+            }
+
+            // AKTIVASI OTOMATIS JIKA SEBELUMNYA MALAS KLIK EMAIL
+            if (User.Status.PENDING.equals(user.getStatus())) {
+                user.setStatus(User.Status.ACTIVE);
+                user.setVerificationToken(null);
+                user.setVerificationExpiresAt(null);
+                user.setExpiredAt(null);
+                needUpdate = true;
+            }
+
+            if (needUpdate) {
+                user.setUpdatedAt(Instant.now());
+                user.update(); 
+            }
+
+            // GENERATE SESSION
+            String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getRoles());
+            String refreshToken = jwtService.generateRefreshToken();
+            Instant refreshTokenExpiry = jwtService.getRefreshTokenExpiry();
+
+            saveRefreshToken(user.getId(), refreshToken, refreshTokenExpiry, deviceInfo);
+
+            UserResponse userResponse = UserResponse.fromEntity(user);
+            return LoginResponse.of(userResponse, accessToken, refreshToken, jwtService.getAccessTokenExpiry());
+
+        } catch (Exception e) {
+            throw new ValidationException("AUTH_FAILED", "Gagal mengautentikasi akun Google: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Registrasi user baru menggunakan Google ID Token beserta logika organisasi/referral.
+     */
+    @Transactional
+    public LoginResponse googleRegister(
+        String idTokenString, 
+        AccountType accountType,
+        String referralCode,
+        String inviteCode,
+        String invitedBy,
+        String invitedOrganizationId,
+        String invitationRole,
+        DeviceInfo deviceInfo
+    ) {
+        try {
+            NetHttpTransport transport = new NetHttpTransport();
+            GsonFactory jsonFactory = new GsonFactory();
+
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(transport, jsonFactory)
+                .setAudience(Collections.singletonList(googleClientId))
+                .build();
+
+            GoogleIdToken idToken = verifier.verify(idTokenString);
+            if (idToken == null) {
+                throw new ValidationException("INVALID_TOKEN", "Token Google tidak valid atau sudah kedaluwarsa.");
+            }
+
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            String email = payload.getEmail();
+            String googleId = payload.getSubject();
+            String name = (String) payload.get("name");
+
+            User existingUser = User.find("email", email).firstResult();
+            
+            // TOLAK JIKA SUDAH TERDAFTAR
+            if (existingUser != null) {
+                throw new ValidationException("EMAIL_EXISTS", "Email sudah terdaftar. Silakan langsung login menggunakan Google.");
+            }
+
+            // 1. PINJAM LOGIKA REGISTRASI UTAMA UNTUK VALIDASI REFERRAL/ORGANIZATION
+            // Kita menggunakan UUID acak sebagai dummy password karena pendaftaran manual mewajibkannya.
+            String dummyPassword = UUID.randomUUID().toString() + "Ggl1!"; 
+            
+            User user = userService.register(
+                email,
+                dummyPassword,
+                name,
+                referralCode,
+                accountType,
+                inviteCode,
+                invitedBy,
+                invitedOrganizationId,
+                invitationRole,
+                null, // Tidak butuh token verifikasi email
+                null
+            );
+
+            // 2. TIMPA PENGATURAN BAWAAN MENJADI GOOGLE SSO
+            user.setProvider("google");
+            user.setProviderId(googleId);
+            
+            // Langsung aktifkan tanpa verifikasi email
+            user.setStatus(User.Status.ACTIVE);
+            user.setExpiredAt(null);
+            
+            // Kosongkan password agar murni menjadi akun SSO
+            user.setPassword(null);
+            user.setUpdatedAt(Instant.now());
+            user.update(); // Simpan perubahan
+
+            // 3. GENERATE SESSION (Berbeda dengan register manual, Google Register langsung login)
+            String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getRoles());
+            String refreshToken = jwtService.generateRefreshToken();
+            Instant refreshTokenExpiry = jwtService.getRefreshTokenExpiry();
+
+            saveRefreshToken(user.getId(), refreshToken, refreshTokenExpiry, deviceInfo);
+
+            UserResponse userResponse = UserResponse.fromEntity(user);
+            return LoginResponse.of(userResponse, accessToken, refreshToken, jwtService.getAccessTokenExpiry());
+
+        } catch (ValidationException ve) {
+            throw ve;
+        } catch (Exception e) {
+            throw new ValidationException("AUTH_FAILED", "Gagal melakukan registrasi Google: " + e.getMessage());
+        }
     }
 }
