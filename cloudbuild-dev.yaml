@@ -58,9 +58,9 @@ steps:
       - "JWT_SECRET=JWT_SECRET:1,MONGODB_URI=MONGODB_URI:1,SMTP_PASSWORD=SECRET:1,GOOGLE_OAUTH_CLIENT_ID=SECRET:3"
 
 availableSecrets:
-  inline:
-    - envMap:
-        MONGODB_URI: "projects/$PROJECT_ID/secrets/MONGODB_URI/versions/1"
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/MONGODB_URI/versions/1
+      env: "MONGODB_URI"
 
 options:
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
