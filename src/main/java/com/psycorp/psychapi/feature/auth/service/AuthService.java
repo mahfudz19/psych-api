@@ -490,9 +490,13 @@ public class AuthService {
             UserResponse userResponse = UserResponse.fromEntity(user);
             return LoginResponse.of(userResponse, accessToken, refreshToken, jwtService.getAccessTokenExpiry());
 
-        } catch (Exception e) {
-            throw new ValidationException("AUTH_FAILED", "Gagal mengautentikasi akun Google: " + e.getMessage());
-        }
+        } catch (java.security.GeneralSecurityException | java.io.IOException e) {
+            throw new ValidationException("AUTH_FAILED", "Gagal memvalidasi token Google: " + e.getMessage());
+        } catch (ValidationException ve) {
+            throw ve;
+        } catch (RuntimeException e) {
+            throw new ValidationException("AUTH_FAILED", "Gagal mengautentikasi akun Google: " + e.toString());
+        }    
     }
 
     /**
@@ -575,10 +579,12 @@ public class AuthService {
             UserResponse userResponse = UserResponse.fromEntity(user);
             return LoginResponse.of(userResponse, accessToken, refreshToken, jwtService.getAccessTokenExpiry());
 
+        } catch (java.security.GeneralSecurityException | java.io.IOException e) {
+            throw new ValidationException("AUTH_FAILED", "Gagal memvalidasi token Google: " + e.getMessage());
         } catch (ValidationException ve) {
             throw ve;
-        } catch (Exception e) {
-            throw new ValidationException("AUTH_FAILED", "Gagal melakukan registrasi Google: " + e.getMessage());
+        } catch (RuntimeException e) {
+            throw new ValidationException("AUTH_FAILED", "Gagal melakukan registrasi Google: " + e.toString());
         }
     }
 }
