@@ -4,7 +4,21 @@ steps:
     entrypoint: mvn
     args: ["package", "-DskipTests"]
 
-  # 2. Bungkus ke dalam Docker menggunakan Dockerfile bawaan Quarkus
+  # 2. EKSEKUSI MIGRASI DI DALAM MESIN CLOUD BUILD
+  - name: "maven:3.9-eclipse-temurin-17"
+    entrypoint: bash
+    args:
+      - "-c"
+      - |
+        java -Dquarkus.profile=prod \
+             -Dquarkus.mongock.migrate-at-start=true \
+             -Dapp.migration.exit-after=true \
+             -DMONGODB_URI="$$MONGODB_URI" \
+             -DMONGODB_DATABASE="psych-dev" \
+             -jar target/quarkus-app/quarkus-run.jar
+    secretEnv: ["MONGODB_URI"]
+
+  # 3. Bungkus ke dalam Docker
   - name: "gcr.io/cloud-builders/docker"
     args:
       - "build"
@@ -14,13 +28,13 @@ steps:
       - "asia-southeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/psych-api:$COMMIT_SHA"
       - "."
 
-  # 3. Push Docker Image ke Artifact Registry (Gudang Kontainer)
+  # 4. Push Docker Image ke Artifact Registry (Gudang Kontainer)
   - name: "gcr.io/cloud-builders/docker"
     args:
       - "push"
       - "asia-southeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/psych-api:$COMMIT_SHA"
 
-  # 4. Deploy otomatis ke Cloud Run
+  # 5. Deploy otomatis ke Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: gcloud
     args:
@@ -42,6 +56,12 @@ steps:
       - "QUARKUS_PROFILE=prod,APP_VERSION=$COMMIT_SHA,HTTP_PORT=8080,CORS_ORIGINS=https://app-test.stimi-yapmi.ac.id,JWT_COOKIE_DOMAIN=.stimi-yapmi.ac.id,MONGODB_DATABASE=psych-dev,SMTP_USERNAME=mfz.masyhur97@gmail.com,MAILER_FRONTNEND=https://app-test.stimi-yapmi.ac.id"
       - "--update-secrets"
       - "JWT_SECRET=JWT_SECRET:1,MONGODB_URI=MONGODB_URI:1,SMTP_PASSWORD=SECRET:1,GOOGLE_OAUTH_CLIENT_ID=SECRET:3"
+
+availableSecrets:
+  inline:
+    - envMap:
+        MONGODB_URI: "projects/$PROJECT_ID/secrets/MONGODB_URI/versions/1"
+
 options:
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
 
