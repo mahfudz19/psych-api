@@ -1,6 +1,10 @@
 package com.psycorp.psychapi.feature.user.api.dto.request;
 
+import java.util.List;
+
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
+
+import com.psycorp.psychapi.shared.request.PageableRequest;
 
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.QueryParam;
@@ -12,7 +16,7 @@ public record UserListRequest(
 
     @QueryParam("filter")
     @Parameter(description = "Filter: 'field:operator:value'. Example: 'status:in:active,suspended'", required = false)
-    String filter,
+    List<String> filter,
     
     @QueryParam("page")
     @DefaultValue("1")
@@ -33,4 +37,4 @@ public record UserListRequest(
     @DefaultValue("desc")
     @Parameter(description = "Sort order: asc or desc", example = "desc")
     String sortOrder
-) {}
+) implements PageableRequest {}

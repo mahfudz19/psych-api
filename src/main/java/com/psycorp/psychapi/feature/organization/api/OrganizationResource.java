@@ -90,7 +90,7 @@ public class OrganizationResource {
             .map(OrganizationResponse::fromEntity)
             .toList();
         
-        PaginationMeta meta = PaginationMeta.of(request.page(), request.limit(), total);
+        PaginationMeta meta = PaginationMeta.of(request, total);
         return ResponseHelper.ok(data, "Organizations retrieved successfully", meta);
     }
 

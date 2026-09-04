@@ -2,6 +2,8 @@ package com.psycorp.psychapi.feature.user.api;
 
 import java.util.List;
 
+import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
@@ -17,8 +19,11 @@ import com.psycorp.psychapi.feature.user.model.User;
 import com.psycorp.psychapi.feature.user.service.UserService;
 import com.psycorp.psychapi.shared.response.PaginationMeta;
 import com.psycorp.psychapi.shared.response.ResponseHelper;
+import com.psycorp.psychapi.shared.util.MongoFilter;
 
+import io.quarkus.mongodb.panache.PanacheQuery;
 import io.quarkus.security.Authenticated;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.BeanParam;
@@ -43,39 +48,42 @@ public class UserResource {
     @Inject
     UserService userService;
 
+    private static final String[] SEARCH_FIELDS = {"email", "fullName", "phone", "bio"};
+
     @GET
+    @RolesAllowed("SUPERADMIN")
     @Operation(summary = "Get all users with pagination, search, and filter")
     @APIResponse(responseCode = "200", description = "Successful response")
     @APIResponse(responseCode = "401", description = "Unauthorized")
     public Response getAllUsers(@BeanParam UserListRequest request) {
-        List<User> users = userService.getAllUsers(
-            request.search(), 
-            request.filter(), 
-            request.sortBy(), 
-            request.sortOrder(), 
-            request.page(), 
-            request.limit()
-        );
-        long total = userService.getTotalUsersCount(request.search(), request.filter());
+        Bson filter = MongoFilter.fromRequest(request, SEARCH_FIELDS);
+        Bson sort   = MongoFilter.sort(request);
+
+        PanacheQuery<User> users = userService
+            .find(filter, sort)
+            .page(request.page() - 1, request.limit());
+        long total = userService.count(filter);
         
         List<UserResponse> data = users.stream().map(UserResponse::fromEntity).toList();
-        PaginationMeta meta = PaginationMeta.of(request.page(), request.limit(), total);
+        PaginationMeta meta = PaginationMeta.of(request, total);
         
         return ResponseHelper.ok(data, "Users retrieved successfully", meta);
     }
 
     @GET
-    @Path("/{id}")
+    @Path("/{id}/detail")
+    @RolesAllowed("SUPERADMIN")
     @Operation(summary = "Get a user by ID")
     @APIResponse(responseCode = "200", description = "Successful response")
     @APIResponse(responseCode = "404", description = "User not found")
-    public Response getUserById(@PathParam("id") String id) {
-        User user = userService.getUserById(id);
+    public Response getUserById(@PathParam("id") ObjectId id) {
+        User user = userService.findById(id);
         UserResponse data = UserResponse.fromEntity(user);
         return ResponseHelper.ok(data, "User retrieved successfully");
     }
 
     @POST
+    @RolesAllowed("SUPERADMIN")
     @Operation(summary = "Create a new user")
     @RequestBody(description = "Create user request", required = true, content = @Content(schema = @Schema(implementation = CreateUserRequest.class)))
     @APIResponse(responseCode = "201", description = "User created successfully")
@@ -96,6 +104,7 @@ public class UserResource {
 
     @PUT
     @Path("/{id}")
+    @RolesAllowed("SUPERADMIN")
     @Operation(summary = "Update user profile")
     @APIResponse(responseCode = "200", description = "User updated successfully")
     @APIResponse(responseCode = "404", description = "User not found")
@@ -114,6 +123,7 @@ public class UserResource {
 
     @DELETE
     @Path("/{id}")
+    @RolesAllowed("SUPERADMIN")
     @Operation(summary = "Delete a user permanently")
     @APIResponse(responseCode = "200", description = "User deleted successfully")
     @APIResponse(responseCode = "404", description = "User not found")
@@ -124,6 +134,7 @@ public class UserResource {
 
     @DELETE
     @Path("/{id}/soft")
+    @RolesAllowed("SUPERADMIN")
     @Operation(summary = "Soft delete a user account")
     @APIResponse(responseCode = "200", description = "User soft deleted successfully")
     @APIResponse(responseCode = "404", description = "User not found")

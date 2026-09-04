@@ -1,7 +1,10 @@
 package com.psycorp.psychapi.shared.util;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 import org.bson.Document;
@@ -9,6 +12,7 @@ import org.bson.conversions.Bson;
 
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
+import com.psycorp.psychapi.shared.request.PageableRequest;
 
 /**
  * Utility class untuk membangun dan menggabungkan MongoDB Bson filters dan sorts.
@@ -39,6 +43,22 @@ public final class MongoFilter {
     
     private MongoFilter() {
         // Prevent instantiation
+    }
+
+    private static Date toDate(String value) {
+        try {
+            return Date.from(Instant.parse(value));
+        } catch (DateTimeParseException e) {
+            return Date.from(Instant.parse(value + "T00:00:00Z"));
+        }
+    }
+
+    private static Object toDateOrString(String value) {
+        try {
+            return toDate(value);
+        } catch (DateTimeParseException e) {
+            return value;
+        }
     }
     
     // =========================================================================
@@ -77,12 +97,20 @@ public final class MongoFilter {
                 String[] values = value.split(",");
                 yield Filters.nin(field, Arrays.asList(values));
             }
-            case "eq" -> Filters.eq(field, value);
-            case "ne" -> Filters.ne(field, value);
-            case "gt" -> Filters.gt(field, value);
-            case "gte" -> Filters.gte(field, value);
-            case "lt" -> Filters.lt(field, value);
-            case "lte" -> Filters.lte(field, value);
+            case "eq" -> Filters.eq(field, toDateOrString(value));
+            case "ne" -> Filters.ne(field, toDateOrString(value));
+            case "gt" -> Filters.gt(field, toDateOrString(value));
+            case "gte" -> Filters.gte(field, toDateOrString(value));
+            case "lt" -> Filters.lt(field, toDateOrString(value));
+            case "lte" -> Filters.lte(field, toDateOrString(value));
+            case "between" -> {
+                String[] range = value.split(",", 2);
+                if (range.length < 2) yield null;
+                yield Filters.and(
+                    Filters.gte(field, toDate(range[0])),
+                    Filters.lte(field, toDate(range[1]))
+                );
+            }
             case "contains" -> Filters.regex(field, value, "i");
             default -> Filters.eq(field, value);
         };
@@ -343,5 +371,16 @@ public final class MongoFilter {
         }
         
         return Sorts.orderBy(Arrays.asList(sorts));
+    }
+
+    public static Bson fromRequest(PageableRequest req, String... searchFields) {
+        return and(
+            search(req.search(), searchFields),
+            parseAll(req.filter().toArray(String[]::new))
+        );
+    }
+
+    public static Bson sort(PageableRequest req) {
+        return sort(req.sortBy(), req.sortOrder());
     }
 }

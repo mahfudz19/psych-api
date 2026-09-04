@@ -1,7 +1,11 @@
 package com.psycorp.psychapi.feature.organization.api.dto.request;
 
+import java.util.List;
+
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
+
+import com.psycorp.psychapi.shared.request.PageableRequest;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -97,7 +101,7 @@ public final class OrganizationMemberRequests {
 
         @QueryParam("filter")
         @Parameter(description = "Custom filter dengan format field:operator:value", example = "organizationRole:in:admin,member")
-        String filter,
+        List<String> filter,
 
         @QueryParam("page")
         @DefaultValue("1")
@@ -118,7 +122,7 @@ public final class OrganizationMemberRequests {
         @DefaultValue("desc")
         @Parameter(description = "Sort order (asc/desc)", example = "desc")
         String sortOrder
-    ) {}
+    ) implements PageableRequest {}
 
     /**
      * Request body untuk invite member baru ke organization.

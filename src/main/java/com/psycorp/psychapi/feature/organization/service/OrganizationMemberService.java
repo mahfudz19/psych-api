@@ -58,7 +58,7 @@ public class OrganizationMemberService {
         Bson searchFilter = MongoFilter.search(request.search(), SEARCH_FIELDS);
 
         // 4. Parse custom filter
-        Bson customFilter = MongoFilter.parse(request.filter());
+        Bson customFilter = MongoFilter.parseAll(request.filter().toArray(String[]::new));
 
         // 5. Combine all filters
         Bson finalFilter = MongoFilter.and(baseFilter, searchFilter, customFilter);
@@ -81,12 +81,12 @@ public class OrganizationMemberService {
      * @param filter Custom filter string
      * @return Total count members
      */
-    public long getMembersCount(String orgId, String search, String filter) {
+    public long getMembersCount(String orgId, String search, List<String> filter) {
         ValidationUtils.validateObjectId(orgId);
 
         Bson baseFilter = Filters.eq("organizationId", new ObjectId(orgId));
         Bson searchFilter = MongoFilter.search(search, SEARCH_FIELDS);
-        Bson customFilter = MongoFilter.parse(filter);
+        Bson customFilter = MongoFilter.parseAll(filter.toArray(String[]::new));
 
         Bson finalFilter = MongoFilter.and(baseFilter, searchFilter, customFilter);
 

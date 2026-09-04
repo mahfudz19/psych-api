@@ -2,6 +2,8 @@ package com.psycorp.psychapi.feature.organization.api.dto.request;
 
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 
+import com.psycorp.psychapi.shared.request.PageableRequest;
+
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.QueryParam;
 
@@ -25,4 +27,4 @@ public record OrganizationListRequest(
     @DefaultValue("desc")
     @Parameter(description = "Sort order: asc or desc", example = "desc")
     String sortOrder
-) {}
+) implements PageableRequest {}

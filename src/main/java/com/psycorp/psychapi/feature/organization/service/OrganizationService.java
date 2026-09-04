@@ -96,7 +96,8 @@ public class OrganizationService {
     }
 
     public User getOrganizationOwner(Organization organization) {
-        return userService.getUserById(organization.getOwnerId().toHexString());
+        ObjectId ownerId = organization.getOwnerId();
+        return userService.findById(ownerId);
     }
 
     public Organization getOrganizationById(String orgId, User user) {

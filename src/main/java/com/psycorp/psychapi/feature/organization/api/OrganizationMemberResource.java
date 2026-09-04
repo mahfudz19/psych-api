@@ -70,7 +70,7 @@ public class OrganizationMemberResource {
             .map(OrganizationMemberResponse::fromEntity)
             .toList();
         
-        PaginationMeta meta = PaginationMeta.of(request.page(), request.limit(), total);
+        PaginationMeta meta = PaginationMeta.of(request, total);
 
         return ResponseHelper.ok(responses, "Members retrieved successfully", meta);
     }

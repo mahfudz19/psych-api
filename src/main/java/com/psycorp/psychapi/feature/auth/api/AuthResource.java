@@ -259,7 +259,7 @@ public class AuthResource {
         long total = authService.getSessionsCount(user.getId(), request.status());
 
         // Build pagination meta
-        PaginationMeta meta = PaginationMeta.of(request.page(), request.limit(), total);
+        PaginationMeta meta = PaginationMeta.of(request, total);
 
         // Return response
         return ResponseHelper.ok(sessions, "Sessions retrieved successfully", meta);

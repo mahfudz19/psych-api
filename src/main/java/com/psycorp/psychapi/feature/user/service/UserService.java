@@ -19,38 +19,18 @@ import com.psycorp.psychapi.shared.util.DocumentUpdater;
 import com.psycorp.psychapi.shared.util.MongoFilter;
 import com.psycorp.psychapi.shared.util.ValidationUtils;
 
-import io.quarkus.mongodb.panache.PanacheQuery;
+import io.quarkus.mongodb.panache.PanacheMongoRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 @ApplicationScoped
-public class UserService {
+public class UserService implements PanacheMongoRepository<User> {
 
     // Fields yang bisa di-search untuk User
     private static final String[] SEARCH_FIELDS = {"email", "fullName", "phone", "bio"};
     
     @Inject
     ReferralService referralService;
-
-    public List<User> getAllUsers(String search, String filter, String sortBy, String sortOrder, int page, int limit) {
-        // 1. Build search filter pada email, fullName, phone, dan bio
-        Bson searchFilter = MongoFilter.search(search, SEARCH_FIELDS);
-        
-        // 2. Parse custom filter (contoh: "status:active", "roles:in:USER,ORGANIZATION")
-        Bson customFilter = MongoFilter.parse(filter);
-        
-        // 3. Combine semua filters dengan $and
-        Bson finalFilter = MongoFilter.and(searchFilter, customFilter);
-        
-        // 4. Build sort
-        Bson sort = MongoFilter.sort(sortBy, sortOrder);
-        
-        // 5. Execute query dengan pagination
-        PanacheQuery<User> query = User.find(finalFilter, sort);
-        query.page(page - 1, limit);
-        
-        return query.list();
-    }
 
     public long getTotalUsersCount(String search, String filter) {
         // Build search filter
@@ -65,7 +45,7 @@ public class UserService {
         return User.count(finalFilter);
     }
 
-    public User getUserById(String id) {
+    private User getUserById(String id) {
         // Validate ObjectId format
         ObjectId objectId = ValidationUtils.validateObjectId(id);
         
@@ -85,8 +65,8 @@ public class UserService {
         String inviteCode,
         String invitedBy,
         String invitedOrganizationId,
-        String invitationRole, 
-        String hashedVerificationToken, 
+        String invitationRole,
+        String hashedVerificationToken,
         Instant verificationExpiresAt
     ) {
         // 1. Validate user data (email format, password strength, etc)
@@ -95,8 +75,7 @@ public class UserService {
         // 2. Validate email uniqueness (DB check)
         User existingUser = User.find("email", email).firstResult();
         if (existingUser != null) {
-            throw new ValidationException("EMAIL_EXISTS",
-                "Email '" + email + "' is already registered");
+            throw new ValidationException("EMAIL_EXISTS", "Email '" + email + "' is already registered");
         }
         
         // 3. Validate referralCode using ReferralService (FAIL FAST - throw jika tidak ditemukan)
@@ -125,26 +104,22 @@ public class UserService {
             // 4a. Validate invitedBy exists (DB check)
             inviter = User.findById(new org.bson.types.ObjectId(invitedBy));
             if (inviter == null) {
-                throw new ValidationException("INVALID_INVITER",
-                    "User who invited you does not exist");
+                throw new ValidationException("INVALID_INVITER", "User who invited you does not exist");
             }
             
             // 4b. Validate organization exists (DB check)
             Organization org = Organization.findById(new org.bson.types.ObjectId(invitedOrganizationId));
             if (org == null) {
-                throw new ValidationException("INVALID_ORGANIZATION",
-                    "Organization does not exist");
+                throw new ValidationException("INVALID_ORGANIZATION", "Organization does not exist");
             }
             orgId = org.id;
             
             // 4c. AUTHORIZATION: Validate inviter has permission to add members
             if (!inviter.getOrganizationId().equals(org.id)) {
-                throw new ValidationException("UNAUTHORIZED",
-                    "User does not belong to this organization");
+                throw new ValidationException("UNAUTHORIZED", "User does not belong to this organization");
             }
             if (!List.of("owner", "admin").contains(inviter.getOrganizationRole())) {
-                throw new ValidationException("UNAUTHORIZED",
-                    "Only organization owner or admin can add members directly. Your role: " + inviter.getOrganizationRole());
+                throw new ValidationException("UNAUTHORIZED", "Only organization owner or admin can add members directly. Your role: " + inviter.getOrganizationRole());
             }
             role =  "member";
         }
@@ -186,12 +161,10 @@ public class UserService {
     private User validateInviteCode(String inviteCode) {
         User inviter = User.find("inviteCode", inviteCode).firstResult();
         if (inviter == null) {
-            throw new ValidationException("INVALID_INVITE_CODE",
-                "Invitation code '" + inviteCode + "' is not valid");
+            throw new ValidationException("INVALID_INVITE_CODE", "Invitation code '" + inviteCode + "' is not valid");
         }
         if (inviter.getOrganizationId() == null) {
-            throw new ValidationException("INVALID_INVITE_CODE",
-                "Invitation code '" + inviteCode + "' is not associated with any organization");
+            throw new ValidationException("INVALID_INVITE_CODE", "Invitation code '" + inviteCode + "' is not associated with any organization");
         }
         return inviter;
     }
