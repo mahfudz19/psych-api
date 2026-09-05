@@ -2,8 +2,8 @@ package com.psycorp.psychapi.feature.auth.api;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
+import org.bson.conversions.Bson;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeType;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
@@ -36,6 +36,7 @@ import com.psycorp.psychapi.shared.response.ApiResponse;
 import com.psycorp.psychapi.shared.response.CookieHelper;
 import com.psycorp.psychapi.shared.response.PaginationMeta;
 import com.psycorp.psychapi.shared.response.ResponseHelper;
+import com.psycorp.psychapi.shared.util.MongoFilter;
 
 import io.quarkus.security.Authenticated;
 import io.vertx.core.http.HttpServerRequest;
@@ -78,6 +79,8 @@ public class AuthResource {
 
     @Inject
     CookieHelper cookieHelper;
+
+    private static final String[] SESSION_SEARCH_FIELDS = { "deviceInfo.browser", "deviceInfo.os", "deviceInfo.ip", "deviceInfo.location" };
 
     public AuthResource(AuthService authService) {
         this.authService = authService;
@@ -212,21 +215,16 @@ public class AuthResource {
         @CookieParam("refresh_token") String refreshCookie
     ) {
         User user = (User) requestContext.getProperty("validatedUser");
-        
         if (user == null) {
             throw new ForbiddenException("Authentication required");
         }
 
-        int revokedCount = authService.logout(user.getId(), request.refreshTokenId(), refreshCookie);
+        String targetSessionId = request != null ? request.targetSessionId() : null;
+        authService.logout(user.getId(), targetSessionId, refreshCookie);
 
         NewCookie deleteCookie = cookieHelper.deleteCookie();
-
-        return ResponseHelper.ok(
-            Map.of("revokedCount", revokedCount),
-            "Logout successful",
-            List.of(deleteCookie)
-        );
-    }
+        return ResponseHelper.ok(null, "Logout successful", List.of(deleteCookie));
+}
 
     @GET
     @Path("/sessions")
@@ -240,28 +238,15 @@ public class AuthResource {
         @Context ContainerRequestContext requestContext
     ) {
         User user = (User) requestContext.getProperty("validatedUser");
-        
-        if (user == null) {
-            throw new ForbiddenException("Authentication required");
-        }
-        
-        // Get paginated sessions
-        List<SessionResponse> sessions = authService.getSessions(
-            user.getId(),
-            request.page(),
-            request.limit(),
-            request.sortBy(),
-            request.sortOrder(),
-            request.status()
-        );
+        if (user == null) throw new ForbiddenException("Authentication required");
 
-        // Get total count untuk pagination meta
-        long total = authService.getSessionsCount(user.getId(), request.status());
+        Bson filter = MongoFilter.fromRequest(request, SESSION_SEARCH_FIELDS);
+        Bson sort = MongoFilter.sort(request);
 
-        // Build pagination meta
+        List<SessionResponse> sessions = authService.getSessions(user.getId(), filter, sort, request.page(), request.limit());
+        long total = authService.getSessionsCount(user.getId(), filter);
+
         PaginationMeta meta = PaginationMeta.of(request, total);
-
-        // Return response
         return ResponseHelper.ok(sessions, "Sessions retrieved successfully", meta);
     }
 

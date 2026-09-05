@@ -46,10 +46,10 @@ public class RefreshToken extends PanacheMongoEntity {
     
     // === STATUS ENUM ===
     public enum TokenStatus {
-        ACTIVE("active"),
-        REVOKED("revoked"),
-        EXPIRED("expired"),
-        ROTATED("rotated");
+        active("active"),
+        revoked("revoked"),
+        expired("expired"),
+        rotated("rotated");
         
         private final String value;
         
@@ -139,7 +139,7 @@ public class RefreshToken extends PanacheMongoEntity {
      * Check apakah token masih aktif.
      */
     public boolean isActive() {
-        return TokenStatus.ACTIVE.getValue().equals(status) 
+        return TokenStatus.active.getValue().equals(status) 
             && expiresAt.isAfter(Instant.now());
     }
     
@@ -154,21 +154,21 @@ public class RefreshToken extends PanacheMongoEntity {
      * Check apakah token sudah di-revoke.
      */
     public boolean isRevoked() {
-        return TokenStatus.REVOKED.getValue().equals(status);
+        return TokenStatus.revoked.getValue().equals(status);
     }
     
     /**
      * Check apakah token sudah di-rotate.
      */
     public boolean isRotated() {
-        return TokenStatus.ROTATED.getValue().equals(status);
+        return TokenStatus.rotated.getValue().equals(status);
     }
     
     /**
      * Mark token sebagai revoked dengan reason.
      */
     public void revoke(RevokeReason reason) {
-        this.status = TokenStatus.REVOKED.getValue();
+        this.status = TokenStatus.revoked.getValue();
         this.revokeReason = reason.getValue();
         this.updatedAt = Instant.now();
         executeUpdate(Updates.combine(
@@ -181,7 +181,7 @@ public class RefreshToken extends PanacheMongoEntity {
      * Mark token sebagai rotated dan set reference ke token baru.
      */
     public void rotate(ObjectId newTokenId) {
-        this.status = TokenStatus.ROTATED.getValue();
+        this.status = TokenStatus.rotated.getValue();
         this.replacedBy = newTokenId;
         this.rotatedAt = Instant.now();
         this.updatedAt = Instant.now();
@@ -223,7 +223,7 @@ public class RefreshToken extends PanacheMongoEntity {
      * Static find all active tokens by user.
      */
     public static java.util.List<RefreshToken> findActiveByUserId(ObjectId userId) {
-        return list("userId = ?1 and status = ?2", userId, TokenStatus.ACTIVE.getValue());
+        return list("userId = ?1 and status = ?2", userId, TokenStatus.active.getValue());
     }
     
     /**
@@ -237,7 +237,7 @@ public class RefreshToken extends PanacheMongoEntity {
      * Static count active tokens by user.
      */
     public static long countActiveByUserId(ObjectId userId) {
-        return count("userId = ?1 and status = ?2", userId, TokenStatus.ACTIVE.getValue());
+        return count("userId = ?1 and status = ?2", userId, TokenStatus.active.getValue());
     }
 
     /**
@@ -250,12 +250,12 @@ public class RefreshToken extends PanacheMongoEntity {
     public static long revokeByIds(ObjectId[] tokenIds, RevokeReason reason) {
         Bson filter = MongoFilter.and(
             Filters.in("_id", List.of(tokenIds)),
-            Filters.in("status", TokenStatus.ACTIVE.getValue()),
+            Filters.in("status", TokenStatus.active.getValue()),
             Filters.gt("expiresAt", Instant.now())
         );
         
         Bson update = DocumentUpdater.update()
-            .set("status", TokenStatus.REVOKED.getValue())
+            .set("status", TokenStatus.revoked.getValue())
             .set("revokeReason", reason.getValue())
             .set("updatedAt", Instant.now())
             .build();
@@ -273,12 +273,12 @@ public class RefreshToken extends PanacheMongoEntity {
     public static long revokeAllByUserId(ObjectId userId, RevokeReason reason) {
         Bson filter = MongoFilter.and(
             Filters.eq("userId", userId),
-            Filters.in("status", TokenStatus.ACTIVE.getValue()),
+            Filters.in("status", TokenStatus.active.getValue()),
             Filters.gt("expiresAt", Instant.now())
         );
         
         Bson update = DocumentUpdater.update()
-            .set("status", TokenStatus.REVOKED.getValue())
+            .set("status", TokenStatus.revoked.getValue())
             .set("revokeReason", reason.getValue())
             .set("updatedAt", Instant.now())
             .build();

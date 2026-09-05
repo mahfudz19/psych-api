@@ -253,49 +253,60 @@ public class AuthService {
         return LoginResponse.ofRefresh(newAccessToken, newRefreshToken, jwtService.getAccessTokenExpiry());
     }
 
-    /**
-     * Logout user dan revoke semua refresh token.
-     */
-    public int logout(ObjectId userId, String[] refreshTokenIds, String currentRefreshToken) {
-        if (refreshTokenIds == null || refreshTokenIds.length == 0) {
-            // MODE 1: Logout current session menggunakan refresh token dari cookie
+    public void logout(ObjectId userId, String targetSessionId, String currentRefreshToken) {
+        RefreshToken targetToken;
+
+        if (targetSessionId != null && !targetSessionId.isBlank()) {
+            ObjectId sessionObjectId = ValidationUtils.validateObjectId(targetSessionId);
+            
+            if (currentRefreshToken != null && !currentRefreshToken.isBlank()) {
+                RefreshToken currentToken = RefreshToken.findByTokenHash(hashToken(currentRefreshToken));
+                if (currentToken != null && sessionObjectId.equals(currentToken.getId())) {
+                    throw new ValidationException("CANNOT_REVOKE_CURRENT_SESSION", 
+                        "Gunakan tombol Logout untuk mengakhiri sesi yang sedang aktif saat ini.");
+                }
+            }
+            
+            targetToken = RefreshToken.findById(sessionObjectId);
+        } else {
+            // Mode 2: Current session dari cookie
             if (currentRefreshToken == null || currentRefreshToken.isBlank()) {
-                throw new ValidationException("INVALID_REQUEST", 
-                    "Tidak ada session yang aktif. Silakan login ulang.");
+                throw new ValidationException("INVALID_REQUEST", "Tidak ada sesi yang aktif. Silakan login ulang.");
             }
-            
-            // Hash & find token
             String tokenHash = hashToken(currentRefreshToken);
-            RefreshToken currentToken = RefreshToken.findByTokenHash(tokenHash);
-            
-            if (currentToken == null || !currentToken.isActive()) {
-                return 0;
+            targetToken = RefreshToken.findByTokenHash(tokenHash);
+        }
+
+        // 1. Validasi keberadaan & kepemilikan token
+        if (targetToken == null || !userId.equals(targetToken.getUserId())) {
+            throw new ValidationException("SESSION_NOT_FOUND", "Sesi tidak ditemukan atau bukan milik Anda.");
+        }
+
+        // 2. Validasi status aktif
+        if (!targetToken.isActive()) {
+            if (targetToken.isRotated()) {
+                RefreshToken.revokeAllByUserId(userId, RevokeReason.fromValue("TOKEN_REUSE_DETECTED"));
+                throw new ValidationException("SECURITY_ALERT", "Token telah di-rotate sebelumnya. Semua sesi dicabut demi keamanan.");
             }
-            
-            // Revoke single token
-            Bson filter = MongoFilter.and(
-                Filters.eq("_id", currentToken.getId()),
-                Filters.in("status", TokenStatus.ACTIVE.getValue())
-            );
-            
-            Bson update = DocumentUpdater.update()
-                .set("status", TokenStatus.REVOKED.getValue())
-                .set("revokeReason", RevokeReason.LOGOUT.getValue())
-                .set("updatedAt", Instant.now())
-                .build();
-            
-            return (int) RefreshToken.mongoCollection().updateOne(filter, update).getModifiedCount();
+            throw new ValidationException("SESSION_ALREADY_INACTIVE", "Sesi ini sudah tidak aktif atau telah di-logout sebelumnya.");
         }
 
-        ObjectId[] tokenObjectIds = new ObjectId[refreshTokenIds.length];
-        for (int i = 0; i < refreshTokenIds.length; i++) {
-            tokenObjectIds[i] = ValidationUtils.validateObjectId(refreshTokenIds[i]);
-        }
-        
-        // Delegate ke model helper
-        return (int) RefreshToken.revokeByIds(tokenObjectIds, RefreshToken.RevokeReason.LOGOUT);
+        // 3. Revoke token
+        Bson filter = MongoFilter.and(
+            Filters.eq("_id", targetToken.getId()),
+            Filters.eq("userId", userId),
+            Filters.in("status", TokenStatus.active.getValue())
+        );
+
+        Bson update = DocumentUpdater.update()
+            .set("status", TokenStatus.revoked.getValue())
+            .set("revokeReason", RevokeReason.LOGOUT.getValue())
+            .set("updatedAt", Instant.now())
+            .build();
+
+        RefreshToken.mongoCollection().updateOne(filter, update);
     }
-
+    
     /**
      * Save refresh token ke database.
      */
@@ -309,7 +320,7 @@ public class AuthService {
         token.setUserId(userId);
         token.setDeviceId(generateDeviceId());
         token.setDeviceInfo(deviceInfo);
-        token.setStatus(RefreshToken.TokenStatus.ACTIVE.getValue());
+        token.setStatus(RefreshToken.TokenStatus.active.getValue());
         token.setExpiresAt(expiry);
         token.setCreatedAt(Instant.now());
         token.setUpdatedAt(Instant.now());
@@ -347,23 +358,13 @@ public class AuthService {
     /**
      * Get all sessions untuk user dengan pagination.
      */
-    public List<SessionResponse> getSessions(ObjectId userId, int page, int limit, String sortBy, String sortOrder, String status) {
-        // Build filter: userId + optional status filter
-        Bson baseFilter = Filters.eq("userId", userId);
-        Bson statusFilter = status != null && !status.isBlank()
-            ? Filters.eq("status", status.toLowerCase())
-            : null;
-        Bson filter = MongoFilter.and(baseFilter, statusFilter);
-        
-        // Build sort
-        Bson sort = MongoFilter.sort(sortBy, sortOrder);
-        
-        // Get paginated data
-        List<RefreshToken> tokens = RefreshToken.find(filter, sort)
-            .page(page, limit)
+    public List<SessionResponse> getSessions(ObjectId userId, Bson filter, Bson sort, int page, int limit) {
+        Bson baseFilter = MongoFilter.and(Filters.eq("userId", userId), filter);
+
+        List<RefreshToken> tokens = RefreshToken.find(baseFilter, sort)
+            .page(page - 1, limit)
             .list();
-        
-        // Convert to SessionResponse
+
         return tokens.stream()
             .map(token -> SessionResponse.fromEntity(token, null))
             .toList();
@@ -372,14 +373,9 @@ public class AuthService {
     /**
      * Get total count sessions untuk user.
      */
-    public long getSessionsCount(ObjectId userId, String status) {
-        Bson baseFilter = Filters.eq("userId", userId);
-        Bson statusFilter = status != null && !status.isBlank()
-            ? Filters.eq("status", status.toLowerCase())
-            : null;
-        Bson filter = MongoFilter.and(baseFilter, statusFilter);
-        
-        return RefreshToken.count(filter);
+    public long getSessionsCount(ObjectId userId, Bson filter) {
+        Bson baseFilter = MongoFilter.and(Filters.eq("userId", userId), filter);
+        return RefreshToken.count(baseFilter);
     }
 
     /**
