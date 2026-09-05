@@ -51,6 +51,12 @@ public record UserInfoResponse(
     
     @Schema(description = "Tipe akun", examples = "INDIVIDUAL")
     User.AccountType accountType,
+
+    @Schema(description = "Referral code user", examples = "ABC12345")
+    String referralCode,
+
+    @Schema(description = "Invite code untuk organization", examples = "INV8A3F2B1C9D0E")
+    String inviteCode,
     
     @Schema(description = "Status akun user", examples = "ACTIVE")
     User.Status status,
@@ -61,11 +67,6 @@ public record UserInfoResponse(
     @Schema(description = "Waktu pembuatan akun", examples = "2024-01-01T00:00:00Z")
     Instant createdAt
 ) {
-    /**
-     * Factory method untuk membuat UserInfoResponse dari User entity.
-     * @param user User entity
-     * @return UserInfoResponse
-     */
     public static UserInfoResponse from(com.psycorp.psychapi.feature.user.model.User user) {
         return new UserInfoResponse(
             user.getId(),
@@ -80,6 +81,8 @@ public record UserInfoResponse(
             user.getOrganizationName(),
             user.getSubscriptionTier(),
             user.getAccountType(),
+            user.getReferralCode(),
+            user.getInviteCode(),
             user.getStatus(),
             user.getLastLoginAt(),
             user.getCreatedAt()

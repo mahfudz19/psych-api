@@ -252,6 +252,23 @@ public class OrganizationService {
         }
     }
 
+    public String generateOrRegenerateInviteCode(User user) {
+        if (user.getOrganizationId() == null) {
+            throw new ValidationException("NO_ORGANIZATION", "User does not belong to any organization");
+        }
+        if (!List.of("owner", "admin").contains(user.getOrganizationRole())) {
+            throw new ValidationException("UNAUTHORIZED",
+                "Only organization owner or admin can generate invite code. Your role: " + user.getOrganizationRole());
+        }
+
+        String newCode = generateInviteCode();
+        user.setInviteCode(newCode);
+        user.setUpdatedAt(Instant.now());
+        user.update();
+
+        return newCode;
+    }
+    
     private void validateCreateRequest(CreateOrganizationRequest request) {
         List<String> errors = new ArrayList<>();
 

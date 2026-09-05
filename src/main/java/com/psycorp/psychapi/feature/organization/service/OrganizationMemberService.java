@@ -21,10 +21,6 @@ import io.quarkus.mongodb.panache.PanacheQuery;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-/**
- * Service untuk mengelola members dalam organization.
- * Menyediakan fitur list, search, filter, sort, pagination, invite, update role, remove, dan leave.
- */
 @ApplicationScoped
 public class OrganizationMemberService {
 
@@ -37,71 +33,29 @@ public class OrganizationMemberService {
     @Inject
     OrganizationService organizationService;
 
-    /**
-     * Mendapatkan daftar members organization dengan pagination, search, sort, dan filter.
-     * Hanya owner dan admin yang bisa melihat semua members.
-     *
-     * @param orgId Organization ID
-     * @param currentUser User yang melakukan request
-     * @param request Query parameters untuk pagination, search, sort, filter
-     * @return List of User yang merupakan member organization
-     */
-    public List<User> getMembersByOrganizationId(String orgId, User currentUser, MembersListRequest request) {
-        // 1. Validate organization exists dan user memiliki akses sebagai owner/admin
+    public PanacheQuery<User> findMembers(String orgId, User currentUser, MembersListRequest request) {
         Organization organization = getOrganizationById(orgId);
         organizationService.validateOrganizationAccess(organization, currentUser, "owner", "admin");
 
-        // 2. Build base filter: organizationId = orgId
         Bson baseFilter = Filters.eq("organizationId", new ObjectId(orgId));
+        Bson requestFilter = MongoFilter.fromRequest(request, SEARCH_FIELDS);
+        Bson finalFilter = MongoFilter.and(baseFilter, requestFilter);
+        Bson sort = MongoFilter.sort(request);
 
-        // 3. Build search filter pada fullName dan email
-        Bson searchFilter = MongoFilter.search(request.search(), SEARCH_FIELDS);
-
-        // 4. Parse custom filter
-        Bson customFilter = MongoFilter.parseAll(request.filter().toArray(String[]::new));
-
-        // 5. Combine all filters
-        Bson finalFilter = MongoFilter.and(baseFilter, searchFilter, customFilter);
-
-        // 6. Build sort
-        Bson sort = MongoFilter.sort(request.sortBy(), request.sortOrder());
-
-        // 7. Execute query dengan pagination
-        PanacheQuery<User> query = User.find(finalFilter, sort);
-        query.page(request.page() - 1, request.limit());
-
-        return query.list();
+        return User.find(finalFilter, sort);
     }
 
-    /**
-     * Mendapatkan total count members organization berdasarkan search dan filter.
-     *
-     * @param orgId Organization ID
-     * @param search Search keyword
-     * @param filter Custom filter string
-     * @return Total count members
-     */
-    public long getMembersCount(String orgId, String search, List<String> filter) {
-        ValidationUtils.validateObjectId(orgId);
+    public long countMembers(String orgId, User currentUser, MembersListRequest request) {
+        Organization organization = getOrganizationById(orgId);
+        organizationService.validateOrganizationAccess(organization, currentUser, "owner", "admin");
 
         Bson baseFilter = Filters.eq("organizationId", new ObjectId(orgId));
-        Bson searchFilter = MongoFilter.search(search, SEARCH_FIELDS);
-        Bson customFilter = MongoFilter.parseAll(filter.toArray(String[]::new));
-
-        Bson finalFilter = MongoFilter.and(baseFilter, searchFilter, customFilter);
+        Bson requestFilter = MongoFilter.fromRequest(request, SEARCH_FIELDS);
+        Bson finalFilter = MongoFilter.and(baseFilter, requestFilter);
 
         return User.count(finalFilter);
     }
 
-    /**
-     * Mendapatkan detail member berdasarkan userId dan organizationId.
-     * User yang melakukan request harus merupakan member organization yang sama.
-     *
-     * @param orgId Organization ID
-     * @param memberId User ID member yang dicari
-     * @param currentUser User yang melakukan request
-     * @return User member
-     */
     public User getMemberById(String orgId, String memberId, User currentUser) {
         ObjectId organizationId = ValidationUtils.validateObjectId(orgId);
         ObjectId targetMemberId = ValidationUtils.validateObjectId(memberId);
@@ -124,17 +78,7 @@ public class OrganizationMemberService {
 
         return user;
     }
-    
-    /**
-     * Update role member organization.
-     * Hanya owner yang bisa update role.
-     *
-     * @param orgId Organization ID
-     * @param currentUser User yang melakukan request (harus owner)
-     * @param memberId User ID member yang diupdate
-     * @param request Update role request
-     * @return User member yang sudah diupdate
-     */
+
     public User updateMemberRole(String orgId, User currentUser, String memberId, UpdateMemberRoleRequest request) {
         // 1. Validate organization exists dan user adalah owner
         Organization organization = getOrganizationById(orgId);
@@ -160,14 +104,6 @@ public class OrganizationMemberService {
         return member;
     }
 
-    /**
-     * Remove member dari organization.
-     * Owner dan admin bisa remove member. Owner tidak bisa di-remove.
-     *
-     * @param orgId Organization ID
-     * @param currentUser User yang melakukan remove
-     * @param memberId User ID member yang di-remove
-     */
     public void removeMember(String orgId, User currentUser, String memberId) {
         // 1. Validate organization exists dan remover punya akses
         Organization organization = getOrganizationById(orgId);
@@ -195,12 +131,6 @@ public class OrganizationMemberService {
         decrementSeatsUsed(organization);
     }
 
-    /**
-     * Member join organization.
-     *
-     * @param orgId Organization ID
-     * @param currentUser User yang ingin leave
-     */
     public User joinOrganization(String orgId, User currentUser) {
         // 1. Validate organization exists
         Organization organization = getOrganizationById(orgId);
@@ -243,14 +173,6 @@ public class OrganizationMemberService {
         return currentUser;
     }
 
-    /**
-     * Member meninggalkan organization.
-     * Owner tidak bisa leave, harus transfer ownership dulu.
-     *
-     * @param orgId Organization ID
-     * @param currentUser User yang ingin leave
-     * @return User yang sudah leave organization
-     */
     public User leaveOrganization(String orgId, User currentUser) {
         // 1. Validate organization exists
         Organization organization = getOrganizationById(orgId);

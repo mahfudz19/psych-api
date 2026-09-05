@@ -10,6 +10,7 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import com.psycorp.psychapi.feature.auth.api.dto.response.UserInfoResponse;
 import com.psycorp.psychapi.feature.organization.api.dto.request.CreateOrganizationRequest;
 import com.psycorp.psychapi.feature.organization.api.dto.request.DeleteOrganizationRequest;
 import com.psycorp.psychapi.feature.organization.api.dto.request.OrganizationListRequest;
@@ -161,5 +162,19 @@ public class OrganizationResource {
 
         organizationService.deleteOrganization(orgId, user, request.confirmation());
         return ResponseHelper.success("Organization deleted successfully");
+    }
+
+    @POST
+    @SecurityRequirement(name = "Bearer")
+    @Path("/invite-code")
+    @Operation(summary = "Generate atau regenerate invite code untuk organization")
+    @APIResponse(responseCode = "200", description = "Invite code generated successfully")
+    @APIResponse(responseCode = "403", description = "User tidak punya organization atau bukan owner/admin")
+    public Response generateInviteCode(@Context ContainerRequestContext requestContext) {
+        User user = (User) requestContext.getProperty("validatedUser");
+        if (user == null) throw new ValidationException("USER_NOT_FOUND", "User not found");
+
+        organizationService.generateOrRegenerateInviteCode(user);
+        return ResponseHelper.ok(UserInfoResponse.from(user), "Invite code generated successfully");
     }
 }

@@ -23,6 +23,7 @@ import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.shared.response.PaginationMeta;
 import com.psycorp.psychapi.shared.response.ResponseHelper;
 
+import io.quarkus.mongodb.panache.PanacheQuery;
 import io.quarkus.security.Authenticated;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -56,15 +57,11 @@ public class OrganizationMemberResource {
     @APIResponse(responseCode = "200", description = "Members retrieved successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrganizationMemberResponse.class)))
     @APIResponse(responseCode = "403", description = "Forbidden - Only owner or admin can view all members")
     @APIResponse(responseCode = "404", description = "Organization not found")
-    public Response getMembers(
-            @PathParam("orgId") String orgId,
-            @BeanParam @Valid MembersListRequest request,
-            @Context ContainerRequestContext requestContext
-        ) {
+    public Response getMembers(@PathParam("orgId") String orgId, @BeanParam @Valid MembersListRequest request, @Context ContainerRequestContext requestContext) {
         User currentUser = (User) requestContext.getProperty("validatedUser");
 
-        List<User> members = memberService.getMembersByOrganizationId(orgId, currentUser, request);
-        long total = memberService.getMembersCount(orgId, request.search(), request.filter());
+        PanacheQuery<User> members = memberService.findMembers(orgId, currentUser, request).page(request.page() - 1, request.limit());
+        long total = memberService.countMembers(orgId, currentUser, request);
         
         List<OrganizationMemberResponse> responses = members.stream()
             .map(OrganizationMemberResponse::fromEntity)
@@ -76,7 +73,7 @@ public class OrganizationMemberResource {
     }
 
     @GET
-    @Path("/{memberId}")
+    @Path("/{memberId}/detail")
     @RolesAllowed("ORGANIZATION")
     @Operation(summary = "Get member detail", description = MEMBER_DETAIL_DESCRIPTION)
     @APIResponse(responseCode = "200", description = "Member retrieved successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrganizationMemberResponse.class)))
