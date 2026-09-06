@@ -22,6 +22,7 @@ import com.psycorp.psychapi.feature.auth.api.dto.request.RegisterRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.ResendVerifyEmailRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.ResetPasswordRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.SessionListRequest;
+import com.psycorp.psychapi.feature.auth.api.dto.request.UpdateProfileRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.VerifyEmailRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.response.LoginResponse;
 import com.psycorp.psychapi.feature.auth.api.dto.response.SessionResponse;
@@ -49,6 +50,7 @@ import jakarta.ws.rs.CookieParam;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.container.ContainerRequestContext;
@@ -198,6 +200,32 @@ public class AuthResource {
         }
 
         return ResponseHelper.ok(UserInfoResponse.from(user), "User info retrieved successfully");
+    }
+
+    @PUT
+    @Path("/me")
+    @Authenticated
+    @Operation(summary = "Update profile sendiri", description = "Update data profil user yang sedang login. Hanya field yang dikirim (non-null) yang akan diupdate.")
+    @APIResponse(responseCode = "200", description = "Profile updated successfully", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @APIResponse(responseCode = "401", description = "Unauthorized - Invalid or expired token", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    @APIResponse(responseCode = "403", description = "Forbidden - User not found or inactive", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    @APIResponse(responseCode = "422", description = "Validation error", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    public Response updateProfile(@Valid UpdateProfileRequest request, @Context ContainerRequestContext requestContext) {
+        User user = (User) requestContext.getProperty("validatedUser");
+        if (user == null) {
+            throw new ForbiddenException("Authentication required");
+        }
+
+        user.updateProfile(
+            request.fullName(),
+            request.phone(),
+            request.bio(),
+            request.dateOfBirth(),
+            request.gender(),
+            request.profilePicture()
+        );
+
+        return ResponseHelper.ok(UserInfoResponse.from(User.findById(user.getId())), "Profile updated successfully");
     }
 
     @POST

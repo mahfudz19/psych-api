@@ -33,7 +33,13 @@ public record UserInfoResponse(
     
     @Schema(description = "Bio atau deskripsi singkat user", examples = "Software Developer")
     String bio,
-    
+
+    @Schema(description = "Tanggal lahir user", examples = "1990-01-01")
+    String dateOfBirth,
+
+    @Schema(description = "Gender user", examples = "male")
+    String gender,
+
     @Schema(description = "Daftar roles user", examples = "[\"USER\", \"ADMIN\"]")
     List<String> roles,
     
@@ -75,6 +81,8 @@ public record UserInfoResponse(
             user.getProfilePicture(),
             user.getPhone(),
             user.getBio(),
+            user.getDateOfBirth(),
+            user.getGender(),
             user.getRoles(),
             user.getOrganizationId(),
             user.getOrganizationRole(),

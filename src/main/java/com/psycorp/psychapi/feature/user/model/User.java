@@ -12,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
+import com.psycorp.psychapi.shared.util.DocumentUpdater;
 
 import io.quarkus.mongodb.panache.PanacheMongoEntity;
 import io.quarkus.mongodb.panache.common.MongoEntity;
@@ -386,11 +387,18 @@ public class User extends PanacheMongoEntity {
     }
 
 
-    public void updateProfile(String fullName, String phone, String bio) {
-        if (fullName != null) this.fullName = fullName;
-        if (phone != null) this.phone = phone;
-        if (bio != null) this.bio = bio;
-        this.updatedAt = Instant.now();
+    public void updateProfile(String fullName, String phone, String bio, String dateOfBirth, String gender, String profilePicture) {
+        DocumentUpdater updater = DocumentUpdater.update()
+            .set("fullName", fullName)
+            .set("phone", phone)
+            .set("bio", bio)
+            .set("dateOfBirth", dateOfBirth)
+            .set("gender", gender)
+            .set("profilePicture", profilePicture);
+
+        if (updater.hasChanges()) {
+            this.executeUpdate(updater.build());
+        }
     }
 
     public void softDelete() {
@@ -398,11 +406,7 @@ public class User extends PanacheMongoEntity {
         this.status = Status.DELETED;
         this.updatedAt = Instant.now();
     }
-    
-    /**
-     * Inner class untuk representasi entry history referral code.
-     * Digunakan untuk tracking kode referral yang di-archive setelah regenerasi.
-     */
+
     public static class ReferralCodeHistoryEntry {
         private String code;
         private Instant archivedAt;
