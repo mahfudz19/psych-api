@@ -43,6 +43,9 @@ public class StorageService {
     @ConfigProperty(name = "gcs.signed-url.expiry-minutes", defaultValue = "15")
     int expiryMinutes;
 
+    @ConfigProperty(name = "gcs.folder-prefix", defaultValue = "dev")
+    String folderPrefix;
+
     @Inject
     LaunchMode launchMode;
 
@@ -92,7 +95,7 @@ public class StorageService {
 
         String bucket = "PUBLIC".equalsIgnoreCase(visibility) ? publicBucket : privateBucket;
         String extension = extractExtension(filename);
-        String fileKey = "temp/users/" + userId + "/" + categoryPath + "/" + UUID.randomUUID() + extension;
+        String fileKey = folderPrefix + "/temp/users/" + userId + "/" + categoryPath + "/" + UUID.randomUUID() + extension;
 
         BlobInfo blobInfo = BlobInfo.newBuilder(BlobId.of(bucket, fileKey))
             .setContentType(mimeType)
@@ -120,7 +123,7 @@ public class StorageService {
                 throw new ValidationException("FILE_NOT_FOUND", "File tidak ditemukan di staging area");
             }
 
-            String permanentKey = fileKey.replaceFirst("^temp/", "");
+            String permanentKey = fileKey.replaceFirst("^(" + folderPrefix + "/)?temp/", folderPrefix + "/");
             BlobId targetBlobId = BlobId.of(bucket, permanentKey);
 
             storage.copy(Storage.CopyRequest.of(sourceBlobId, targetBlobId));
