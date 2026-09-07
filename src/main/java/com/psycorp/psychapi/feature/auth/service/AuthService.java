@@ -601,7 +601,7 @@ public class AuthService {
 
     public void updateUserProfile(User user, UpdateProfileRequest request) {
         String oldPic = user.getProfilePicture();
-        boolean isNewUpload = request.profilePicture() != null && request.profilePicture().contains("/temp/");
+        boolean isNewUpload = request.profilePicture() != null && (request.profilePicture().startsWith("temp/") || request.profilePicture().contains("/temp/"));
 
         // 1. Commit file baru dari temp/ (sinkron — butuh URL untuk DB)
         String newPic = oldPic;
