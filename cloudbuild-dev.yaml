@@ -17,6 +17,7 @@ steps:
              -DMONGODB_DATABASE="psych-dev" \
              -DJWT_SECRET="rahasia-dummy-untuk-bypass-quarkus" \
              -DGOOGLE_OAUTH_CLIENT_ID="client-dummy-untuk-bypass" \
+             -Dgcs.credentials-path="" \
              -jar target/quarkus-app/quarkus-run.jar
     secretEnv: ["MONGODB_URI"]
 
