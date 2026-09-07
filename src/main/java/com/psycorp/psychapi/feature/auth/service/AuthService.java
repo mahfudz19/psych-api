@@ -18,6 +18,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.mongodb.client.model.Filters;
+import com.psycorp.psychapi.feature.auth.api.dto.request.UpdateProfileRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.response.LoginResponse;
 import com.psycorp.psychapi.feature.auth.api.dto.response.SessionResponse;
 import com.psycorp.psychapi.feature.auth.api.dto.response.UserInfoResponse;
@@ -25,6 +26,8 @@ import com.psycorp.psychapi.feature.auth.model.DeviceInfo;
 import com.psycorp.psychapi.feature.auth.model.RefreshToken;
 import com.psycorp.psychapi.feature.auth.model.RefreshToken.RevokeReason;
 import com.psycorp.psychapi.feature.auth.model.RefreshToken.TokenStatus;
+import com.psycorp.psychapi.feature.storage.service.ProfilePictureChangedEvent;
+import com.psycorp.psychapi.feature.storage.service.StorageService;
 import com.psycorp.psychapi.feature.user.api.dto.response.UserResponse;
 import com.psycorp.psychapi.feature.user.model.User;
 import com.psycorp.psychapi.feature.user.model.User.AccountType;
@@ -36,8 +39,10 @@ import com.psycorp.psychapi.shared.util.MongoFilter;
 import com.psycorp.psychapi.shared.util.ValidationUtils;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.ws.rs.InternalServerErrorException;
 
 @ApplicationScoped
 public class AuthService {
@@ -50,6 +55,12 @@ public class AuthService {
     
     @Inject
     EmailService emailService;
+
+    @Inject
+    StorageService storageService;
+
+    @Inject
+    Event<ProfilePictureChangedEvent> profilePictureEvent;
 
     @ConfigProperty(name = "google.client.id")
     String googleClientId;
@@ -585,6 +596,39 @@ public class AuthService {
             throw ve;
         } catch (RuntimeException e) {
             throw new ValidationException("AUTH_FAILED", "Gagal melakukan registrasi Google: " + e.toString());
+        }
+    }
+
+    public void updateUserProfile(User user, UpdateProfileRequest request) {
+        String oldPic = user.getProfilePicture();
+        boolean isNewUpload = request.profilePicture() != null && request.profilePicture().startsWith("temp/");
+
+        // 1. Commit file baru dari temp/ (sinkron — butuh URL untuk DB)
+        String newPic = oldPic;
+        if (isNewUpload) {
+            newPic = storageService.commitPublicFile(request.profilePicture());
+        } else if (request.profilePicture() != null) {
+            newPic = request.profilePicture();
+        }
+
+        // 2. Simpan ke DB
+        try {
+            user.updateProfile(
+                request.fullName(),
+                request.phone(),
+                request.bio(),
+                request.dateOfBirth(),
+                request.gender(),
+                newPic
+            );
+        } catch (Exception e) {
+            if (isNewUpload) storageService.deletePublicFile(newPic);
+            throw new InternalServerErrorException("Gagal menyimpan profil", e);
+        }
+
+        // 3. Hapus foto lama di background (fire and forget)
+        if (isNewUpload && oldPic != null && !oldPic.isBlank()) {
+            profilePictureEvent.fireAsync(new ProfilePictureChangedEvent(oldPic));
         }
     }
 }

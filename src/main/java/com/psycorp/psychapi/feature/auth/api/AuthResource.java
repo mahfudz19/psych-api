@@ -212,18 +212,9 @@ public class AuthResource {
     @APIResponse(responseCode = "422", description = "Validation error", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     public Response updateProfile(@Valid UpdateProfileRequest request, @Context ContainerRequestContext requestContext) {
         User user = (User) requestContext.getProperty("validatedUser");
-        if (user == null) {
-            throw new ForbiddenException("Authentication required");
-        }
+        if (user == null) throw new ForbiddenException("Authentication required");
 
-        user.updateProfile(
-            request.fullName(),
-            request.phone(),
-            request.bio(),
-            request.dateOfBirth(),
-            request.gender(),
-            request.profilePicture()
-        );
+        authService.updateUserProfile(user, request);
 
         return ResponseHelper.ok(UserInfoResponse.from(User.findById(user.getId())), "Profile updated successfully");
     }
