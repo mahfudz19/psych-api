@@ -15,6 +15,7 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.HttpMethod;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import com.psycorp.psychapi.feature.storage.api.dto.response.UploadUrlResponse;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
@@ -59,26 +60,19 @@ public class StorageService {
     );
 
     @PostConstruct
-    public void init() {try {
+    public void init() {
+        try {
             StorageOptions.Builder builder = StorageOptions.newBuilder().setProjectId(projectId);
-            
-            // Cek apakah aplikasi berjalan di mode production
             if (launchMode == LaunchMode.NORMAL) {
-                // PRODUCTION: Paksa gunakan ADC Cloud Run, abaikan isi credentialsPath
-                System.out.println("GCS Init: Menjalankan mode PRODUCTION dengan ADC");
                 this.storage = builder.build().getService();
             } else {
-                // DEVELOPMENT / TEST: Gunakan file JSON lokal
-                System.out.println("GCS Init: Menjalankan mode DEVELOPMENT dengan JSON: " + credentialsPath);
                 if (credentialsPath != null && !credentialsPath.isBlank()) {
                     builder.setCredentials(GoogleCredentials.fromStream(new FileInputStream(credentialsPath)));
-                } else {
-                    System.err.println("WARNING: gcs.credentials-path kosong di mode dev!");
                 }
                 this.storage = builder.build().getService();
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to initialize GCS client", e);
+            throw new RuntimeException("GCS Init gagal — periksa credentials path: " + credentialsPath + " | " + e.getMessage(), e);
         }
     }
 
@@ -119,23 +113,28 @@ public class StorageService {
      * Return: public URL atau fileKey permanen.
      */
     public String commitFile(String fileKey, String bucket) {
+        try {
 
-        BlobId sourceBlobId = BlobId.of(bucket, fileKey);
-        if (storage.get(sourceBlobId) == null) {
-            throw new ValidationException("FILE_NOT_FOUND", "File tidak ditemukan di staging area");
+            BlobId sourceBlobId = BlobId.of(bucket, fileKey);
+            if (storage.get(sourceBlobId) == null) {
+                throw new ValidationException("FILE_NOT_FOUND", "File tidak ditemukan di staging area");
+            }
+
+            String permanentKey = fileKey.replaceFirst("^temp/", "");
+            BlobId targetBlobId = BlobId.of(bucket, permanentKey);
+
+            storage.copy(Storage.CopyRequest.of(sourceBlobId, targetBlobId));
+            storage.delete(sourceBlobId);
+
+            if (bucket.equals(publicBucket)) {
+                return "https://storage.googleapis.com/" + bucket + "/" + permanentKey;
+            }
+            return permanentKey;
+        } catch (ValidationException e) {
+            throw e;
+        } catch (StorageException e) {
+            throw new ValidationException("GCS_ERROR", "Gagal memproses file di GCS: " + e.getMessage());
         }
-
-        // temp/users/123/profile/uuid.jpg → users/123/profile/uuid.jpg
-        String permanentKey = fileKey.replaceFirst("^temp/", "");
-        BlobId targetBlobId = BlobId.of(bucket, permanentKey);
-
-        storage.copy(Storage.CopyRequest.of(sourceBlobId, targetBlobId));
-        storage.delete(sourceBlobId);
-
-        if (bucket.equals(publicBucket)) {
-            return "https://storage.googleapis.com/" + bucket + "/" + permanentKey;
-        }
-        return permanentKey;
     }
 
     public String commitPublicFile(String fileKey) {
