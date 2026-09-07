@@ -19,8 +19,10 @@ import com.google.cloud.storage.StorageOptions;
 import com.psycorp.psychapi.feature.storage.api.dto.response.UploadUrlResponse;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 
+import io.quarkus.runtime.LaunchMode;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 @ApplicationScoped
 public class StorageService {
@@ -40,6 +42,9 @@ public class StorageService {
     @ConfigProperty(name = "gcs.signed-url.expiry-minutes", defaultValue = "15")
     int expiryMinutes;
 
+    @Inject
+    LaunchMode launchMode;
+
     private Storage storage;
 
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
@@ -54,14 +59,24 @@ public class StorageService {
     );
 
     @PostConstruct
-    public void init() {
-        try {
+    public void init() {try {
             StorageOptions.Builder builder = StorageOptions.newBuilder().setProjectId(projectId);
-            if (credentialsPath != null && !credentialsPath.isBlank()) {
-                builder.setCredentials(GoogleCredentials.fromStream(new FileInputStream(credentialsPath)));
+            
+            // Cek apakah aplikasi berjalan di mode production
+            if (launchMode == LaunchMode.NORMAL) {
+                // PRODUCTION: Paksa gunakan ADC Cloud Run, abaikan isi credentialsPath
+                System.out.println("GCS Init: Menjalankan mode PRODUCTION dengan ADC");
+                this.storage = builder.build().getService();
+            } else {
+                // DEVELOPMENT / TEST: Gunakan file JSON lokal
+                System.out.println("GCS Init: Menjalankan mode DEVELOPMENT dengan JSON: " + credentialsPath);
+                if (credentialsPath != null && !credentialsPath.isBlank()) {
+                    builder.setCredentials(GoogleCredentials.fromStream(new FileInputStream(credentialsPath)));
+                } else {
+                    System.err.println("WARNING: gcs.credentials-path kosong di mode dev!");
+                }
+                this.storage = builder.build().getService();
             }
-            // ponytail: tanpa credentialsPath, pakai ADC (Cloud Run auto-inject)
-            this.storage = builder.build().getService();
         } catch (IOException e) {
             throw new RuntimeException("Failed to initialize GCS client", e);
         }
