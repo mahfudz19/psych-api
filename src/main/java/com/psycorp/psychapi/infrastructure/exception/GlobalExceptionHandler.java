@@ -220,7 +220,6 @@ public class GlobalExceptionHandler {
      */
     @ServerExceptionMapper
     public Response mapGenericException(Exception ex) {
-        // Log full stack trace untuk debugging
         log.error("Unhandled Exception caught:", ex);
         
         ApiErrorResponse errorResponse = ApiErrorResponse.of(
