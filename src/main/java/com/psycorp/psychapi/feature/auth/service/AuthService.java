@@ -634,4 +634,23 @@ public class AuthService {
             profilePictureEvent.fireAsync(new ProfilePictureChangedEvent(oldPic));
         }
     }
+
+    @Transactional
+    public void changePassword(User user, String oldPassword, String newPassword) {
+        // 1. Verifikasi Password Lama
+        if (!PasswordEncoder.verify(oldPassword, user.getPassword())) {
+            throw new ValidationException("INVALID_CREDENTIALS", "Kata sandi saat ini tidak cocok.");
+        }
+
+        // 2. Hash dan Simpan Password Baru
+        String newHashedPassword = PasswordEncoder.hash(newPassword);
+        user.setPassword(newHashedPassword);
+        
+        // 3. Simpan ke Database
+        user.setUpdatedAt(Instant.now());
+        user.update();
+
+        // 4. Keamanan: Logout otomatis semua sesi/perangkat lain karena kredensial berubah
+        RefreshToken.revokeAllByUserId(user.getId(), RefreshToken.RevokeReason.fromValue("PASSWORD_CHANGED"));
+    }
 }

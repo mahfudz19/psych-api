@@ -14,6 +14,7 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityScheme;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import com.psycorp.psychapi.feature.auth.api.dto.request.AuthRequest;
+import com.psycorp.psychapi.feature.auth.api.dto.request.ChangePasswordRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.ForgotPasswordRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.GoogleLoginRequest;
 import com.psycorp.psychapi.feature.auth.api.dto.request.GoogleRegisterRequest;
@@ -341,5 +342,32 @@ public class AuthResource {
         // Pasang cookie HTTPOnly (karena Google SSO langsung aktif tanpa perlu verifikasi email)
         List<NewCookie> cookies = List.of(cookieHelper.createRefreshCookie(response.refreshToken()));
         return ResponseHelper.created(response, "Registrasi Google berhasil", cookies);
+    }
+
+    @PUT
+    @Path("/password")
+    @Authenticated
+    @Operation(summary = "Ganti kata sandi", description = "Mengubah kata sandi untuk pengguna yang sedang login.")
+    @APIResponse(responseCode = "200", description = "Password berhasil diubah", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @APIResponse(responseCode = "400", description = "Password lama salah atau format tidak valid", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    @APIResponse(responseCode = "401", description = "Unauthorized - Invalid or expired token", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    public Response changePassword(
+        @Valid ChangePasswordRequest request, 
+        @Context ContainerRequestContext requestContext
+    ) {
+        // 1. Ambil data user dari konteks token
+        User user = (User) requestContext.getProperty("validatedUser");
+        if (user == null) {
+            throw new ForbiddenException("Authentication required");
+        }
+
+        // 2. Eksekusi perubahan password
+        authService.changePassword(user, request.oldPassword(), request.newPassword());
+
+        // 3. Kembalikan respons sukses
+        return ResponseHelper.ok(
+            null, 
+            "Kata sandi berhasil diubah. Semua sesi di perangkat lain telah ditutup demi keamanan."
+        );
     }
 }
