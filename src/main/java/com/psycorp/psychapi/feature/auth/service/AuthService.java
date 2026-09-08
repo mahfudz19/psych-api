@@ -601,12 +601,15 @@ public class AuthService {
 
     public void updateUserProfile(User user, UpdateProfileRequest request) {
         String oldPic = user.getProfilePicture();
-        boolean isNewUpload = request.profilePicture() != null && (request.profilePicture().startsWith("temp/") || request.profilePicture().contains("/temp/"));
+        boolean isNewUpload = request.profilePicture() != null && request.profilePicture().contains("temp/");
+        boolean isDeleteRequest = request.profilePicture() != null && request.profilePicture().isBlank();
 
         // 1. Commit file baru dari temp/ (sinkron — butuh URL untuk DB)
         String newPic = oldPic;
         if (isNewUpload) {
             newPic = storageService.commitPublicFile(request.profilePicture());
+        } else if (isDeleteRequest) {
+            newPic = null;
         } else if (request.profilePicture() != null) {
             newPic = request.profilePicture();
         }
@@ -627,7 +630,7 @@ public class AuthService {
         }
 
         // 3. Hapus foto lama di background (fire and forget)
-        if (isNewUpload && oldPic != null && !oldPic.isBlank()) {
+        if ((isNewUpload || isDeleteRequest) && oldPic != null && !oldPic.isBlank()) {
             profilePictureEvent.fireAsync(new ProfilePictureChangedEvent(oldPic));
         }
     }
