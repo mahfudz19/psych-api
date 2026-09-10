@@ -22,7 +22,7 @@ public class UserService implements PanacheMongoRepository<User> {
     @Inject
     ReferralService referralService;
 
-    public User register(String email, String password, String fullName, String referralCode, AccountType accountType, String inviteCode, String invitedBy, String invitedOrganizationId, String invitationRole, String hashedVerificationToken, Instant verificationExpiresAt) {
+    public User register(String email, String password, String fullName, String referralCode, AccountType accountType, String inviteCode, String invitedBy, String invitedOrganizationId, String invitationRole, String hashedVerificationToken, Instant verificationExpiresAt, String ip) {
         // 1. Validate user data (email format, password strength, etc)
         validateUserData(email, fullName);
         
@@ -35,7 +35,7 @@ public class UserService implements PanacheMongoRepository<User> {
         // 3. Validate referralCode using ReferralService (FAIL FAST - throw jika tidak ditemukan)
         User referrer = null;
         if (referralCode != null && !referralCode.isEmpty()) {
-            referrer = referralService.validateReferralCode(referralCode, null);
+            referrer = referralService.validateReferralCode(referralCode, ip);
             
             // Prevent self-referral
             referralService.checkSelfReferral(referrer, email);

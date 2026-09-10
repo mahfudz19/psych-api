@@ -32,20 +32,16 @@ public record RegenerateReferralRequest(
     String reason
 ) {
     public static final String DESCRIPTION = """
-            Regenerate referral code user yang sedang login.
-            Code lama akan di-archive untuk backward compatibility.
-            
-            ### Rate Limits
-            - Maximum 3 regenerations per day
-            - Exceeded requests will return 429 Too Many Requests
-            
-            ### Reasons
-            - `user_request` - User meminta regenerate manual
-            - `security` - Code compromised atau security concern
-            - `regenerated` - Auto-regenerate (system)
-            
-            ### Response
-            - Referral code baru yang active
-            - Old code tetap valid untuk backward compatibility
-            """;
+        Regenerate referral code user yang sedang login.
+        Code lama akan di-invalidate dan diganti dengan code baru.
+        
+        ### Rate Limits
+        - Maximum 3 regenerations per day
+        - Exceeded requests will return 429 Too Many Requests
+        
+        ### Reasons
+        - `user_request` - User meminta regenerate manual
+        - `security` - Code compromised atau security concern
+        - `regenerated` - Auto-regenerate (system)
+        """;
 }

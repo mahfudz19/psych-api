@@ -52,7 +52,6 @@ public class User extends PanacheMongoEntity {
     private Integer successfulReferrals;    // Referrals yang completed registration
     private Double referralEarnings;        // Total earnings dari referrals (dalam currency atau credits)
     private Instant referredAt;             // Kapan user ini direferensikan
-    private List<ReferralCodeHistoryEntry> referralCodeHistory;  // List history referral code yang di-archive
 
     // === ORGANIZATION INVITATION ===
     private String inviteCode;              // Unique code untuk user ini (e.g., "JOHN2024", "REF_ABC123")
@@ -115,8 +114,6 @@ public class User extends PanacheMongoEntity {
     public Integer getSuccessfulReferrals() { return successfulReferrals; }
     public Double getReferralEarnings() { return referralEarnings; }
     public Instant getReferredAt() { return referredAt; }
-    public List<ReferralCodeHistoryEntry> getReferralCodeHistory() { return referralCodeHistory; }
-    public void setReferralCodeHistory(List<ReferralCodeHistoryEntry> referralCodeHistory) { this.referralCodeHistory = referralCodeHistory; }
     
     // Organization Invitation Getters
     public String getInviteCode() { return inviteCode; }

@@ -13,31 +13,10 @@ import io.quarkus.mongodb.panache.common.MongoEntity;
  */
 @MongoEntity(collection = "ratelimits")
 public class RateLimitEntry extends PanacheMongoEntityBase {
-    
-    /**
-     * Key unik untuk rate limit (e.g., "ratelimit:validation:192.168.1.1").
-     */
     public String id;
-    
-    /**
-     * Jumlah request yang telah dilakukan dalam window waktu.
-     */
     public Integer count;
-    
-    /**
-     * Waktu entri ini pertama kali dibuat.
-     */
     public Instant createdAt;
-    
-    /**
-     * Waktu entri ini terakhir di-update.
-     */
     public Instant updatedAt;
-    
-    /**
-     * Waktu entri ini akan expire (untuk TTL index MongoDB).
-     * TTL index dibuat via migration script: scripts/mongodb-migration.js
-     */
     public Instant expiresAt;
     
     public RateLimitEntry() {}

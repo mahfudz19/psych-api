@@ -100,7 +100,8 @@ public class AuthService {
             invitedOrganizationId,
             invitationRole,
             hashedVerificationToken,
-            verificationExpiresAt
+            verificationExpiresAt,
+            deviceInfo.getIp()
         );
 
         emailService.sendVerificationEmail(user.getEmail(), user.getFullName(), plainVerificationToken);
@@ -168,7 +169,18 @@ public class AuthService {
         }
 
         // 5. Aktivasi akun dan bersihkan data verifikasi
-        user.activateAccount(); // Memanggil metode yang kita buat di User.java
+        user.activateAccount();
+
+        // 5a. Increment successfulReferrals pada referrer (jika ada)
+        if (user.getReferredBy() != null) {
+            User referrer = User.findById(user.getReferredBy());
+            if (referrer != null) {
+                Integer currentReferrals = referrer.getSuccessfulReferrals();
+                int current = (currentReferrals != null) ? currentReferrals : 0;
+                referrer.setSuccessfulReferrals(current + 1);
+                referrer.update();
+            }
+        }
 
         // 6. Generate Session (Otomatis Login setelah verifikasi sukses)
         String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getRoles());
@@ -561,8 +573,9 @@ public class AuthService {
                 invitedBy,
                 invitedOrganizationId,
                 invitationRole,
-                null, // Tidak butuh token verifikasi email
-                null
+                null,
+                null,
+                deviceInfo.getIp()
             );
 
             // 2. TIMPA PENGATURAN BAWAAN MENJADI GOOGLE SSO
