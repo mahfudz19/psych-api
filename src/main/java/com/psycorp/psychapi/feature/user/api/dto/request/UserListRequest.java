@@ -37,4 +37,6 @@ public record UserListRequest(
     @DefaultValue("desc")
     @Parameter(description = "Sort order: asc or desc", example = "desc")
     String sortOrder
-) implements PageableRequest {}
+) implements PageableRequest {
+    public static final String DESCRIPTION = "Mengambil daftar semua user dengan pagination. Mendukung pencarian keyword di field email, fullName, phone, bio. Mendukung filter dinamis dengan format 'field:operator:value'.";
+}

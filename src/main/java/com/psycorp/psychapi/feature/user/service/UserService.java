@@ -5,19 +5,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 
 import com.psycorp.psychapi.feature.organization.model.Organization;
 import com.psycorp.psychapi.feature.referral.service.ReferralService;
 import com.psycorp.psychapi.feature.user.model.User;
 import com.psycorp.psychapi.feature.user.model.User.AccountType;
 import com.psycorp.psychapi.feature.user.model.User.Status;
-import com.psycorp.psychapi.infrastructure.exception.NotFoundException;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.infrastructure.security.PasswordEncoder;
-import com.psycorp.psychapi.shared.util.DocumentUpdater;
 import com.psycorp.psychapi.shared.util.MongoFilter;
-import com.psycorp.psychapi.shared.util.ValidationUtils;
 
 import io.quarkus.mongodb.panache.PanacheMongoRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -43,17 +39,6 @@ public class UserService implements PanacheMongoRepository<User> {
         Bson finalFilter = MongoFilter.and(searchFilter, customFilter);
         
         return User.count(finalFilter);
-    }
-
-    private User getUserById(String id) {
-        // Validate ObjectId format
-        ObjectId objectId = ValidationUtils.validateObjectId(id);
-        
-        User user = User.findById(objectId);
-        if (user == null) {
-            throw new NotFoundException("USER_NOT_FOUND", "User with id " + id + " not found");
-        }
-        return user;
     }
 
     public User register(
@@ -255,62 +240,6 @@ public class UserService implements PanacheMongoRepository<User> {
         user.setLastLoginAt(Instant.now());
         user.update();
         
-        return user;
-    }
-
-    public User createUser(String email, String password, String fullName, String phone, String bio, String referredBy) {
-        validateUserData(email, password, fullName, null);
-        
-        // Hash password sebelum menyimpan ke database
-        String hashedPassword = PasswordEncoder.hash(password);
-        
-        // Find referrer jika ada referredBy
-        User referrer = null;
-        if (referredBy != null && !referredBy.isEmpty()) {
-            referrer = User.findById(new org.bson.types.ObjectId(referredBy));
-        }
-        
-        User user = User.create(email, hashedPassword, fullName, referrer, null, AccountType.INDIVIDUAL, null, null);
-        
-        // Set optional fields
-        if (phone != null && !phone.isBlank()) {
-            user.setPhone(phone);
-        }
-        if (bio != null && !bio.isBlank()) {
-            user.setBio(bio);
-        }
-        
-        user.persist();
-        return user;
-    }
-
-    public User updateUser(String id, String email, String fullName, String phone, String bio, String status) {
-        User user = getUserById(id);
-
-        DocumentUpdater updater = DocumentUpdater.update()
-            .set("email", email)
-            .set("fullName", fullName)
-            .set("phone", phone)
-            .set("bio", bio)
-            .set("status", status);
-
-        if (updater.hasChanges()) {
-            user.executeUpdate(updater.build());
-        }
-        
-        return getUserById(user.id.toHexString());
-    }
-
-    public boolean deleteUser(String id) {
-        User user = getUserById(id);
-        user.delete();
-        return true;
-    }
-
-    public User softDeleteUser(String id) {
-        User user = getUserById(id);
-        user.softDelete();
-        user.update();
         return user;
     }
 
