@@ -76,9 +76,6 @@ public class StorageService {
         }
     }
 
-    /**
-     * Generate Signed URL untuk upload ke folder temp/.
-     */
     public UploadUrlResponse generateUploadUrl(String userId, String filename, String mimeType, String category, String visibility) {
         // Validasi mime type
         if (!ALLOWED_MIME_TYPES.contains(mimeType)) {
@@ -108,10 +105,6 @@ public class StorageService {
         return new UploadUrlResponse(signedUrl.toString(), fileKey, bucket);
     }
 
-    /**
-     * Pindahkan file dari temp/ ke path permanen.
-     * Return: public URL atau fileKey permanen.
-     */
     public String commitFile(String fileKey, String bucket) {
         try {
 
@@ -145,9 +138,6 @@ public class StorageService {
         return this.commitFile(fileKey, this.privateBucket);
     }
 
-    /**
-     * Hapus file dari GCS (untuk ganti foto profil, dll).
-     */
     public void deleteFile(String fileKey, String bucket) {
         BlobId blobId = BlobId.of(bucket, fileKey);
         if (storage.get(blobId) != null) {
