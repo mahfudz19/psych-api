@@ -44,8 +44,6 @@ public class UserResource {
     @Inject
     UserService userService;
 
-    private static final String[] SEARCH_FIELDS = {"email", "fullName", "phone", "bio"};
-
     @GET
     @RolesAllowed("SUPERADMIN")
     @Operation(summary = "Get all users with pagination, search, and filter", description = UserListRequest.DESCRIPTION)
@@ -55,7 +53,7 @@ public class UserResource {
     @APIResponse(responseCode = "403", description = "Forbidden - Requires SUPERADMIN role", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     @APIResponse(responseCode = "500", description = "Internal server error", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     public Response getAllUsers(@BeanParam UserListRequest request) {
-        Bson filter = MongoFilter.fromRequest(request, SEARCH_FIELDS);
+        Bson filter = MongoFilter.fromRequest(request, UserListRequest.SEARCH_FIELDS);
         Bson sort   = MongoFilter.sort(request);
 
         PanacheQuery<User> users = userService

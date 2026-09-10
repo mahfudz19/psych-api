@@ -4,8 +4,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.bson.conversions.Bson;
-
 import com.psycorp.psychapi.feature.organization.model.Organization;
 import com.psycorp.psychapi.feature.referral.service.ReferralService;
 import com.psycorp.psychapi.feature.user.model.User;
@@ -13,7 +11,6 @@ import com.psycorp.psychapi.feature.user.model.User.AccountType;
 import com.psycorp.psychapi.feature.user.model.User.Status;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.infrastructure.security.PasswordEncoder;
-import com.psycorp.psychapi.shared.util.MongoFilter;
 
 import io.quarkus.mongodb.panache.PanacheMongoRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -21,41 +18,13 @@ import jakarta.inject.Inject;
 
 @ApplicationScoped
 public class UserService implements PanacheMongoRepository<User> {
-
-    // Fields yang bisa di-search untuk User
-    private static final String[] SEARCH_FIELDS = {"email", "fullName", "phone", "bio"};
     
     @Inject
     ReferralService referralService;
 
-    public long getTotalUsersCount(String search, String filter) {
-        // Build search filter
-        Bson searchFilter = MongoFilter.search(search, SEARCH_FIELDS);
-        
-        // Parse custom filter
-        Bson customFilter = MongoFilter.parse(filter);
-        
-        // Combine filters
-        Bson finalFilter = MongoFilter.and(searchFilter, customFilter);
-        
-        return User.count(finalFilter);
-    }
-
-    public User register(
-        String email,
-        String password,
-        String fullName,
-        String referralCode,
-        AccountType accountType,
-        String inviteCode,
-        String invitedBy,
-        String invitedOrganizationId,
-        String invitationRole,
-        String hashedVerificationToken,
-        Instant verificationExpiresAt
-    ) {
+    public User register(String email, String password, String fullName, String referralCode, AccountType accountType, String inviteCode, String invitedBy, String invitedOrganizationId, String invitationRole, String hashedVerificationToken, Instant verificationExpiresAt) {
         // 1. Validate user data (email format, password strength, etc)
-        validateUserData(email, password, fullName, null);
+        validateUserData(email, fullName);
         
         // 2. Validate email uniqueness (DB check)
         User existingUser = User.find("email", email).firstResult();
@@ -109,13 +78,10 @@ public class UserService implements PanacheMongoRepository<User> {
             role =  "member";
         }
         
-        // 5. Hash password
-        String hashedPassword = PasswordEncoder.hash(password);
+        // 5. Create User object
+        User user = User.create(email, password, fullName, referrer, inviter, accountType, hashedVerificationToken, verificationExpiresAt);
         
-        // 6. Create User object
-        User user = User.create(email, hashedPassword, fullName, referrer, inviter, accountType, hashedVerificationToken, verificationExpiresAt);
-        
-        // 7. For direct add, override invitation info
+        // 6. For direct add, override invitation info
         if (inviteCode != null && !inviteCode.isEmpty() && inviter != null) {
             user.setInvitedBy(inviter.getId());
             user.setOrganizationRole(role);
@@ -127,15 +93,15 @@ public class UserService implements PanacheMongoRepository<User> {
             user.setOrganizationId(orgId);
         }
         
-        // 8. Persist user BARU ke database (sekali saja, tanpa update)
+        // 7. Persist user BARU ke database (sekali saja, tanpa update)
         user.persist();
         
-        // 9. Update stats referrer LAMA
+        // 8. Update stats referrer LAMA
         if (referrer != null) {
             updateReferrerStats(referrer, user);
         }
         
-        // 10. Update organization seats LAMA
+        // 9. Update organization seats LAMA
         if (inviter != null && orgId != null) {
             updateOrganizationSeats(orgId);
         }
@@ -143,36 +109,7 @@ public class UserService implements PanacheMongoRepository<User> {
         return user;
     }
 
-    private User validateInviteCode(String inviteCode) {
-        User inviter = User.find("inviteCode", inviteCode).firstResult();
-        if (inviter == null) {
-            throw new ValidationException("INVALID_INVITE_CODE", "Invitation code '" + inviteCode + "' is not valid");
-        }
-        if (inviter.getOrganizationId() == null) {
-            throw new ValidationException("INVALID_INVITE_CODE", "Invitation code '" + inviteCode + "' is not associated with any organization");
-        }
-        return inviter;
-    }
-
-    private void updateReferrerStats(User referrer, User newUser) {
-        if (referrer.getReferralIds() == null) {
-            referrer.setReferralIds(new ArrayList<>(List.of(newUser.id)));
-        } else {
-            referrer.getReferralIds().add(newUser.id);
-        }
-        referrer.setTotalReferrals(referrer.getTotalReferrals() + 1);
-        referrer.update();
-    }
-
-    private void updateOrganizationSeats(org.bson.types.ObjectId orgId) {
-        Organization org = Organization.findById(orgId);
-        if (org != null) {
-            org.setSeatsUsed(org.getSeatsUsed() + 1);
-            org.update();
-        }
-    }
-
-    public User authenticate(String email, String password) {
+    public User login(String email, String password) {
         // 1. Find user by email
         User user = User.find("email", email).firstResult();
         
@@ -243,7 +180,36 @@ public class UserService implements PanacheMongoRepository<User> {
         return user;
     }
 
-    private void validateUserData(String email, String password, String fullName, String status) {
+    private User validateInviteCode(String inviteCode) {
+        User inviter = User.find("inviteCode", inviteCode).firstResult();
+        if (inviter == null) {
+            throw new ValidationException("INVALID_INVITE_CODE", "Invitation code '" + inviteCode + "' is not valid");
+        }
+        if (inviter.getOrganizationId() == null) {
+            throw new ValidationException("INVALID_INVITE_CODE", "Invitation code '" + inviteCode + "' is not associated with any organization");
+        }
+        return inviter;
+    }
+
+    private void updateReferrerStats(User referrer, User newUser) {
+        if (referrer.getReferralIds() == null) {
+            referrer.setReferralIds(new ArrayList<>(List.of(newUser.id)));
+        } else {
+            referrer.getReferralIds().add(newUser.id);
+        }
+        referrer.setTotalReferrals(referrer.getTotalReferrals() + 1);
+        referrer.update();
+    }
+
+    private void updateOrganizationSeats(org.bson.types.ObjectId orgId) {
+        Organization org = Organization.findById(orgId);
+        if (org != null) {
+            org.setSeatsUsed(org.getSeatsUsed() + 1);
+            org.update();
+        }
+    }
+
+    private void validateUserData(String email, String fullName) {
         List<String> errors = new ArrayList<>();
         
         // Email validation
@@ -263,15 +229,6 @@ public class UserService implements PanacheMongoRepository<User> {
             }
         }
         
-        // Password validation (hanya untuk create)
-        if (password != null) {
-            if (password.length() < 8) {
-                errors.add("Password must be at least 8 characters");
-            } else if (password.length() > 100) {
-                errors.add("Password must not exceed 100 characters");
-            }
-        }
-        
         // Full name validation
         if (fullName != null) {
             if (fullName.length() < 2) {
@@ -281,14 +238,8 @@ public class UserService implements PanacheMongoRepository<User> {
             }
         }
         
-        // Status validation
-        if (status != null && !status.matches("^(active|inactive|suspended|deleted)$")) {
-            errors.add("Status must be one of: active, inactive, suspended, deleted");
-        }
-        
         if (!errors.isEmpty()) {
             throw new ValidationException("VALIDATION_ERROR", String.join(", ", errors));
         }
     }
-
 }

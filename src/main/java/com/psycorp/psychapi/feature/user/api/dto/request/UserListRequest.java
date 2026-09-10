@@ -11,7 +11,7 @@ import jakarta.ws.rs.QueryParam;
 
 public record UserListRequest(
     @QueryParam("search")
-    @Parameter(description = "Search keyword in email, fullName, phone, bio", required = false)
+    @Parameter(description = "Search keyword in " + SEARCH_FIELDS_LIST, required = false)
     String search,
 
     @QueryParam("filter")
@@ -38,5 +38,7 @@ public record UserListRequest(
     @Parameter(description = "Sort order: asc or desc", example = "desc")
     String sortOrder
 ) implements PageableRequest {
-    public static final String DESCRIPTION = "Mengambil daftar semua user dengan pagination. Mendukung pencarian keyword di field email, fullName, phone, bio. Mendukung filter dinamis dengan format 'field:operator:value'.";
+    public static final String SEARCH_FIELDS_LIST = "email, fullName, phone, bio";
+    public static final String[] SEARCH_FIELDS = SEARCH_FIELDS_LIST.split(", ");
+    public static final String DESCRIPTION = "Mengambil daftar semua user dengan pagination. Mendukung pencarian keyword di field " + SEARCH_FIELDS_LIST + ". Mendukung filter dinamis dengan format 'field:operator:value'.";
 }

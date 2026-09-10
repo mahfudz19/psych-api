@@ -91,7 +91,7 @@ public class AuthService {
 
         User user = userService.register(
             email,
-            password,
+            PasswordEncoder.hash(password),
             fullName,
             referralCode,
             accountType,
@@ -187,7 +187,7 @@ public class AuthService {
     @Transactional
     public LoginResponse login(String email, String password, DeviceInfo deviceInfo) {
         // Authenticate user (menggunakan UserService)
-        User user = userService.authenticate(email, password);
+        User user = userService.login(email, password);
 
         // Generate tokens
         String accessToken = jwtService.generateAccessToken(user.id, user.getEmail(), user.getRoles());
