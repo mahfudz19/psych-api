@@ -30,10 +30,10 @@ public record OrganizationMemberDetailResponse(
     String bio,
 
     @Schema(description = "Jenis kelamin", examples = "MALE")
-    String gender,
+    User.Gender gender,
 
     @Schema(description = "Role dalam organization", examples = "admin")
-    String organizationRole,
+    User.OrganizationRole organizationRole,
 
     @Schema(description = "Status akun", examples = "ACTIVE")
     String status,
@@ -45,10 +45,10 @@ public record OrganizationMemberDetailResponse(
     String subscriptionTier,
 
     @Schema(description = "Status undangan", examples = "accepted")
-    String invitationStatus,
+    User.InvitationStatus invitationStatus,
 
     @Schema(description = "Role undangan awal", examples = "member")
-    String invitationRole,
+    User.OrganizationRole invitationRole,
 
     @Schema(description = "Waktu login terakhir", examples = "2024-06-15T10:30:00Z")
     Instant lastLoginAt,

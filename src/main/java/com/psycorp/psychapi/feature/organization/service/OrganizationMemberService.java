@@ -15,12 +15,12 @@ public class OrganizationMemberService {
 
     public void removeMember(Organization organization, User member, User currentUser) {
         // 1. Cannot remove owner
-        if ("owner".equals(member.getOrganizationRole())) {
+        if (User.OrganizationRole.OWNER.equals(member.getOrganizationRole())) {
             throw new ValidationException("CANNOT_REMOVE_OWNER", "Cannot remove organization owner");
         }
 
         // 2. Admin tidak bisa remove admin lain atau owner
-        if ("admin".equals(currentUser.getOrganizationRole()) && "admin".equals(member.getOrganizationRole())) {
+        if (User.OrganizationRole.ADMIN.equals(currentUser.getOrganizationRole()) && User.OrganizationRole.ADMIN.equals(member.getOrganizationRole())) {
             throw new ValidationException("INSUFFICIENT_ROLE", "Admin cannot remove another admin");
         }
 
@@ -38,9 +38,9 @@ public class OrganizationMemberService {
         }
 
         // 2. Siapkan role ORGANIZATION untuk user
-        List<String> roles = currentUser.getRoles();
+        List<User.Role> roles = currentUser.getRoles();
         if (roles == null) roles = new java.util.ArrayList<>();
-        if (!roles.contains("ORGANIZATION")) roles.add("ORGANIZATION");
+        if (!roles.contains(User.Role.ORGANIZATION)) roles.add(User.Role.ORGANIZATION);
 
         // 3. Update data User menggunakan DocumentUpdater
         DocumentUpdater updater = DocumentUpdater.update()
@@ -58,7 +58,7 @@ public class OrganizationMemberService {
         // 5. Update state object di memory agar return valuenya sesuai (untuk response API)
         currentUser.setOrganizationId(organization.getId());
         currentUser.setOrganizationName(organization.getName());
-        currentUser.setOrganizationRole("member");
+        currentUser.setOrganizationRole(User.OrganizationRole.MEMBER);
         currentUser.setAccountType(User.AccountType.ORGANIZATION);
         currentUser.setRoles(roles);
 
@@ -67,7 +67,7 @@ public class OrganizationMemberService {
 
     public User leaveOrganization(Organization organization, User member) {
         // 1. Owner cannot leave
-        if ("owner".equals(member.getOrganizationRole())) {
+        if (User.OrganizationRole.OWNER.equals(member.getOrganizationRole())) {
             throw new ValidationException("OWNER_CANNOT_LEAVE",
                 "Owner cannot leave organization. Transfer ownership first.");
         }
@@ -96,9 +96,9 @@ public class OrganizationMemberService {
             .set("accountType", User.AccountType.INDIVIDUAL);
         
         // Remove ORGANIZATION role jika ada
-        List<String> roles = user.getRoles();
+        List<User.Role> roles = user.getRoles();
         if (roles != null) {
-            roles.remove("ORGANIZATION");
+            roles.remove(User.Role.ORGANIZATION);
             updater.set("roles", roles);
         }
 

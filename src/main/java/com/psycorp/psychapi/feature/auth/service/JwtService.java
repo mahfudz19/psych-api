@@ -17,6 +17,8 @@ import org.jose4j.jwt.consumer.JwtConsumer;
 import org.jose4j.jwt.consumer.JwtConsumerBuilder;
 import org.jose4j.lang.JoseException;
 
+import com.psycorp.psychapi.feature.user.model.User;
+
 import io.quarkus.arc.Arc;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.NotAuthorizedException;
@@ -37,7 +39,7 @@ public class JwtService {
      * Generate access token untuk user.
      * Durasi: 15 menit
      */
-    public String generateAccessToken(ObjectId userId, String email, List<String> roles) {
+    public String generateAccessToken(ObjectId userId, String email, List<User.Role> roles) {
         long nowSeconds = System.currentTimeMillis() / 1000;
         long expirySeconds = nowSeconds + ACCESS_TOKEN_EXPIRY_SECONDS;
 

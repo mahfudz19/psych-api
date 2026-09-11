@@ -37,16 +37,16 @@ public record UserResponse(
     String dateOfBirth,
     
     @Schema(description = "Jenis kelamin user", examples = "MALE")
-    String gender,
+    User.Gender gender,
     
     @Schema(description = "Daftar roles user", examples = "[\"USER\", \"ADMIN\"]")
-    List<String> roles,
+    List<User.Role> roles,
     
     @Schema(description = "ID organisasi user", examples = "507f191e810c19729de860ea")
     String organizationId,
     
     @Schema(description = "Role user dalam organisasi", examples = "MEMBER")
-    String organizationRole,
+    User.OrganizationRole organizationRole,
     
     @Schema(description = "Nama organisasi user", examples = "PT Example Corp")
     String organizationName,
@@ -73,10 +73,10 @@ public record UserResponse(
     String inviteCode,
     
     @Schema(description = "Status undangan user", examples = "pending")
-    String invitationStatus,
+    User.InvitationStatus invitationStatus,
     
     @Schema(description = "Role undangan user", examples = "ADMIN")
-    String invitationRole,
+    User.OrganizationRole invitationRole,
     
     @Schema(description = "Status akun user", examples = "ACTIVE")
     User.Status status,
@@ -91,13 +91,8 @@ public record UserResponse(
     Instant updatedAt,
     
     @Schema(description = "Tipe akun", examples = "PERSONAL")
-    String accountType
+    User.AccountType accountType
 ) {
-    /**
-     * Factory method untuk convert dari User entity ke UserResponse.
-     * @param user User entity
-     * @return UserResponse
-     */
     public static UserResponse fromEntity(com.psycorp.psychapi.feature.user.model.User user) {
         return new UserResponse(
             user.getId() != null ? user.getId().toHexString() : null,
@@ -125,7 +120,7 @@ public record UserResponse(
             user.getLastLoginAt(),
             user.getCreatedAt(),
             user.getUpdatedAt(),
-            user.getAccountType() != null ? user.getAccountType().name() : null
+            user.getAccountType()
         );
     }
 }

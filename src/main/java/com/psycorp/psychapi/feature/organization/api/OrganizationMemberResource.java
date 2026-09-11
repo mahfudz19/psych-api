@@ -26,6 +26,7 @@ import com.psycorp.psychapi.feature.organization.model.Organization;
 import com.psycorp.psychapi.feature.organization.service.OrganizationMemberService;
 import com.psycorp.psychapi.feature.organization.service.OrganizationService;
 import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.model.User.OrganizationRole;
 import com.psycorp.psychapi.feature.user.service.UserService;
 import com.psycorp.psychapi.infrastructure.exception.NotFoundException;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
@@ -127,7 +128,7 @@ public class OrganizationMemberResource {
 
         if (member.getId().equals(currentUser.getId())) 
             throw new ValidationException("CANNOT_CHANGE_YOUR_SELF", "Cannot change the role of your account");
-        if ("owner".equals(member.getOrganizationRole())) 
+        if (OrganizationRole.OWNER.equals(member.getOrganizationRole())) 
             throw new ValidationException("CANNOT_CHANGE_OWNER", "Cannot change the role of organization owner");
 
         DocumentUpdater updater = DocumentUpdater.update()

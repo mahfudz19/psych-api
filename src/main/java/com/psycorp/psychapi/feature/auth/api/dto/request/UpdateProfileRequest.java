@@ -1,5 +1,7 @@
 package com.psycorp.psychapi.feature.auth.api.dto.request;
 
+import com.psycorp.psychapi.feature.user.model.User;
+
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -16,7 +18,7 @@ public record UpdateProfileRequest(
     String dateOfBirth,
 
     @Pattern(regexp = "^(male|female)$", message = "Gender must be one of: male, female, other")
-    String gender,
+    User.Gender gender,
 
     String profilePicture
 ) {}

@@ -76,7 +76,7 @@ public record OrganizationDetailResponse(
         String profilePicture,
 
         @Schema(description = "Role dalam organization: owner, admin, member", examples = "admin")
-        String organizationRole,
+        User.OrganizationRole organizationRole,
 
         @Schema(description = "Status akun: ACTIVE, PENDING, SUSPENDED", examples = "ACTIVE")
         String status,

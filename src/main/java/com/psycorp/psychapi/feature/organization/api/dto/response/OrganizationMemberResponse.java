@@ -20,10 +20,10 @@ public record OrganizationMemberResponse(
     String fullName,
     
     @Schema(description = "Role user dalam organization", examples = "admin")
-    String organizationRole,
+    User.OrganizationRole organizationRole,
     
     @Schema(description = "Status user", examples = "ACTIVE")
-    String status
+    User.Status status
 ) {
     
     /**
@@ -38,7 +38,7 @@ public record OrganizationMemberResponse(
             user.getEmail(),
             user.getFullName(),
             user.getOrganizationRole(),
-            user.getStatus() != null ? user.getStatus().getValue() : null
+            user.getStatus()
         );
     }
 }

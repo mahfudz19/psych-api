@@ -4,6 +4,8 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.psycorp.psychapi.feature.organization.model.Organization;
+import com.psycorp.psychapi.feature.user.model.User;
 
 @JsonInclude(Include.NON_NULL)
 public record OrganizationWithOwnerResponse(
@@ -13,15 +15,12 @@ public record OrganizationWithOwnerResponse(
     public record OwnerInfo(
         String id,
         String organizationId,
-        String organizationRole,
+        User.OrganizationRole organizationRole,
         String organizationName,
-        List<String> roles
+        List<User.Role> roles
     ) {}
 
-    public static OrganizationWithOwnerResponse of(
-        com.psycorp.psychapi.feature.organization.model.Organization org,
-        com.psycorp.psychapi.feature.user.model.User user
-    ) {
+    public static OrganizationWithOwnerResponse of(Organization org, User user) {
         OrganizationResponse orgResponse = OrganizationResponse.fromEntity(org);
         OwnerInfo ownerInfo = new OwnerInfo(
             user.getId() != null ? user.getId().toHexString() : null,

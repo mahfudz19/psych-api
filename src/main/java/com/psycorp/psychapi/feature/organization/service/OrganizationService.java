@@ -71,16 +71,16 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
             // 5. Update user dengan organization info
             user.setOrganizationId(organization.id);
             user.setOrganizationName(organization.getName());
-            user.setOrganizationRole("owner");
+            user.setOrganizationRole(User.OrganizationRole.OWNER);
             user.setAccountType(User.AccountType.ORGANIZATION);
     
             // 6. Update roles jika belum punya ORGANIZATION role
-            List<String> roles = user.getRoles();
+            List<User.Role> roles = user.getRoles();
             if (roles == null) {
                 roles = new ArrayList<>();
             }
-            if (!roles.contains("ORGANIZATION")) {
-                roles.add("ORGANIZATION");
+            if (!roles.contains(User.Role.ORGANIZATION)) {
+                roles.add(User.Role.ORGANIZATION);
                 user.setRoles(roles);
             }
             user.setInviteCode(generateInviteCode());
@@ -97,7 +97,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
     }
 
     public List<Organization> getOrganizations(User user, int page, int limit, String sortBy, String sortOrder) {
-        boolean isSuperAdmin = user.getRoles() != null && user.getRoles().contains("SUPERADMIN");
+        boolean isSuperAdmin = user.getRoles() != null && user.getRoles().contains(User.Role.SUPERADMIN);
         
         Bson finalFilter;
         if (isSuperAdmin) {
@@ -114,7 +114,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
     }
 
     public long getOrganizationsCount(User user) {
-        boolean isSuperAdmin = user.getRoles() != null && user.getRoles().contains("SUPERADMIN");
+        boolean isSuperAdmin = user.getRoles() != null && user.getRoles().contains(User.Role.SUPERADMIN);
         
         if (isSuperAdmin) {
             return Organization.count();
@@ -128,7 +128,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         Organization organization = getOrganizationById(orgId, user);
 
         // 2. Validate user has permission
-        validateOrganizationAccess(organization, user, "owner", "admin");
+        validateOrganizationAccess(organization, user, User.OrganizationRole.OWNER, User.OrganizationRole.ADMIN);
 
         // 3. Build update document
         DocumentUpdater updater = DocumentUpdater.update()
@@ -161,7 +161,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         Organization organization = getOrganizationByIdInternal(orgId);
 
         // 3. Validate user is owner
-        validateOrganizationAccess(organization, user, "owner");
+        validateOrganizationAccess(organization, user, User.OrganizationRole.OWNER);
 
         // 4. Kick all members (termasuk owner sendiri)
         List<User> members = getOrganizationMembers(organization.id);
@@ -172,9 +172,9 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
             member.setInviteCode(null);
             member.setAccountType(User.AccountType.INDIVIDUAL);
 
-            List<String> roles = member.getRoles();
+            List<User.Role> roles = member.getRoles();
             if (roles != null) {
-                roles.remove("ORGANIZATION");
+                roles.remove(User.Role.ORGANIZATION);
                 member.setRoles(roles);
             }
 
@@ -196,8 +196,8 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         return Organization.count("ownerId", objectId) > 0;
     }
 
-    public void validateOrganizationAccess(Organization organization, User user, String... allowedRoles) {
-        if (user.getRoles() != null && user.getRoles().contains("SUPERADMIN")) {
+    public void validateOrganizationAccess(Organization organization, User user, User.OrganizationRole... allowedRoles) {
+        if (user.getRoles() != null && user.getRoles().contains(User.Role.SUPERADMIN)) {
             return; // Akses granted tanpa validasi lebih lanjut
         }
 
@@ -211,9 +211,9 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         }
 
         // Check role
-        String userRole = user.getOrganizationRole();
+        User.OrganizationRole userRole = user.getOrganizationRole();
         boolean hasAllowedRole = false;
-        for (String role : allowedRoles) {
+        for (User.OrganizationRole role : allowedRoles) {
             if (role.equals(userRole)) {
                 hasAllowedRole = true;
                 break;
@@ -221,11 +221,13 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         }
 
         // Owner selalu punya akses penuh
-        if (!hasAllowedRole && !"owner".equals(userRole)) {
+        if (!hasAllowedRole && !User.OrganizationRole.OWNER.equals(userRole)) {
             throw new ValidationException(
                 "UNAUTHORIZED",
-                "User does not have permission to perform this action. Required role: " + String.join(" or ", allowedRoles)
-            );
+                "User does not have permission to perform this action. Required role: " + 
+                    java.util.Arrays.stream(allowedRoles)
+                        .map(User.OrganizationRole::getValue)
+                        .collect(java.util.stream.Collectors.joining(" or ")));
         }
     }
 
@@ -233,7 +235,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         if (user.getOrganizationId() == null) {
             throw new ValidationException("NO_ORGANIZATION", "User does not belong to any organization");
         }
-        if (!List.of("owner", "admin").contains(user.getOrganizationRole())) {
+        if (!List.of(User.OrganizationRole.OWNER, User.OrganizationRole.ADMIN).contains(user.getOrganizationRole())) {
             throw new ValidationException("UNAUTHORIZED",
                 "Only organization owner or admin can generate invite code. Your role: " + user.getOrganizationRole());
         }
@@ -275,12 +277,12 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
     }
 
     private boolean isSuperAdmin(User user) {
-        return user.getRoles() != null && user.getRoles().contains("SUPERADMIN");
+        return user.getRoles() != null && user.getRoles().contains(User.Role.SUPERADMIN);
     }
 
     private Organization getOrganizationById(String orgId, User user) {
         Organization organization = getOrganizationByIdInternal(orgId);
-        validateOrganizationAccess(organization, user, "owner", "admin");
+        validateOrganizationAccess(organization, user, User.OrganizationRole.OWNER, User.OrganizationRole.ADMIN);
 
         return organization;
     }

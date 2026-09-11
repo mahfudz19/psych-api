@@ -479,8 +479,8 @@ public class AuthService {
             boolean needUpdate = false;
             
             // SINKRONISASI JIKA SEBELUMNYA DAFTAR MANUAL
-            if (user.getProviderId() == null || !user.getProvider().equals("google")) {
-                user.setProvider("google");
+            if (user.getProviderId() == null || !user.getProvider().equals(User.Provider.GOOGLE)) {
+                user.setProvider(User.Provider.GOOGLE);
                 user.setProviderId(googleId);
                 needUpdate = true;
             }
@@ -579,7 +579,7 @@ public class AuthService {
             );
 
             // 2. TIMPA PENGATURAN BAWAAN MENJADI GOOGLE SSO
-            user.setProvider("google");
+            user.setProvider(User.Provider.GOOGLE);
             user.setProviderId(googleId);
             
             // Langsung aktifkan tanpa verifikasi email

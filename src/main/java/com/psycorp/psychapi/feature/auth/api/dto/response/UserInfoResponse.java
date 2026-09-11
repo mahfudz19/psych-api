@@ -38,16 +38,16 @@ public record UserInfoResponse(
     String dateOfBirth,
 
     @Schema(description = "Gender user", examples = "male")
-    String gender,
+    User.Gender gender,
 
     @Schema(description = "Daftar roles user", examples = "[\"USER\", \"ADMIN\"]")
-    List<String> roles,
+    List<User.Role> roles,
     
     @Schema(description = "ID organisasi user", examples = "507f191e810c19729de860ea")
     ObjectId organizationId,
     
     @Schema(description = "Role user dalam organisasi", examples = "MEMBER")
-    String organizationRole,
+    User.OrganizationRole organizationRole,
     
     @Schema(description = "Nama organisasi user", examples = "PT Example Corp")
     String organizationName,
