@@ -156,24 +156,30 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         return organization;
     }
 
-    public boolean deleteOrganization(String orgId, User user, String confirmation) {
-        // 1. Validate confirmation
-        if (!"DELETE_MY_ORGANIZATION".equals(confirmation)) {
-            throw new ValidationException("CONFIRMATION_MISMATCH",
-                "Confirmation text must be 'DELETE_MY_ORGANIZATION'");
-        }
-
+    public boolean deleteOrganization(String orgId, User user) {
         // 2. Get organization
         Organization organization = getOrganizationByIdInternal(orgId);
 
         // 3. Validate user is owner
         validateOrganizationAccess(organization, user, "owner");
 
-        // 4. Check if organization has other members (optional)
-        // Jika ada member lain, owner harus transfer ownership dulu
-        if (organization.getSeatsUsed() != null && organization.getSeatsUsed() > 1) {
-            throw new ValidationException("ORG_OWNER_CANNOT_DELETE",
-                "Organization has other members. Transfer ownership before deleting.");
+        // 4. Kick all members (termasuk owner sendiri)
+        List<User> members = getOrganizationMembers(organization.id);
+        for (User member : members) {
+            member.setOrganizationId(null);
+            member.setOrganizationName(null);
+            member.setOrganizationRole(null);
+            member.setInviteCode(null);
+            member.setAccountType(User.AccountType.INDIVIDUAL);
+
+            List<String> roles = member.getRoles();
+            if (roles != null) {
+                roles.remove("ORGANIZATION");
+                member.setRoles(roles);
+            }
+
+            member.setUpdatedAt(Instant.now());
+            member.update();
         }
 
         // 5. Soft delete organization
@@ -181,24 +187,6 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         organization.setDeletedAt(Instant.now());
         organization.setUpdatedAt(Instant.now());
         organization.update();
-
-        // 6. Update user organization info
-        if (user.getOrganizationId() != null && user.getOrganizationId().equals(organization.id)) {
-            user.setOrganizationId(null);
-            user.setOrganizationName(null);
-            user.setOrganizationRole(null);
-            user.setAccountType(User.AccountType.INDIVIDUAL);
-
-            // Remove ORGANIZATION role
-            List<String> roles = user.getRoles();
-            if (roles != null) {
-                roles.remove("ORGANIZATION");
-                user.setRoles(roles);
-            }
-
-            user.setUpdatedAt(Instant.now());
-            user.update();
-        }
 
         return true;
     }

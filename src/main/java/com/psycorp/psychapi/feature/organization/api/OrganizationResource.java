@@ -16,7 +16,6 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import com.psycorp.psychapi.feature.auth.api.dto.response.UserInfoResponse;
 import com.psycorp.psychapi.feature.organization.api.dto.request.CreateOrganizationRequest;
-import com.psycorp.psychapi.feature.organization.api.dto.request.DeleteOrganizationRequest;
 import com.psycorp.psychapi.feature.organization.api.dto.request.OrganizationListRequest;
 import com.psycorp.psychapi.feature.organization.api.dto.request.UpdateOrganizationRequest;
 import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationDetailResponse;
@@ -25,6 +24,7 @@ import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationWi
 import com.psycorp.psychapi.feature.organization.model.Organization;
 import com.psycorp.psychapi.feature.organization.service.OrganizationService;
 import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.service.UserService;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.shared.response.PaginationMeta;
 import com.psycorp.psychapi.shared.response.ResponseHelper;
@@ -60,6 +60,9 @@ public class OrganizationResource {
 
     @Inject
     OrganizationService organizationService;
+    
+    @Inject
+    UserService userService;
 
     @POST
     @Operation(summary = "Create organization baru")
@@ -146,25 +149,22 @@ public class OrganizationResource {
 
     @DELETE
     @Path("/{orgId}/delete")
+    @RolesAllowed({"SUPERADMIN", "ORG_OWNER"})
     @Operation(summary = "Soft delete organization")
-    @RequestBody(description = "Delete organization request", required = true, content = @Content(schema = @Schema(implementation = DeleteOrganizationRequest.class)))
     @APIResponse(responseCode = "200", description = "Organization deleted successfully")
     @APIResponse(responseCode = "400", description = "Validation error")
     @APIResponse(responseCode = "403", description = "Forbidden")
     @APIResponse(responseCode = "404", description = "Organization not found")
-    public Response deleteOrganization(
-            @PathParam("orgId") String orgId,
-            @Valid DeleteOrganizationRequest request,
-            @Context ContainerRequestContext requestContext
-        ) {
+    public Response deleteOrganization(@PathParam("orgId") String orgId, @Context ContainerRequestContext requestContext) {
         User user = (User) requestContext.getProperty("validatedUser");
+        if (user == null) throw new ValidationException("USER_NOT_FOUND", "User not found");
         
-        if (user == null) {
-            throw new ValidationException("USER_NOT_FOUND", "User not found");
-        }
+        organizationService.deleteOrganization(orgId, user);
 
-        organizationService.deleteOrganization(orgId, user, request.confirmation());
-        return ResponseHelper.success("Organization deleted successfully");
+        return ResponseHelper.ok(
+            UserInfoResponse.from(userService.findById(user.id)), 
+            "Organization deleted successfully"
+        );
     }
 
     @POST
