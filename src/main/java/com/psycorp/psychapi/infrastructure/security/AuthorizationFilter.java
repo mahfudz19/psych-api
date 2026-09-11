@@ -91,7 +91,6 @@ public class AuthorizationFilter implements ContainerRequestFilter {
             
             // Loop melalui daftar role yang diizinkan (Logika OR: Salah satu cukup)
             for (String role : allowedRoles) {
-                // PANGGIL isUserInRole() YANG ANDA BUAT DI AuthenticationFilter!
                 if (requestContext.getSecurityContext().isUserInRole(role)) {
                     hasRole = true;
                     break;

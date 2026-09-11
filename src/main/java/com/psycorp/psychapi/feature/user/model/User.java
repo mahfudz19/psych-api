@@ -404,30 +404,6 @@ public class User extends PanacheMongoEntity {
         this.updatedAt = Instant.now();
     }
 
-    public static class ReferralCodeHistoryEntry {
-        private String code;
-        private Instant archivedAt;
-        private String reason;
-        private String replacedBy;
-        
-        public ReferralCodeHistoryEntry() {}
-        
-        public String getCode() { return code; }
-        public void setCode(String code) { this.code = code; }
-        
-        public Instant getArchivedAt() { return archivedAt; }
-        public void setArchivedAt(Instant archivedAt) { this.archivedAt = archivedAt; }
-        
-        public String getReason() { return reason; }
-        public void setReason(String reason) { this.reason = reason; }
-        
-        public String getReplacedBy() { return replacedBy; }
-        public void setReplacedBy(String replacedBy) { this.replacedBy = replacedBy; }
-    }
-
-    /**
-     * Memperbarui token lupa password ke memori dan database secara instan.
-     */
     public void applyPasswordResetToken(String hashedToken, Instant expiresAt) {
         this.resetPasswordToken = hashedToken;
         this.resetPasswordExpiresAt = expiresAt;
@@ -441,9 +417,6 @@ public class User extends PanacheMongoEntity {
         this.executeUpdate(update);
     }
 
-    /**
-     * Mengeksekusi penggantian password sekaligus membersihkan token reset.
-     */
     public void resetPassword(String newHashedPassword) {
         this.password = newHashedPassword;
         this.resetPasswordToken = null;

@@ -22,6 +22,8 @@ public final class OrganizationMemberRequests {
     private OrganizationMemberRequests() {}
 
     // === CONSTANT UNTUK SHARED DESCRIPTIONS ===
+    public static final String[] SEARCH_FIELDS = {"fullName", "email"};
+
     
     public static final String MEMBERS_LIST_DESCRIPTION = """
         Mengambil daftar semua members dalam organization dengan pagination, search, sort, dan filter.
