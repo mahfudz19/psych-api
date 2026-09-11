@@ -128,7 +128,7 @@ public class OrganizationMemberResource {
 
         if (member.getId().equals(currentUser.getId())) 
             throw new ValidationException("CANNOT_CHANGE_YOUR_SELF", "Cannot change the role of your account");
-        if (OrganizationRole.OWNER.equals(member.getOrganizationRole())) 
+        if (OrganizationRole.owner.equals(member.getOrganizationRole())) 
             throw new ValidationException("CANNOT_CHANGE_OWNER", "Cannot change the role of organization owner");
 
         DocumentUpdater updater = DocumentUpdater.update()

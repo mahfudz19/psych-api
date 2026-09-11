@@ -15,12 +15,12 @@ public class OrganizationMemberService {
 
     public void removeMember(Organization organization, User member, User currentUser) {
         // 1. Cannot remove owner
-        if (User.OrganizationRole.OWNER.equals(member.getOrganizationRole())) {
+        if (User.OrganizationRole.owner.equals(member.getOrganizationRole())) {
             throw new ValidationException("CANNOT_REMOVE_OWNER", "Cannot remove organization owner");
         }
 
         // 2. Admin tidak bisa remove admin lain atau owner
-        if (User.OrganizationRole.ADMIN.equals(currentUser.getOrganizationRole()) && User.OrganizationRole.ADMIN.equals(member.getOrganizationRole())) {
+        if (User.OrganizationRole.admin.equals(currentUser.getOrganizationRole()) && User.OrganizationRole.admin.equals(member.getOrganizationRole())) {
             throw new ValidationException("INSUFFICIENT_ROLE", "Admin cannot remove another admin");
         }
 
@@ -58,7 +58,7 @@ public class OrganizationMemberService {
         // 5. Update state object di memory agar return valuenya sesuai (untuk response API)
         currentUser.setOrganizationId(organization.getId());
         currentUser.setOrganizationName(organization.getName());
-        currentUser.setOrganizationRole(User.OrganizationRole.MEMBER);
+        currentUser.setOrganizationRole(User.OrganizationRole.member);
         currentUser.setAccountType(User.AccountType.ORGANIZATION);
         currentUser.setRoles(roles);
 
@@ -67,7 +67,7 @@ public class OrganizationMemberService {
 
     public User leaveOrganization(Organization organization, User member) {
         // 1. Owner cannot leave
-        if (User.OrganizationRole.OWNER.equals(member.getOrganizationRole())) {
+        if (User.OrganizationRole.owner.equals(member.getOrganizationRole())) {
             throw new ValidationException("OWNER_CANNOT_LEAVE",
                 "Owner cannot leave organization. Transfer ownership first.");
         }

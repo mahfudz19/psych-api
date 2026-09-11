@@ -50,7 +50,7 @@ public class UserService implements PanacheMongoRepository<User> {
             // === SCENARIO A: Invite dengan code ===
             inviter = validateInviteCode(inviteCode);
             orgId = inviter.getOrganizationId();
-            role =  User.OrganizationRole.MEMBER;
+            role =  User.OrganizationRole.member;
             
         } else if (invitedBy != null && !invitedBy.isEmpty() && invitedOrganizationId != null && !invitedOrganizationId.isEmpty()) {
             // === SCENARIO B: Direct add ===
@@ -72,10 +72,10 @@ public class UserService implements PanacheMongoRepository<User> {
             if (!inviter.getOrganizationId().equals(org.id)) {
                 throw new ValidationException("UNAUTHORIZED", "User does not belong to this organization");
             }
-            if (!List.of(User.OrganizationRole.OWNER, User.OrganizationRole.ADMIN).contains(inviter.getOrganizationRole())) {
+            if (!List.of(User.OrganizationRole.owner, User.OrganizationRole.admin).contains(inviter.getOrganizationRole())) {
                 throw new ValidationException("UNAUTHORIZED", "Only organization owner or admin can add members directly. Your role: " + inviter.getOrganizationRole());
             }
-            role =  User.OrganizationRole.MEMBER;
+            role =  User.OrganizationRole.member;
         }
         
         // 5. Create User object

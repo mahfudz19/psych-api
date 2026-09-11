@@ -36,7 +36,7 @@ public record UserResponse(
     @Schema(description = "Tanggal lahir user (YYYY-MM-DD)", examples = "1990-01-15")
     String dateOfBirth,
     
-    @Schema(description = "Jenis kelamin user", examples = "MALE")
+    @Schema(description = "Jenis kelamin user", examples = "male")
     User.Gender gender,
     
     @Schema(description = "Daftar roles user", examples = "[\"USER\", \"ADMIN\"]")
@@ -45,7 +45,7 @@ public record UserResponse(
     @Schema(description = "ID organisasi user", examples = "507f191e810c19729de860ea")
     String organizationId,
     
-    @Schema(description = "Role user dalam organisasi", examples = "MEMBER")
+    @Schema(description = "Role user dalam organisasi", examples = "member")
     User.OrganizationRole organizationRole,
     
     @Schema(description = "Nama organisasi user", examples = "PT Example Corp")

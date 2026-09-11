@@ -29,7 +29,7 @@ public record OrganizationMemberDetailResponse(
     @Schema(description = "Bio", examples = "Software Developer")
     String bio,
 
-    @Schema(description = "Jenis kelamin", examples = "MALE")
+    @Schema(description = "Jenis kelamin", examples = "male")
     User.Gender gender,
 
     @Schema(description = "Role dalam organization", examples = "admin")

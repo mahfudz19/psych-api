@@ -71,7 +71,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
             // 5. Update user dengan organization info
             user.setOrganizationId(organization.id);
             user.setOrganizationName(organization.getName());
-            user.setOrganizationRole(User.OrganizationRole.OWNER);
+            user.setOrganizationRole(User.OrganizationRole.owner);
             user.setAccountType(User.AccountType.ORGANIZATION);
     
             // 6. Update roles jika belum punya ORGANIZATION role
@@ -128,7 +128,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         Organization organization = getOrganizationById(orgId, user);
 
         // 2. Validate user has permission
-        validateOrganizationAccess(organization, user, User.OrganizationRole.OWNER, User.OrganizationRole.ADMIN);
+        validateOrganizationAccess(organization, user, User.OrganizationRole.owner, User.OrganizationRole.admin);
 
         // 3. Build update document
         DocumentUpdater updater = DocumentUpdater.update()
@@ -161,7 +161,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         Organization organization = getOrganizationByIdInternal(orgId);
 
         // 3. Validate user is owner
-        validateOrganizationAccess(organization, user, User.OrganizationRole.OWNER);
+        validateOrganizationAccess(organization, user, User.OrganizationRole.owner);
 
         // 4. Kick all members (termasuk owner sendiri)
         List<User> members = getOrganizationMembers(organization.id);
@@ -221,7 +221,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         }
 
         // Owner selalu punya akses penuh
-        if (!hasAllowedRole && !User.OrganizationRole.OWNER.equals(userRole)) {
+        if (!hasAllowedRole && !User.OrganizationRole.owner.equals(userRole)) {
             throw new ValidationException(
                 "UNAUTHORIZED",
                 "User does not have permission to perform this action. Required role: " + 
@@ -235,7 +235,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         if (user.getOrganizationId() == null) {
             throw new ValidationException("NO_ORGANIZATION", "User does not belong to any organization");
         }
-        if (!List.of(User.OrganizationRole.OWNER, User.OrganizationRole.ADMIN).contains(user.getOrganizationRole())) {
+        if (!List.of(User.OrganizationRole.owner, User.OrganizationRole.admin).contains(user.getOrganizationRole())) {
             throw new ValidationException("UNAUTHORIZED",
                 "Only organization owner or admin can generate invite code. Your role: " + user.getOrganizationRole());
         }
@@ -282,7 +282,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
 
     private Organization getOrganizationById(String orgId, User user) {
         Organization organization = getOrganizationByIdInternal(orgId);
-        validateOrganizationAccess(organization, user, User.OrganizationRole.OWNER, User.OrganizationRole.ADMIN);
+        validateOrganizationAccess(organization, user, User.OrganizationRole.owner, User.OrganizationRole.admin);
 
         return organization;
     }

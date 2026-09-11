@@ -220,9 +220,9 @@ public class User extends PanacheMongoEntity {
     }
 
     public enum OrganizationRole {
-        OWNER("owner"),
-        ADMIN("admin"),
-        MEMBER("member");
+        member("member"),
+        admin("admin"),
+        owner("owner");
 
         private final String value;
         OrganizationRole(String value) { this.value = value; }
@@ -241,10 +241,10 @@ public class User extends PanacheMongoEntity {
     }
 
     public enum InvitationStatus {
-        PENDING("pending"),
-        ACCEPTED("accepted"),
-        DECLINED("declined"),
-        EXPIRED("expired");
+        pending("pending"),
+        accepted("accepted"),
+        declined("declined"),
+        expired("expired");
 
         private final String value;
         InvitationStatus(String value) { this.value = value; }
@@ -263,9 +263,9 @@ public class User extends PanacheMongoEntity {
     }
 
     public enum Provider {
-        LOCAL("local"),
-        GOOGLE("google"),
-        FACEBOOK("facebook");
+        local("local"),
+        google("google"),
+        facebook("facebook");
 
         private final String value;
         Provider(String value) { this.value = value; }
@@ -284,8 +284,8 @@ public class User extends PanacheMongoEntity {
     }
 
     public enum Gender {
-        MALE("male"),
-        FEMALE("female");
+        male("male"),
+        female("female");
 
         private final String value;
         Gender(String value) { this.value = value; }
@@ -304,8 +304,8 @@ public class User extends PanacheMongoEntity {
     }
 
     public enum AccountType {
-        INDIVIDUAL("individual"),
-        ORGANIZATION("organization");
+        INDIVIDUAL("INDIVIDUAL"),
+        ORGANIZATION("ORGANIZATION");
         
         private final String value;
         
@@ -375,7 +375,7 @@ public class User extends PanacheMongoEntity {
         user.email = email;
         if (password != null) user.password = password;
         user.fullName = fullName;
-        user.provider = Provider.LOCAL;
+        user.provider = Provider.local;
         user.roles = List.of(Role.USER);
         
         user.status = Status.PENDING;
@@ -402,8 +402,8 @@ public class User extends PanacheMongoEntity {
         // Set roles dan organization info berdasarkan account type
         if (accountType == AccountType.ORGANIZATION) {
             user.setRoles(List.of(Role.USER, Role.ORGANIZATION));
-            user.setOrganizationRole(OrganizationRole.OWNER);
-            user.setInvitationStatus(InvitationStatus.ACCEPTED);
+            user.setOrganizationRole(OrganizationRole.owner);
+            user.setInvitationStatus(InvitationStatus.accepted);
             user.setInvitationAcceptedAt(Instant.now());
         }
                 
@@ -417,10 +417,10 @@ public class User extends PanacheMongoEntity {
         if (inviter != null) {
             user.invitedBy = inviter.id;  // Langsung ObjectId, bukan toHexString()
             user.invitedOrganizationId = inviter.getInvitedOrganizationId();
-            user.invitationStatus = InvitationStatus.ACCEPTED;
+            user.invitationStatus = InvitationStatus.accepted;
             user.invitationSentAt = Instant.now();
             user.invitationAcceptedAt = Instant.now();
-            user.invitationRole = inviter.getInvitationRole() != null ? inviter.getInvitationRole() : OrganizationRole.MEMBER;
+            user.invitationRole = inviter.getInvitationRole() != null ? inviter.getInvitationRole() : OrganizationRole.member;
         }
         
         return user;

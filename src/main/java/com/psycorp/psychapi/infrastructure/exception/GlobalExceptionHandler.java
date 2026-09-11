@@ -50,12 +50,22 @@ public class GlobalExceptionHandler {
                 .build();
     }
 
+    @ServerExceptionMapper
+    public Response mapIOException(java.io.IOException ex) {
+        if (ex.getCause() instanceof io.vertx.core.http.HttpClosedException || 
+                (ex.getMessage() != null && ex.getMessage().contains("HttpClosedException"))) {
+                log.debug("Client disconnected before request completion");
+                return null; // Mengabaikan respon ke client yang sudah putus
+        }
+        return mapGenericException(ex);
+    }
+
     /**
      * 2. Menangkap custom NotFoundException
      * Status: 404 Not Found
      */
     @ServerExceptionMapper
-    public Response mapNotFoundException(NotFoundException ex) {
+    public Response mapJaxRsNotFoundException(NotFoundException ex) {
         ApiErrorResponse errorResponse = ApiErrorResponse.of(
                 "NOT_FOUND",
                 "Not Found",
@@ -72,7 +82,7 @@ public class GlobalExceptionHandler {
      * Status: 404 Not Found
      */
     @ServerExceptionMapper
-    public Response mapNotFoundException(com.psycorp.psychapi.infrastructure.exception.NotFoundException ex) {
+    public Response mapCustomNotFoundException(com.psycorp.psychapi.infrastructure.exception.NotFoundException ex) {
         ApiErrorResponse errorResponse = ApiErrorResponse.of(
                 ex.getCode(),
                 "Not Found",

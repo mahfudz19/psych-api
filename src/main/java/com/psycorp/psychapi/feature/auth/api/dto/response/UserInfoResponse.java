@@ -40,13 +40,13 @@ public record UserInfoResponse(
     @Schema(description = "Gender user", examples = "male")
     User.Gender gender,
 
-    @Schema(description = "Daftar roles user", examples = "[\"USER\", \"ADMIN\"]")
+    @Schema(description = "Daftar roles user", examples = "[\"USER\", \"SUPERADMIN\"]")
     List<User.Role> roles,
     
     @Schema(description = "ID organisasi user", examples = "507f191e810c19729de860ea")
     ObjectId organizationId,
     
-    @Schema(description = "Role user dalam organisasi", examples = "MEMBER")
+    @Schema(description = "Role user dalam organisasi", examples = "member")
     User.OrganizationRole organizationRole,
     
     @Schema(description = "Nama organisasi user", examples = "PT Example Corp")

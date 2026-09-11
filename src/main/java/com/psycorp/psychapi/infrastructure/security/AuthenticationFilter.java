@@ -61,10 +61,10 @@ public class AuthenticationFilter implements ContainerRequestFilter {
 
                     // // --- LOGIKA KUSTOM example (ABAC) ---
                     if (role.equals("ORG_OWNER")) {
-                        return User.OrganizationRole.OWNER.equals(user.getOrganizationRole());
+                        return User.OrganizationRole.owner.equals(user.getOrganizationRole());
                     }
                     if (role.equals("ORG_ADMIN")) {
-                        return List.of(User.OrganizationRole.OWNER, User.OrganizationRole.ADMIN).contains(user.getOrganizationRole());
+                        return List.of(User.OrganizationRole.owner, User.OrganizationRole.admin).contains(user.getOrganizationRole());
                     }
 
                     // --- LOGIKA DEFAULT (RBAC) ---
