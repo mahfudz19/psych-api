@@ -59,12 +59,16 @@ public class AuthenticationFilter implements ContainerRequestFilter {
                 public boolean isUserInRole(String role) {
                     if (role == null) return false;
 
-                    // // --- LOGIKA KUSTOM example (ABAC) ---
-                    if (role.equals("ORG_OWNER")) {
-                        return User.OrganizationRole.owner.equals(user.getOrganizationRole());
-                    }
-                    if (role.equals("ORG_ADMIN")) {
-                        return List.of(User.OrganizationRole.owner, User.OrganizationRole.admin).contains(user.getOrganizationRole());
+                    // --- LOGIKA KUSTOM example (ABAC) ---
+                    User.OrganizationRole orgRole = user.getOrganizationRole();
+                    if (orgRole != null) {
+                        Boolean hasOrgRole = switch (role) {
+                            case "ORG_OWNER" -> orgRole == User.OrganizationRole.owner;
+                            case "ORG_ADMIN" -> orgRole == User.OrganizationRole.owner || orgRole == User.OrganizationRole.admin;
+                            case "ORG_MEMBER" -> true;
+                            default -> null;
+                        };
+                        if (hasOrgRole != null) return hasOrgRole;
                     }
 
                     // --- LOGIKA DEFAULT (RBAC) ---

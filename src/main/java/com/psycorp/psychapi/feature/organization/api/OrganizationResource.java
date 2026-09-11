@@ -102,7 +102,7 @@ public class OrganizationResource {
 
     @GET
     @Path("/{orgId}/detail")
-    @RolesAllowed({"SUPERADMIN", "ORG_OWNER", "ORG_ADMIN"})
+    @RolesAllowed({"SUPERADMIN", "ORG_OWNER", "ORG_ADMIN", "ORG_MEMBER"})
     @Operation(summary = "Get organization detail")
     @APIResponse(responseCode = "200", description = "Organization retrieved successfully")
     @APIResponse(responseCode = "404", description = "Organization not found")
@@ -115,6 +115,8 @@ public class OrganizationResource {
         if (user == null) throw new ValidationException("USER_NOT_FOUND", "User not found");
 
         Organization organization = organizationService.findById(orgId);
+        organizationService.validateOrganizationAccess(organization, user, User.OrganizationRole.admin, User.OrganizationRole.member, User.OrganizationRole.owner);
+        
         List<User> members = organizationService.getOrganizationMembers(orgId);
 
         OrganizationDetailResponse data = OrganizationDetailResponse.of(organization, members);
@@ -129,11 +131,7 @@ public class OrganizationResource {
     @APIResponse(responseCode = "400", description = "Validation error")
     @APIResponse(responseCode = "403", description = "Forbidden")
     @APIResponse(responseCode = "404", description = "Organization not found")
-    public Response updateOrganization(
-            @PathParam("orgId") String orgId,
-            @Valid UpdateOrganizationRequest request,
-            @Context ContainerRequestContext requestContext
-        ) {
+    public Response updateOrganization(@PathParam("orgId") String orgId, @Valid UpdateOrganizationRequest request, @Context ContainerRequestContext requestContext) {
         User user = (User) requestContext.getProperty("validatedUser");
         
         if (user == null) {

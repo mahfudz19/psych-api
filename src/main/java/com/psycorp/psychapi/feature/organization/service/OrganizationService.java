@@ -232,6 +232,10 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
     }
 
     public String generateOrRegenerateInviteCode(User user) {
+        
+        Organization organization = getOrganizationByIdInternal(user.getOrganizationId().toString());
+        validateOrganizationAccess(organization, user, User.OrganizationRole.admin, User.OrganizationRole.member, User.OrganizationRole.owner);
+
         if (user.getOrganizationId() == null) {
             throw new ValidationException("NO_ORGANIZATION", "User does not belong to any organization");
         }

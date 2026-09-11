@@ -64,7 +64,7 @@ public class OrganizationMemberResource {
     OrganizationMemberService memberService;
 
     @Inject
-    UserService userservice;
+    UserService userService;
 
     @Inject
     OrganizationService organizationService;
@@ -84,10 +84,10 @@ public class OrganizationMemberResource {
         Bson finalFilter = MongoFilter.and(baseFilter, requestFilter);
         Bson sort = MongoFilter.sort(request);
 
-        PanacheQuery<User> members = userservice
+        PanacheQuery<User> members = userService
             .find(finalFilter, sort)
             .page(request.page() - 1, request.limit());
-        long total = userservice.count(finalFilter);
+        long total = userService.count(finalFilter);
 
         List<OrganizationMemberResponse> responses = members.stream().map(OrganizationMemberResponse::fromEntity).toList();
         PaginationMeta meta = PaginationMeta.of(request, total);
@@ -154,6 +154,8 @@ public class OrganizationMemberResource {
 
         User member = getMemberOrgById(orgId, memberId, currentUser);
         Organization organization = getOrganizationById(orgId);
+        organizationService.validateOrganizationAccess(organization, currentUser, User.OrganizationRole.admin, User.OrganizationRole.member, User.OrganizationRole.owner);
+        
         memberService.removeMember(organization, member, currentUser);
 
         return ResponseHelper.success("Member removed successfully");
@@ -175,7 +177,6 @@ public class OrganizationMemberResource {
         return ResponseHelper.ok(response, "Joined organization successfully");
     }
 
-
     @PATCH
     @Path("leave")
     @RolesAllowed("ORGANIZATION")
@@ -189,9 +190,11 @@ public class OrganizationMemberResource {
         if (currentUser == null) throw new ValidationException("USER_NOT_FOUND", "User not found");
 
         Organization organization = getOrganizationById(orgId);
+
+        organizationService.validateOrganizationAccess(organization, currentUser, User.OrganizationRole.admin, User.OrganizationRole.member);
         
         User user = memberService.leaveOrganization(organization, currentUser);
-        OrganizationMemberResponse response = OrganizationMemberResponse.fromEntity(user);
+        UserInfoResponse response = UserInfoResponse.from(userService.findById(user.id));
 
         return ResponseHelper.ok(response, "Left organization successfully");
     }
@@ -209,7 +212,7 @@ public class OrganizationMemberResource {
             throw new ValidationException("UNAUTHORIZED", "User does not have access to this organization");
         }
 
-        User user = userservice.findById(memberId);
+        User user = userService.findById(memberId);
         if (user == null) {
             throw new NotFoundException("USER_NOT_FOUND", "User with id " + memberId + " not found");
         }
