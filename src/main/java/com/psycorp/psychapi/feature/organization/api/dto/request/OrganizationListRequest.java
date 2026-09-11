@@ -1,5 +1,7 @@
 package com.psycorp.psychapi.feature.organization.api.dto.request;
 
+import java.util.List;
+
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 
 import com.psycorp.psychapi.shared.request.PageableRequest;
@@ -8,6 +10,14 @@ import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.QueryParam;
 
 public record OrganizationListRequest(
+    @QueryParam("search")
+    @Parameter(description = "Search keyword in " + SEARCH_FIELDS_LIST, required = false)
+    String search,
+
+    @QueryParam("filter")
+    @Parameter(description = "Filter: 'field:operator:value'. Example: 'status:in:active,suspended'", required = false)
+    List<String> filter,
+
     @QueryParam("page")
     @DefaultValue("1")
     @Parameter(description = "Page number (1-based)", example = "1")
@@ -27,4 +37,8 @@ public record OrganizationListRequest(
     @DefaultValue("desc")
     @Parameter(description = "Sort order: asc or desc", example = "desc")
     String sortOrder
-) implements PageableRequest {}
+) implements PageableRequest {
+    public static final String SEARCH_FIELDS_LIST = "name, description, email, address";
+    public static final String[] SEARCH_FIELDS = SEARCH_FIELDS_LIST.split(", ");
+    public static final String DESCRIPTION = "Mengambil daftar semua user dengan pagination. Mendukung pencarian keyword di field " + SEARCH_FIELDS_LIST + ". Mendukung filter dinamis dengan format 'field:operator:value'.";
+}

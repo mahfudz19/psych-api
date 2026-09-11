@@ -22,17 +22,13 @@ import com.psycorp.psychapi.shared.util.DocumentUpdater;
 import com.psycorp.psychapi.shared.util.MongoFilter;
 import com.psycorp.psychapi.shared.util.ValidationUtils;
 
+import io.quarkus.mongodb.panache.PanacheMongoRepository;
 import io.quarkus.mongodb.panache.PanacheQuery;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 @ApplicationScoped
-public class OrganizationService {
-
-    // Fields yang bisa di-search untuk Organization
-    // private static final String[] SEARCH_FIELDS = {"name", "description", "email", "address"};
-
-    // Trial period dalam hari
+public class OrganizationService implements PanacheMongoRepository<Organization>{
     private static final int TRIAL_DAYS = 14;
 
     @Inject
@@ -98,13 +94,6 @@ public class OrganizationService {
     public User getOrganizationOwner(Organization organization) {
         ObjectId ownerId = organization.getOwnerId();
         return userService.findById(ownerId);
-    }
-
-    public Organization getOrganizationById(String orgId, User user) {
-        Organization organization = getOrganizationByIdInternal(orgId);
-        validateOrganizationAccess(organization, user, "owner", "admin", "member");
-
-        return organization;
     }
 
     public List<Organization> getOrganizations(User user, int page, int limit, String sortBy, String sortOrder) {
@@ -268,7 +257,11 @@ public class OrganizationService {
 
         return newCode;
     }
-    
+
+    public List<User> getOrganizationMembers(ObjectId orgId) {
+        return User.list("organizationId", orgId);
+    }
+
     private void validateCreateRequest(CreateOrganizationRequest request) {
         List<String> errors = new ArrayList<>();
 
@@ -297,6 +290,13 @@ public class OrganizationService {
         return user.getRoles() != null && user.getRoles().contains("SUPERADMIN");
     }
 
+    private Organization getOrganizationById(String orgId, User user) {
+        Organization organization = getOrganizationByIdInternal(orgId);
+        validateOrganizationAccess(organization, user, "owner", "admin");
+
+        return organization;
+    }
+
     private Organization getOrganizationByIdInternal(String orgId) {
         ObjectId objectId = ValidationUtils.validateObjectId(orgId);
         Organization organization = Organization.findById(objectId);
@@ -305,5 +305,4 @@ public class OrganizationService {
         }
         return organization;
     }
-
 }

@@ -2,12 +2,16 @@ package com.psycorp.psychapi.feature.organization.api;
 
 import java.util.List;
 
+import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeType;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
-import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityScheme;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import com.psycorp.psychapi.feature.auth.api.dto.response.UserInfoResponse;
@@ -15,6 +19,7 @@ import com.psycorp.psychapi.feature.organization.api.dto.request.CreateOrganizat
 import com.psycorp.psychapi.feature.organization.api.dto.request.DeleteOrganizationRequest;
 import com.psycorp.psychapi.feature.organization.api.dto.request.OrganizationListRequest;
 import com.psycorp.psychapi.feature.organization.api.dto.request.UpdateOrganizationRequest;
+import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationDetailResponse;
 import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationResponse;
 import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationWithOwnerResponse;
 import com.psycorp.psychapi.feature.organization.model.Organization;
@@ -23,7 +28,9 @@ import com.psycorp.psychapi.feature.user.model.User;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.shared.response.PaginationMeta;
 import com.psycorp.psychapi.shared.response.ResponseHelper;
+import com.psycorp.psychapi.shared.util.MongoFilter;
 
+import io.quarkus.mongodb.panache.PanacheQuery;
 import io.quarkus.security.Authenticated;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -48,13 +55,13 @@ import jakarta.ws.rs.core.Response;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Organizations", description = "API untuk mengelola organizations")
+@SecurityScheme(securitySchemeName = "bearerAuth", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat = "JWT", description = "JWT Bearer token authentication")
 public class OrganizationResource {
 
     @Inject
     OrganizationService organizationService;
 
     @POST
-    @SecurityRequirement(name = "Bearer")
     @Operation(summary = "Create organization baru")
     @RequestBody(description = "Create organization request", required = true, content = @Content(schema = @Schema(implementation = CreateOrganizationRequest.class)))
     @APIResponse(responseCode = "201", description = "Organization created successfully")
@@ -72,49 +79,46 @@ public class OrganizationResource {
     }
 
     @GET
-    @SecurityRequirement(name = "Bearer")
-    @Operation(summary = "List organizations user")
+    @RolesAllowed("SUPERADMIN")
+    @Operation(summary = "Get all users with pagination, search, and filter", description = OrganizationListRequest.DESCRIPTION)
     @APIResponse(responseCode = "200", description = "Organizations retrieved successfully")
     public Response getOrganizations(@BeanParam OrganizationListRequest request, @Context ContainerRequestContext requestContext) {
-        User user = (User) requestContext.getProperty("validatedUser");
-        
-        if (user == null) {
-            throw new ValidationException("USER_NOT_FOUND", "User not found");
-        }
+        Bson filter = MongoFilter.fromRequest(request, OrganizationListRequest.SEARCH_FIELDS);
+        Bson sort   = MongoFilter.sort(request);
 
-        List<Organization> organizations = organizationService.getOrganizations(
-            user, request.page(), request.limit(), request.sortBy(), request.sortOrder()
-        );
-        long total = organizationService.getOrganizationsCount(user);
+        PanacheQuery<Organization> organizations = organizationService
+            .find(filter, sort)
+            .page(request.page() - 1, request.limit());
+        long total = organizationService.count(filter);
         
-        List<OrganizationResponse> data = organizations.stream()
-            .map(OrganizationResponse::fromEntity)
-            .toList();
-        
+        List<OrganizationResponse> data = organizations.stream().map(OrganizationResponse::fromEntity).toList();
         PaginationMeta meta = PaginationMeta.of(request, total);
-        return ResponseHelper.ok(data, "Organizations retrieved successfully", meta);
+        
+        return ResponseHelper.ok(data, "Users retrieved successfully", meta);
     }
 
     @GET
-    @SecurityRequirement(name = "Bearer")
     @Path("/{orgId}/detail")
+    @RolesAllowed({"SUPERADMIN", "ORG_OWNER", "ORG_ADMIN"})
     @Operation(summary = "Get organization detail")
     @APIResponse(responseCode = "200", description = "Organization retrieved successfully")
     @APIResponse(responseCode = "404", description = "Organization not found")
-    public Response getOrganizationById(@PathParam("orgId") String orgId, @Context ContainerRequestContext requestContext) {
+    public Response getOrganizationById(
+        @Parameter(description = "Organization ObjectId", required = true, example = "507f1f77bcf86cd799439011")
+        @PathParam("orgId") ObjectId orgId,
+        @Context ContainerRequestContext requestContext
+    ) {
         User user = (User) requestContext.getProperty("validatedUser");
-        
-        if (user == null) {
-            throw new ValidationException("USER_NOT_FOUND", "User not found");
-        }
+        if (user == null) throw new ValidationException("USER_NOT_FOUND", "User not found");
 
-        Organization organization = organizationService.getOrganizationById(orgId, user);
-        OrganizationResponse data = OrganizationResponse.fromEntity(organization);
+        Organization organization = organizationService.findById(orgId);
+        List<User> members = organizationService.getOrganizationMembers(orgId);
+
+        OrganizationDetailResponse data = OrganizationDetailResponse.of(organization, members);
         return ResponseHelper.ok(data, "Organization retrieved successfully");
     }
 
     @PATCH
-    @SecurityRequirement(name = "Bearer")
     @Path("/{orgId}/update")
     @Operation(summary = "Update organization info")
     @RequestBody(description = "Update organization request", required = true, content = @Content(schema = @Schema(implementation = UpdateOrganizationRequest.class)))
@@ -141,7 +145,6 @@ public class OrganizationResource {
     }
 
     @DELETE
-    @SecurityRequirement(name = "Bearer")
     @Path("/{orgId}/delete")
     @Operation(summary = "Soft delete organization")
     @RequestBody(description = "Delete organization request", required = true, content = @Content(schema = @Schema(implementation = DeleteOrganizationRequest.class)))
@@ -165,7 +168,6 @@ public class OrganizationResource {
     }
 
     @POST
-    @SecurityRequirement(name = "Bearer")
     @Path("/invite-code")
     @Operation(summary = "Generate atau regenerate invite code untuk organization")
     @APIResponse(responseCode = "200", description = "Invite code generated successfully")

@@ -60,15 +60,12 @@ public class AuthenticationFilter implements ContainerRequestFilter {
                     if (role == null) return false;
 
                     // // --- LOGIKA KUSTOM example (ABAC) ---
-                    // if (role.equals("HAS_ORGANIZATION")) {
-                    //     return user.getOrganizationId() != null;
-                    // }
-                    // if (role.equals("HAS_REFERRAL")) {
-                    //     return user.getReferralCode() != null;
-                    // }
-                    // if (role.equals("IS_ACTIVE_USER")) {
-                    //     return "ACTIVE".equals(user.getStatus()); // Sesuaikan field status Anda
-                    // }
+                    if (role.equals("ORG_OWNER")) {
+                        return "owner".equals(user.getOrganizationRole());
+                    }
+                    if (role.equals("ORG_ADMIN")) {
+                        return List.of("owner", "admin").contains(user.getOrganizationRole());
+                    }
 
                     // --- LOGIKA DEFAULT (RBAC) ---
                     List<String> userRoles = user.getRoles();

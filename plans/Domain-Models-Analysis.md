@@ -1,4 +1,4 @@
-# Domain Models Analysis - PsychAPI v2
+# Domain Models Analysis - PsychAPI
 
 ## 📋 Executive Summary
 
@@ -15,7 +15,7 @@ Project ini adalah **platform psikologi multi-tenant** dengan fitur:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        PsychAPI v2                               │
+│                        PsychAPI                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │  Feature Layers:                                                │
 │  ├── feature/user/         (User management & referral)         │
