@@ -391,19 +391,19 @@ public class Dev__Insert_Dummy_Data {
         List<Document> allPlans = new ArrayList<>();
         
         ObjectId planIndFreeId = new ObjectId();
-        allPlans.add(createPlanDocument(planIndFreeId, "Individual Free", "IND_FREE", 0.0, 30, "USER", null, List.of("Basic Tests")));
+        allPlans.add(createPlanDocument(planIndFreeId, "Individual Free", "IND_FREE", 0.0, 30, "USER", null));
         
         ObjectId planIndPremiumId = new ObjectId();
-        allPlans.add(createPlanDocument(planIndPremiumId, "Individual Premium", "IND_PREMIUM", 150000.0, 30, "USER", null, List.of("Basic Tests", "Advanced Analytics")));
+        allPlans.add(createPlanDocument(planIndPremiumId, "Individual Premium", "IND_PREMIUM", 150000.0, 30, "USER", null));
 
         ObjectId planIndEnterpriseId = new ObjectId();
-        allPlans.add(createPlanDocument(planIndEnterpriseId, "Individual Enterprise", "IND_ENTERPRISE", 1500000.0, 365, "USER", null, List.of("All Features", "Priority Support")));
+        allPlans.add(createPlanDocument(planIndEnterpriseId, "Individual Enterprise", "IND_ENTERPRISE", 1500000.0, 365, "USER", null));
 
         ObjectId planOrgProId = new ObjectId();
-        allPlans.add(createPlanDocument(planOrgProId, "Organization Pro", "ORG_PRO", 5000000.0, 30, "ORGANIZATION", 50, List.of("Team Management", "50 Seats")));
+        allPlans.add(createPlanDocument(planOrgProId, "Organization Pro", "ORG_PRO", 5000000.0, 30, "ORGANIZATION", 50));
 
         ObjectId planOrgEnterpriseId = new ObjectId();
-        allPlans.add(createPlanDocument(planOrgEnterpriseId, "Organization Enterprise", "ORG_ENTERPRISE", 50000000.0, 365, "ORGANIZATION", 9999, List.of("Up to 9999 Seats", "SSO Integration", "Custom Branding")));
+        allPlans.add(createPlanDocument(planOrgEnterpriseId, "Organization Enterprise", "ORG_ENTERPRISE", 50000000.0, 365, "ORGANIZATION", 9999));
 
         subscriptionPlans.insertMany(allPlans);
 
@@ -561,15 +561,14 @@ public class Dev__Insert_Dummy_Data {
         return prefix + timeSuffix + randomSuffix;
     }
 
-    private Document createPlanDocument(ObjectId id, String name, String code, Double price, Integer durationDays, String targetAudience, Integer maxSeats, List<String> features) {
+    private Document createPlanDocument(ObjectId id, String name, String code, Double price, Integer durationDays, String targetAudience, Integer maxSeats) {
         Document doc = new Document("_id", id)
             .append("name", name)
             .append("code", code)
             .append("price", price)
             .append("durationDays", durationDays)
             .append("targetAudience", targetAudience)
-            .append("maxSeats", maxSeats)
-            .append("features", features);
+            .append("maxSeats", maxSeats);
         doc.entrySet().removeIf(entry -> entry.getValue() == null);
         return doc;
     }

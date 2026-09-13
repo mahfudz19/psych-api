@@ -1,7 +1,5 @@
 package com.psycorp.psychapi.feature.subscription.model;
 
-import java.util.List;
-
 import org.bson.types.ObjectId;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -22,7 +20,6 @@ public class SubscriptionPlan extends PanacheMongoEntity {
     
     // Batasan fitur
     private Integer maxSeats; // Null jika trial, atau angka (e.g., 50 untuk Org Plan)
-    private List<String> features; // List string fitur untuk ditampilkan di UI
 
     // === CONSTRUCTOR ===
     public SubscriptionPlan() {}
@@ -35,7 +32,6 @@ public class SubscriptionPlan extends PanacheMongoEntity {
     public Integer getDurationDays() { return durationDays; }
     public TargetAudience getTargetAudience() { return targetAudience; }
     public Integer getMaxSeats() { return maxSeats; }
-    public List<String> getFeatures() { return features; }
 
     // === SETTERS ===
     public void setName(String name) { this.name = name; }
@@ -44,7 +40,6 @@ public class SubscriptionPlan extends PanacheMongoEntity {
     public void setDurationDays(Integer durationDays) { this.durationDays = durationDays; }
     public void setTargetAudience(TargetAudience targetAudience) { this.targetAudience = targetAudience; }
     public void setMaxSeats(Integer maxSeats) { this.maxSeats = maxSeats; }
-    public void setFeatures(List<String> features) { this.features = features; }
 
     // === ENUMS ===
     public enum TargetAudience {
