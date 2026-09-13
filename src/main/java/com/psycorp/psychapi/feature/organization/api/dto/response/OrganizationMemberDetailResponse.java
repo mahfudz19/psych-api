@@ -41,9 +41,6 @@ public record OrganizationMemberDetailResponse(
     @Schema(description = "Tipe akun", examples = "ORGANIZATION")
     String accountType,
 
-    @Schema(description = "Subscription tier", examples = "premium")
-    String subscriptionTier,
-
     @Schema(description = "Status undangan", examples = "accepted")
     User.InvitationStatus invitationStatus,
 
@@ -68,7 +65,6 @@ public record OrganizationMemberDetailResponse(
             user.getOrganizationRole(),
             user.getStatus() != null ? user.getStatus().getValue() : null,
             user.getAccountType() != null ? user.getAccountType().getValue() : null,
-            user.getSubscriptionTier(),
             user.getInvitationStatus(),
             user.getInvitationRole(),
             user.getLastLoginAt(),

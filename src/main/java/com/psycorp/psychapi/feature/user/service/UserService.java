@@ -8,6 +8,7 @@ import org.bson.conversions.Bson;
 
 import com.mongodb.client.model.Updates;
 import com.psycorp.psychapi.feature.organization.model.Organization;
+import com.psycorp.psychapi.feature.organization.service.OrganizationService;
 import com.psycorp.psychapi.feature.referral.service.ReferralService;
 import com.psycorp.psychapi.feature.user.model.User;
 import com.psycorp.psychapi.feature.user.model.User.AccountType;
@@ -26,6 +27,9 @@ public class UserService implements PanacheMongoRepository<User> {
     
     @Inject
     ReferralService referralService;
+
+    @Inject
+    OrganizationService organizationService;
 
     @Transactional
     public User register(String email, String password, String fullName, String referralCode, AccountType accountType, String inviteCode, String invitedBy, String invitedOrganizationId, String invitationRole, String hashedVerificationToken, Instant verificationExpiresAt, String ip) {
@@ -59,8 +63,11 @@ public class UserService implements PanacheMongoRepository<User> {
             
             // [TAMBAHAN] 1. Cek kuota di awal (Fail Fast UX)
             Organization org = Organization.findById(orgId);
-            if (org != null && org.getSeatsUsed() >= org.getSeats()) {
-                throw new ValidationException("ORGANIZATION_FULL", "Kuota organisasi sudah penuh.");
+            if (org != null) {
+                Integer maxSeats = organizationService.getOrganizationMaxSeats(org);
+                if (org.getSeatsUsed() >= maxSeats) {
+                    throw new ValidationException("ORGANIZATION_FULL", "Kuota organisasi sudah penuh.");
+                }
             }
             
         } else if (invitedBy != null && !invitedBy.isEmpty() && invitedOrganizationId != null && !invitedOrganizationId.isEmpty()) {
@@ -74,10 +81,8 @@ public class UserService implements PanacheMongoRepository<User> {
             
             // 4b. Validate organization exists (DB check)
             Organization org = Organization.findById(new org.bson.types.ObjectId(invitedOrganizationId));
-            if (org == null) {
-                throw new ValidationException("INVALID_ORGANIZATION", "Organization does not exist");
-            }
-            if (org.getSeatsUsed() >= org.getSeats()) {
+            Integer maxSeats = organizationService.getOrganizationMaxSeats(org);
+            if (org.getSeatsUsed() >= maxSeats) {
                 throw new ValidationException("ORGANIZATION_FULL", "Kuota organisasi sudah penuh.");
             }
             orgId = org.id;
@@ -213,7 +218,8 @@ public class UserService implements PanacheMongoRepository<User> {
     private void updateOrganizationSeats(org.bson.types.ObjectId orgId) {
         Organization org = Organization.findById(orgId);
         if (org != null) {
-            if (org.getSeatsUsed() >= org.getSeats()) {
+            Integer maxSeats = organizationService.getOrganizationMaxSeats(org);
+            if (org.getSeatsUsed() >= maxSeats) {
                 throw new ValidationException("ORGANIZATION_FULL", "Maaf, kuota organisasi sudah penuh saat Anda mencoba bergabung.");
             }
             org.setSeatsUsed(org.getSeatsUsed() + 1);
@@ -270,7 +276,6 @@ public class UserService implements PanacheMongoRepository<User> {
         user.setVerificationToken(hashedVerificationToken);
         user.setVerificationExpiresAt(verificationExpiresAt);
         
-        user.setSubscriptionTier("free");
         user.setRevenueSharePercentage(0);
         user.setCreatedAt(Instant.now());
         user.setUpdatedAt(Instant.now());

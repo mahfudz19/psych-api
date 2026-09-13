@@ -116,10 +116,11 @@ public class OrganizationResource {
 
         Organization organization = organizationService.findById(orgId);
         organizationService.validateOrganizationAccess(organization, user, User.OrganizationRole.admin, User.OrganizationRole.member, User.OrganizationRole.owner);
+        Integer maxSeats = organizationService.getOrganizationMaxSeats(organization);
         
         List<User> members = organizationService.getOrganizationMembers(orgId);
 
-        OrganizationDetailResponse data = OrganizationDetailResponse.of(organization, members);
+        OrganizationDetailResponse data = OrganizationDetailResponse.of(organization, maxSeats, members);
         return ResponseHelper.ok(data, "Organization retrieved successfully");
     }
 

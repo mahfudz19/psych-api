@@ -52,9 +52,6 @@ public record UserInfoResponse(
     @Schema(description = "Nama organisasi user", examples = "PT Example Corp")
     String organizationName,
     
-    @Schema(description = "Tier subscription user", examples = "PREMIUM")
-    String subscriptionTier,
-    
     @Schema(description = "Tipe akun", examples = "INDIVIDUAL")
     User.AccountType accountType,
 
@@ -87,7 +84,6 @@ public record UserInfoResponse(
             user.getOrganizationId(),
             user.getOrganizationRole(),
             user.getOrganizationName(),
-            user.getSubscriptionTier(),
             user.getAccountType(),
             user.getReferralCode(),
             user.getInviteCode(),

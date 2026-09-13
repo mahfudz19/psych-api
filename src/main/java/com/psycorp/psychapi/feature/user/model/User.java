@@ -38,8 +38,6 @@ public class User extends PanacheMongoEntity {
     private String organizationName; // Denormalized
 
     // === SUBSCRIPTION & MONETIZATION ===
-    private String subscriptionTier; // "free", "premium", "enterprise"
-    private Instant subscriptionExpiry; // "2026-08-15T08:00:00Z +00:00"
     private Integer revenueSharePercentage; // 0-100 (default: 0)
 
     // === REFERRAL SYSTEM ===
@@ -100,8 +98,6 @@ public class User extends PanacheMongoEntity {
     public ObjectId getOrganizationId() { return organizationId; }
     public OrganizationRole getOrganizationRole() { return organizationRole; }
     public String getOrganizationName() { return organizationName; }
-    public String getSubscriptionTier() { return subscriptionTier; }
-    public Instant getSubscriptionExpiry() { return subscriptionExpiry; }
     public Integer getRevenueSharePercentage() { return revenueSharePercentage; }
     
     // Referral System Getters
@@ -155,8 +151,6 @@ public class User extends PanacheMongoEntity {
     public void setOrganizationId(ObjectId organizationId) { this.organizationId = organizationId; }
     public void setOrganizationRole(OrganizationRole organizationRole) { this.organizationRole = organizationRole; }
     public void setOrganizationName(String organizationName) { this.organizationName = organizationName; }
-    public void setSubscriptionTier(String subscriptionTier) { this.subscriptionTier = subscriptionTier; }
-    public void setSubscriptionExpiry(Instant subscriptionExpiry) { this.subscriptionExpiry = subscriptionExpiry; }
     public void setRevenueSharePercentage(Integer revenueSharePercentage) { this.revenueSharePercentage = revenueSharePercentage; }
     
     // Referral System Setters

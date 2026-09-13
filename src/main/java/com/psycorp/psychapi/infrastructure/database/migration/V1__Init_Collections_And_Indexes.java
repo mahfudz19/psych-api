@@ -21,80 +21,61 @@ import io.mongock.api.annotations.RollbackExecution;
 @ChangeUnit(id = "V1__Init_Collections_And_Indexes", order = "001", author = "mahfudz")
 public class V1__Init_Collections_And_Indexes {
 
-    /**
-     * Execution method untuk membuat indexes pada semua collection.
-     *
-     * @param mongoDatabase Database MongoDB untuk operasi indexing
-     */
     @Execution
     public void execution(MongoDatabase mongoDatabase) {
         // === COLLECTION: USERS ===
         MongoCollection<Document> users = mongoDatabase.getCollection("users");
         
-        // 1. Create unique sparse index pada referralCode
-        IndexOptions uniqueSparseOptions = new IndexOptions()
-                .unique(true)
-                .sparse(true);
+        IndexOptions uniqueSparseOptions = new IndexOptions().unique(true).sparse(true);
+        users.createIndex(Indexes.ascending("referralCode"), uniqueSparseOptions);
         
-        users.createIndex(
-                Indexes.ascending("referralCode"),
-                uniqueSparseOptions
-        );
-        
-        // 2. Create Partial TTL index pada expiredAt (HANYA untuk status pending)
-        // Dokumen dihapus saat expiredAt < now, TAPI hanya jika status == "pending"
         Document pendingFilter = new Document("status", "pending");
         IndexOptions userTtlOptions = new IndexOptions()
                 .name("pending_expiredAt_ttl")
                 .expireAfter(0L, TimeUnit.SECONDS)
                 .partialFilterExpression(pendingFilter);
 
-        users.createIndex(
-                Indexes.ascending("expiredAt"),
-                userTtlOptions
-        );
+        users.createIndex(Indexes.ascending("expiredAt"), userTtlOptions);
         
         // === COLLECTION: REFRESH_TOKENS ===
         MongoCollection<Document> refreshTokens = mongoDatabase.getCollection("refresh_tokens");
-        
-        // 2. Create TTL index pada expiresAt
-        // Dokumen akan otomatis dihapus MongoDB saat expiresAt < now
         IndexOptions ttlOptions = new IndexOptions()
                 .name("expiresAt_ttl")
                 .expireAfter(0L, TimeUnit.SECONDS);
-        
-        refreshTokens.createIndex(
-                Indexes.ascending("expiresAt"),
-                ttlOptions
-        );
+        refreshTokens.createIndex(Indexes.ascending("expiresAt"), ttlOptions);
         
         // === COLLECTION: RATE_LIMITS ===
         MongoCollection<Document> rateLimits = mongoDatabase.getCollection("ratelimits");
-        
         IndexOptions rateLimitTtlOptions = new IndexOptions()
                 .name("expiresAt_ttl")
                 .expireAfter(0L, TimeUnit.SECONDS);
-        
-        rateLimits.createIndex(
-                Indexes.ascending("expiresAt"),
-                rateLimitTtlOptions
-        );
+        rateLimits.createIndex(Indexes.ascending("expiresAt"), rateLimitTtlOptions);
+
+        MongoCollection<Document> plans = mongoDatabase.getCollection("subscription_plans");
+        plans.createIndex(Indexes.ascending("code"),new IndexOptions().unique(true).name("unique_plan_code"));
+
+        // === COLLECTION: SUBSCRIPTIONS ===
+        MongoCollection<Document> subscriptions = mongoDatabase.getCollection("subscriptions");
+        subscriptions.createIndex(Indexes.compoundIndex(Indexes.ascending("subscriberId"),Indexes.ascending("subscriberType"),Indexes.ascending("status")),new IndexOptions().name("subscriber_status_idx"));
     }
 
-    /**
-     * Rollback execution untuk menghapus indexes jika migration gagal.
-     *
-     * @param mongoDatabase Database MongoDB untuk operasi rollback
-     */
     @RollbackExecution
     public void rollbackExecution(MongoDatabase mongoDatabase) {
-        // Drop users index
         MongoCollection<Document> users = mongoDatabase.getCollection("users");
         users.dropIndex("referralCode_1");
         users.dropIndex("pending_expiredAt_ttl");
         
-        // Drop refresh_tokens TTL index
         MongoCollection<Document> refreshTokens = mongoDatabase.getCollection("refresh_tokens");
         refreshTokens.dropIndex("expiresAt_ttl");
+
+        MongoCollection<Document> rateLimits = mongoDatabase.getCollection("ratelimits");
+        rateLimits.dropIndex("expiresAt_ttl");
+
+        // Rollback untuk koleksi baru
+        MongoCollection<Document> plans = mongoDatabase.getCollection("subscription_plans");
+        plans.dropIndex("unique_plan_code");
+
+        MongoCollection<Document> subscriptions = mongoDatabase.getCollection("subscriptions");
+        subscriptions.dropIndex("subscriber_status_idx");
     }
 }

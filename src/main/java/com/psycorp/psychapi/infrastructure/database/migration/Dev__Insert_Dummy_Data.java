@@ -32,6 +32,8 @@ public class Dev__Insert_Dummy_Data {
         }
         MongoCollection<Document> users = mongoDatabase.getCollection("users");
         MongoCollection<Document> organizations = mongoDatabase.getCollection("organizations");
+        MongoCollection<Document> subscriptionPlans = mongoDatabase.getCollection("subscription_plans");
+        MongoCollection<Document> subscriptions = mongoDatabase.getCollection("subscriptions");
         
         // Cek idempotency - skip jika sudah ada data
         if (users.countDocuments(new Document("email", "individual.free@example.com")) > 0) {
@@ -49,7 +51,6 @@ public class Dev__Insert_Dummy_Data {
             "Individual Free User",
             "INDIVIDUAL",
             List.of("USER"),
-            "free",
             "+6281234567890",
             "Individual free user, belum berlangganan",
             null, // referredBy
@@ -67,7 +68,6 @@ public class Dev__Insert_Dummy_Data {
             "Individual Premium User",
             "INDIVIDUAL",
             List.of("USER"),
-            "premium",
             "+6281234567891",
             "Individual premium user, berlangganan pribadi",
             user1Id, // referredBy
@@ -75,7 +75,6 @@ public class Dev__Insert_Dummy_Data {
             null,
             0.0   // referralEarnings
         );
-        user2.put("subscriptionExpiry", Instant.now().plusSeconds(30 * 24 * 60 * 60)); // 30 days
         allUsers.add(user2);
         
         // 3. Individual Enterprise User (referred by user2)
@@ -86,7 +85,6 @@ public class Dev__Insert_Dummy_Data {
             "Individual Enterprise User",
             "INDIVIDUAL",
             List.of("USER"),
-            "enterprise",
             "+6281234567892",
             "Individual enterprise user dengan fitur lengkap",
             user2Id, // referredBy
@@ -94,7 +92,6 @@ public class Dev__Insert_Dummy_Data {
             null,
             0.0   // referralEarnings
         );
-        user3.put("subscriptionExpiry", Instant.now().plusSeconds(365 * 24 * 60 * 60)); // 365 days
         allUsers.add(user3);
         
         // 4. Owner Trial User (ORGANIZATION)
@@ -105,7 +102,6 @@ public class Dev__Insert_Dummy_Data {
             "Owner Trial User",
             "ORGANIZATION",
             List.of("USER", "ORGANIZATION"),
-            "free",
             "+6281234567893",
             "Founder & CEO PT Startup Trial",
             null,
@@ -124,7 +120,6 @@ public class Dev__Insert_Dummy_Data {
             "Owner Free User",
             "ORGANIZATION",
             List.of("USER", "ORGANIZATION"),
-            "free",
             "+6281234567894",
             "Owner CV Usaha Gratis",
             null,
@@ -143,7 +138,6 @@ public class Dev__Insert_Dummy_Data {
             "Owner Pro User",
             "ORGANIZATION",
             List.of("USER", "ORGANIZATION"),
-            "premium",
             "+6281234567895",
             "CEO PT Perusahaan Pro",
             null,
@@ -163,7 +157,6 @@ public class Dev__Insert_Dummy_Data {
             "Owner Enterprise User",
             "ORGANIZATION",
             List.of("USER", "ORGANIZATION"),
-            "enterprise",
             "+6281234567896",
             "President Director PT Korporasi Enterprise",
             null,
@@ -183,7 +176,6 @@ public class Dev__Insert_Dummy_Data {
             "Organization Admin User",
             "ORGANIZATION",
             List.of("USER", "ORGANIZATION"),
-            "free",
             "+6281234567897",
             "HR Manager di PT Perusahaan Pro",
             user6Id, // referredBy
@@ -207,7 +199,6 @@ public class Dev__Insert_Dummy_Data {
             "Organization Member User",
             "ORGANIZATION",
             List.of("USER", "ORGANIZATION"),
-            "free",
             "+6281234567898",
             "Software Engineer di PT Perusahaan Pro",
             user8Id, // referredBy
@@ -288,9 +279,7 @@ public class Dev__Insert_Dummy_Data {
             "+622112345678",
             "contact@startup-trial.example.com",
             true,
-            "free_trial",
             user4Id, // ownerId
-            999,
             1
         );
         org1.put("trialStartsAt", Instant.now());
@@ -309,9 +298,7 @@ public class Dev__Insert_Dummy_Data {
             "+622298765432",
             "contact@usaha-gratis.example.com",
             true,
-            "free",
             user5Id, // ownerId
-            5,
             1
         );
         allOrgs.add(org2);
@@ -328,12 +315,9 @@ public class Dev__Insert_Dummy_Data {
             "+623155566677",
             "contact@perusahaan-pro.example.com",
             true,
-            "pro",
             user6Id, // ownerId
-            50,
             3
         );
-        org3.put("subscriptionExpiry", Instant.now().plusSeconds(30 * 24 * 60 * 60)); // 30 days
         allOrgs.add(org3);
         
         // 4. PT Korporasi Enterprise
@@ -348,12 +332,9 @@ public class Dev__Insert_Dummy_Data {
             "+622188899900",
             "contact@korporasi-enterprise.example.com",
             true,
-            "enterprise",
             user7Id, // ownerId
-            9999,
             1
         );
-        org4.put("subscriptionExpiry", Instant.now().plusSeconds(365 * 24 * 60 * 60)); // 365 days
         org4.put("approvedBy", "admin_001");
         org4.put("approvedAt", Instant.now());
         allOrgs.add(org4);
@@ -405,6 +386,43 @@ public class Dev__Insert_Dummy_Data {
                 .append("organizationName", "PT Perusahaan Pro")
                 .append("invitedOrganizationId", org3Id))
         );
+
+        // === STEP 5: Insert Subscription Plans (Katalog Paket) ===
+        List<Document> allPlans = new ArrayList<>();
+        
+        ObjectId planIndFreeId = new ObjectId();
+        allPlans.add(createPlanDocument(planIndFreeId, "Individual Free", "IND_FREE", 0.0, 30, "USER", null, List.of("Basic Tests")));
+        
+        ObjectId planIndPremiumId = new ObjectId();
+        allPlans.add(createPlanDocument(planIndPremiumId, "Individual Premium", "IND_PREMIUM", 150000.0, 30, "USER", null, List.of("Basic Tests", "Advanced Analytics")));
+
+        ObjectId planIndEnterpriseId = new ObjectId();
+        allPlans.add(createPlanDocument(planIndEnterpriseId, "Individual Enterprise", "IND_ENTERPRISE", 1500000.0, 365, "USER", null, List.of("All Features", "Priority Support")));
+
+        ObjectId planOrgProId = new ObjectId();
+        allPlans.add(createPlanDocument(planOrgProId, "Organization Pro", "ORG_PRO", 5000000.0, 30, "ORGANIZATION", 50, List.of("Team Management", "50 Seats")));
+
+        ObjectId planOrgEnterpriseId = new ObjectId();
+        allPlans.add(createPlanDocument(planOrgEnterpriseId, "Organization Enterprise", "ORG_ENTERPRISE", 50000000.0, 365, "ORGANIZATION", 9999, List.of("Up to 9999 Seats", "SSO Integration", "Custom Branding")));
+
+        subscriptionPlans.insertMany(allPlans);
+
+        // === STEP 6: Insert Active Subscriptions (Transaksi) ===
+        List<Document> activeSubscriptions = new ArrayList<>();
+
+        // User 2 (Premium Individual) berlangganan 30 hari
+        activeSubscriptions.add(createSubscriptionDocument(new ObjectId(), planIndPremiumId, "USER", user2Id, Instant.now(), Instant.now().plusSeconds(30 * 24 * 60 * 60), "ACTIVE", "TEST_TRX_001"));
+        
+        // User 3 (Enterprise Individual) berlangganan 365 hari
+        activeSubscriptions.add(createSubscriptionDocument(new ObjectId(), planIndEnterpriseId, "USER", user3Id, Instant.now(), Instant.now().plusSeconds(365 * 24 * 60 * 60), "ACTIVE", "TEST_TRX_002"));
+
+        // Org 3 (Pro Organization) berlangganan 30 hari
+        activeSubscriptions.add(createSubscriptionDocument(new ObjectId(), planOrgProId, "ORGANIZATION", org3Id, Instant.now(), Instant.now().plusSeconds(30 * 24 * 60 * 60), "ACTIVE", "TEST_TRX_003"));
+
+        // Org 4 (Enterprise Organization) berlangganan 365 hari
+        activeSubscriptions.add(createSubscriptionDocument(new ObjectId(), planOrgEnterpriseId, "ORGANIZATION", org4Id, Instant.now(), Instant.now().plusSeconds(365 * 24 * 60 * 60), "ACTIVE", "TEST_TRX_004"));
+
+        subscriptions.insertMany(activeSubscriptions);
     }
 
     /**
@@ -420,6 +438,8 @@ public class Dev__Insert_Dummy_Data {
         }
         MongoCollection<Document> users = mongoDatabase.getCollection("users");
         MongoCollection<Document> organizations = mongoDatabase.getCollection("organizations");
+        MongoCollection<Document> subscriptionPlans = mongoDatabase.getCollection("subscription_plans");
+        MongoCollection<Document> subscriptions = mongoDatabase.getCollection("subscriptions");
         
         // Delete dummy users (exclude superadmin)
         users.deleteMany(new Document("email", new Document("$in", Arrays.asList(
@@ -441,14 +461,16 @@ public class Dev__Insert_Dummy_Data {
             "PT Perusahaan Pro",
             "PT Korporasi Enterprise"
         ))));
+
+        subscriptionPlans.deleteMany(new Document());
+        subscriptions.deleteMany(new Document());
     }
 
     private String getPasswordHash(String password) {
         return PasswordEncoder.hash(password);
     }
 
-    private Document createUserDocument(ObjectId id, String email, String fullName, String accountType, List<String> roles, String subscriptionTier, String phone, String bio, ObjectId referredBy, ObjectId invitedBy, ObjectId invitedOrganizationId, double referralEarnings) {
-        
+    private Document createUserDocument(ObjectId id, String email, String fullName, String accountType, List<String> roles, String phone, String bio, ObjectId referredBy, ObjectId invitedBy, ObjectId invitedOrganizationId, double referralEarnings) {        
         Document doc = new Document("_id", id)
             .append("email", email)
             .append("password", getPasswordHash(DEFAULT_PASSWORD))
@@ -464,8 +486,6 @@ public class Dev__Insert_Dummy_Data {
             .append("organizationId", null)
             .append("organizationRole", null)
             .append("organizationName", null)
-            .append("subscriptionTier", subscriptionTier)
-            .append("subscriptionExpiry", null)
             .append("revenueSharePercentage", 0)
             .append("referralCode", generateReferralCode(email, Instant.now()))
             .append("referredBy", referredBy)
@@ -496,7 +516,7 @@ public class Dev__Insert_Dummy_Data {
     /**
      * Helper method untuk membuat organization document.
      */
-    private Document createOrganizationDocument(ObjectId id, String name, String description, String website, String logo, String address, String phone, String email, Boolean status, String plan, ObjectId ownerId,  Integer seats, Integer seatsUsed) {
+    private Document createOrganizationDocument(ObjectId id, String name, String description, String website, String logo, String address, String phone, String email, Boolean status, ObjectId ownerId, Integer seatsUsed) {
         Document doc = new Document("_id", id)
             .append("name", name)
             .append("description", description)
@@ -510,10 +530,6 @@ public class Dev__Insert_Dummy_Data {
             .append("approvedAt", null)
             .append("rejectionReason", null)
             .append("trialStartsAt", null)
-            .append("trialEndsAt", null)
-            .append("plan", plan)
-            .append("subscriptionExpiry", null)
-            .append("seats", seats)
             .append("seatsUsed", seatsUsed)
             .append("ownerId", ownerId)
             .append("createdAt", Instant.now())
@@ -543,5 +559,31 @@ public class Dev__Insert_Dummy_Data {
         String randomSuffix = String.format("%03d", (int)(Math.random() * 1000));
         
         return prefix + timeSuffix + randomSuffix;
+    }
+
+    private Document createPlanDocument(ObjectId id, String name, String code, Double price, Integer durationDays, String targetAudience, Integer maxSeats, List<String> features) {
+        Document doc = new Document("_id", id)
+            .append("name", name)
+            .append("code", code)
+            .append("price", price)
+            .append("durationDays", durationDays)
+            .append("targetAudience", targetAudience)
+            .append("maxSeats", maxSeats)
+            .append("features", features);
+        doc.entrySet().removeIf(entry -> entry.getValue() == null);
+        return doc;
+    }
+
+    private Document createSubscriptionDocument(ObjectId id, ObjectId planId, String subscriberType, ObjectId subscriberId, Instant startDate, Instant endDate, String status, String paymentGatewayId) {
+        Document doc = new Document("_id", id)
+            .append("planId", planId)
+            .append("subscriberType", subscriberType)
+            .append("subscriberId", subscriberId)
+            .append("startDate", startDate)
+            .append("endDate", endDate)
+            .append("status", status)
+            .append("paymentGatewayId", paymentGatewayId);
+        doc.entrySet().removeIf(entry -> entry.getValue() == null);
+        return doc;
     }
 }

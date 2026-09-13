@@ -15,11 +15,9 @@ public record OrganizationResponse(
     String email,
     String address,
     String ownerId,
-    String plan,
     Boolean status,
     Instant trialStartsAt,
     Instant trialEndsAt,
-    Integer seats,
     Integer seatsUsed,
     Instant createdAt,
     Instant updatedAt
@@ -34,11 +32,9 @@ public record OrganizationResponse(
             org.getEmail(),
             org.getAddress(),
             org.getOwnerId() != null ? org.getOwnerId().toHexString() : null,
-            org.getPlan(),
             org.getStatus(),
             org.getTrialStartsAt(),
             org.getTrialEndsAt(),
-            org.getSeats(),
             org.getSeatsUsed(),
             org.getCreatedAt(),
             org.getUpdatedAt()

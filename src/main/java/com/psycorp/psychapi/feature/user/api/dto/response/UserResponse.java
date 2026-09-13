@@ -51,12 +51,6 @@ public record UserResponse(
     @Schema(description = "Nama organisasi user", examples = "PT Example Corp")
     String organizationName,
     
-    @Schema(description = "Tier subscription user", examples = "PREMIUM")
-    String subscriptionTier,
-    
-    @Schema(description = "Waktu expiry subscription", examples = "2025-12-31T23:59:59Z")
-    Instant subscriptionExpiry,
-    
     @Schema(description = "Kode referral user", examples = "REF123456")
     String referralCode,
     
@@ -107,8 +101,6 @@ public record UserResponse(
             user.getOrganizationId() != null ? user.getOrganizationId().toHexString() : null,
             user.getOrganizationRole(),
             user.getOrganizationName(),
-            user.getSubscriptionTier(),
-            user.getSubscriptionExpiry(),
             user.getReferralCode(),
             user.getTotalReferrals(),
             user.getSuccessfulReferrals(),

@@ -14,6 +14,8 @@ import com.mongodb.client.model.Filters;
 import com.psycorp.psychapi.feature.organization.api.dto.request.CreateOrganizationRequest;
 import com.psycorp.psychapi.feature.organization.api.dto.request.UpdateOrganizationRequest;
 import com.psycorp.psychapi.feature.organization.model.Organization;
+import com.psycorp.psychapi.feature.subscription.model.Subscription;
+import com.psycorp.psychapi.feature.subscription.model.SubscriptionPlan;
 import com.psycorp.psychapi.feature.user.model.User;
 import com.psycorp.psychapi.feature.user.service.UserService;
 import com.psycorp.psychapi.infrastructure.exception.NotFoundException;
@@ -30,18 +32,18 @@ import jakarta.inject.Inject;
 @ApplicationScoped
 public class OrganizationService implements PanacheMongoRepository<Organization>{
     private static final int TRIAL_DAYS = 14;
+    private static final int SEATS_FREE_TIER = 5;
+    private static final int SEATS_TRIAL = 50;
 
     @Inject
     UserService userService;
 
     public Organization createOrganization(User user, CreateOrganizationRequest request) {
-        boolean isSuperAdmin = isSuperAdmin(user);
         // 1. Validate user doesn't already own an organization (optional: allow multiple)
-        // Uncomment jika ingin membatasi 1 organization per user
-        // if (hasOrganization(userId)) {
-        //     throw new ValidationException("ORG_ALREADY_EXISTS",
-        //         "User already owns an organization");
-        // }
+        if (hasOrganization(user.getId().toHexString())) {
+            throw new ValidationException("ORG_ALREADY_EXISTS", "User already owns an organization");
+        }
+        boolean isSuperAdmin = isSuperAdmin(user);
 
         // 2. Validate request data        
         validateCreateRequest(request);
@@ -55,11 +57,9 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
         organization.setEmail(request.email());
         organization.setAddress(request.address());
         if (!isSuperAdmin) organization.setOwnerId(user.id);
-        organization.setPlan("free_trial");
         organization.setStatus(true);
         organization.setTrialStartsAt(Instant.now());
         organization.setTrialEndsAt(Instant.now().plus(TRIAL_DAYS, ChronoUnit.DAYS));
-        organization.setSeats(-1); // Unlimited untuk trial
         organization.setSeatsUsed(1); // Owner adalah member pertama
         organization.setCreatedAt(Instant.now());
         organization.setUpdatedAt(Instant.now());
@@ -184,6 +184,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
 
         // 5. Soft delete organization
         organization.setStatus(false);
+        organization.setSeatsUsed(0);
         organization.setDeletedAt(Instant.now());
         organization.setUpdatedAt(Instant.now());
         organization.update();
@@ -298,5 +299,29 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
             throw new NotFoundException("ORG_NOT_FOUND", "Organization with id " + orgId + " not found");
         }
         return organization;
+    }
+
+    public Integer getOrganizationMaxSeats(Organization org) {     
+        if (org == null) {
+            throw new ValidationException("INVALID_ORGANIZATION", "Organization does not exist");
+        }  
+
+        Subscription activeSub = Subscription.find(
+            "subscriberId = ?1 and subscriberType = ?2 and status = ?3", 
+            org.getId(), "ORGANIZATION", "ACTIVE"
+        ).firstResult();
+
+        if (activeSub != null) {
+            SubscriptionPlan plan = SubscriptionPlan.findById(activeSub.getPlanId());
+            if (plan != null && plan.getMaxSeats() != null) {
+                return plan.getMaxSeats();
+            }
+        }
+
+        if (org.getTrialEndsAt() != null && org.getTrialEndsAt().isAfter(Instant.now())) {
+            return SEATS_TRIAL;
+        }
+
+        return SEATS_FREE_TIER;
     }
 }

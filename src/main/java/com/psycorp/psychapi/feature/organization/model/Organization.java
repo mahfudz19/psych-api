@@ -32,9 +32,6 @@ public class Organization extends PanacheMongoEntity {
     private Instant trialEndsAt; // "2024-08-15T08:00:00Z +00:00" (nullable)
 
     // === PLAN & BILLING ===
-    private String plan; // "free_trial", "free", "pro", "enterprise"
-    private Instant subscriptionExpiry; // "2024-08-15T08:00:00Z +00:00" (nullable)
-    private Integer seats; // 5 (free), 50 (pro), unlimited (enterprise)
     private Integer seatsUsed; // 3 (free), 40 (pro), unlimited (enterprise)
 
     // === OWNERSHIP ===
@@ -62,9 +59,6 @@ public class Organization extends PanacheMongoEntity {
     public String getRejectionReason() { return rejectionReason; }
     public Instant getTrialStartsAt() { return trialStartsAt; }
     public Instant getTrialEndsAt() { return trialEndsAt; }
-    public String getPlan() { return plan; }
-    public Instant getSubscriptionExpiry() { return subscriptionExpiry; }
-    public Integer getSeats() { return seats; }
     public Integer getSeatsUsed() { return seatsUsed; }
     public ObjectId getOwnerId() { return ownerId; }
     public Instant getCreatedAt() { return createdAt; }
@@ -86,9 +80,6 @@ public class Organization extends PanacheMongoEntity {
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
     public void setTrialStartsAt(Instant trialStartsAt) { this.trialStartsAt = trialStartsAt; }
     public void setTrialEndsAt(Instant trialEndsAt) { this.trialEndsAt = trialEndsAt; }
-    public void setPlan(String plan) { this.plan = plan; }
-    public void setSubscriptionExpiry(Instant subscriptionExpiry) { this.subscriptionExpiry = subscriptionExpiry; }
-    public void setSeats(Integer seats) { this.seats = seats; }
     public void setSeatsUsed(Integer seatsUsed) { this.seatsUsed = seatsUsed; }
     public void setOwnerId(ObjectId ownerId) { this.ownerId = ownerId; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

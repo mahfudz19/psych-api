@@ -9,9 +9,13 @@ import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.shared.util.DocumentUpdater;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 @ApplicationScoped
 public class OrganizationMemberService {
+
+    @Inject
+    OrganizationService organizationService;
 
     public void removeMember(Organization organization, User member, User currentUser) {
         // 1. Cannot remove owner
@@ -116,9 +120,10 @@ public class OrganizationMemberService {
 
     private void incrementSeatsUsed(Organization organization) {
         int currentSeats = Objects.requireNonNullElse(organization.getSeatsUsed(), 0);
+        Integer maxSeats = organizationService.getOrganizationMaxSeats(organization);
         
         // Validasi: Cek apakah kursi masih tersedia (jika seats tidak null / unlimited)
-        if (organization.getSeats() != null && currentSeats >= organization.getSeats()) {
+        if (maxSeats != null && currentSeats >= maxSeats) {
             throw new ValidationException("SEATS_FULL", "Organization has reached its maximum seats limit");
         }
 

@@ -40,9 +40,6 @@ public record OrganizationDetailResponse(
     @Schema(description = "ID owner organization", examples = "507f1f77bcf86cd799439011")
     String ownerId,
 
-    @Schema(description = "Plan subscription", examples = "pro")
-    String plan,
-
     @Schema(description = "Status verifikasi organization")
     Boolean status,
 
@@ -97,7 +94,7 @@ public record OrganizationDetailResponse(
         }
     }
 
-    public static OrganizationDetailResponse of(Organization org, List<User> members) {
+    public static OrganizationDetailResponse of(Organization org, Integer maxSeats, List<User> members) {
         return new OrganizationDetailResponse(
             org.getId() != null ? org.getId().toHexString() : null,
             org.getName(),
@@ -108,9 +105,8 @@ public record OrganizationDetailResponse(
             org.getAddress(),
             org.getLogo(),
             org.getOwnerId() != null ? org.getOwnerId().toHexString() : null,
-            org.getPlan(),
             org.getStatus(),
-            org.getSeats(),
+            maxSeats,
             org.getSeatsUsed(),
             org.getCreatedAt(),
             org.getUpdatedAt(),
