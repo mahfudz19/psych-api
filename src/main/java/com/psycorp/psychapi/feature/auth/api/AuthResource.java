@@ -351,23 +351,15 @@ public class AuthResource {
     @APIResponse(responseCode = "200", description = "Password berhasil diubah", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
     @APIResponse(responseCode = "400", description = "Password lama salah atau format tidak valid", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     @APIResponse(responseCode = "401", description = "Unauthorized - Invalid or expired token", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
-    public Response changePassword(
-        @Valid ChangePasswordRequest request, 
-        @Context ContainerRequestContext requestContext
-    ) {
+    public Response changePassword(@Valid ChangePasswordRequest request, @Context ContainerRequestContext requestContext) {
         // 1. Ambil data user dari konteks token
         User user = (User) requestContext.getProperty("validatedUser");
-        if (user == null) {
-            throw new ForbiddenException("Authentication required");
-        }
+        if (user == null) throw new ForbiddenException("Authentication required");
 
         // 2. Eksekusi perubahan password
         authService.changePassword(user, request.oldPassword(), request.newPassword());
 
         // 3. Kembalikan respons sukses
-        return ResponseHelper.ok(
-            null, 
-            "Kata sandi berhasil diubah. Semua sesi di perangkat lain telah ditutup demi keamanan."
-        );
+        return ResponseHelper.ok(null, "Kata sandi berhasil diubah. Semua sesi di perangkat lain telah ditutup demi keamanan.");
     }
 }

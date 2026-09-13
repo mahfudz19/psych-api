@@ -19,6 +19,7 @@ import com.psycorp.psychapi.shared.util.DocumentUpdater;
 import io.quarkus.mongodb.panache.PanacheMongoRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 
 @ApplicationScoped
 public class UserService implements PanacheMongoRepository<User> {
@@ -26,6 +27,7 @@ public class UserService implements PanacheMongoRepository<User> {
     @Inject
     ReferralService referralService;
 
+    @Transactional
     public User register(String email, String password, String fullName, String referralCode, AccountType accountType, String inviteCode, String invitedBy, String invitedOrganizationId, String invitationRole, String hashedVerificationToken, Instant verificationExpiresAt, String ip) {
         // 1. Validate user data (email format, password strength, etc)
         validateUserData(email, fullName);
@@ -51,10 +53,15 @@ public class UserService implements PanacheMongoRepository<User> {
         User.OrganizationRole role = null;
         
         if (inviteCode != null && !inviteCode.isEmpty()) {
-            // === SCENARIO A: Invite dengan code ===
             inviter = validateInviteCode(inviteCode);
             orgId = inviter.getOrganizationId();
             role =  User.OrganizationRole.member;
+            
+            // [TAMBAHAN] 1. Cek kuota di awal (Fail Fast UX)
+            Organization org = Organization.findById(orgId);
+            if (org != null && org.getSeatsUsed() >= org.getSeats()) {
+                throw new ValidationException("ORGANIZATION_FULL", "Kuota organisasi sudah penuh.");
+            }
             
         } else if (invitedBy != null && !invitedBy.isEmpty() && invitedOrganizationId != null && !invitedOrganizationId.isEmpty()) {
             // === SCENARIO B: Direct add ===
@@ -69,6 +76,9 @@ public class UserService implements PanacheMongoRepository<User> {
             Organization org = Organization.findById(new org.bson.types.ObjectId(invitedOrganizationId));
             if (org == null) {
                 throw new ValidationException("INVALID_ORGANIZATION", "Organization does not exist");
+            }
+            if (org.getSeatsUsed() >= org.getSeats()) {
+                throw new ValidationException("ORGANIZATION_FULL", "Kuota organisasi sudah penuh.");
             }
             orgId = org.id;
             
@@ -103,11 +113,6 @@ public class UserService implements PanacheMongoRepository<User> {
         // 8. Update stats referrer LAMA
         if (referrer != null) {
             updateReferrerStats(referrer, user);
-        }
-        
-        // 9. Update organization seats LAMA
-        if (inviter != null && orgId != null) {
-            updateOrganizationSeats(orgId);
         }
         
         return user;
@@ -208,6 +213,9 @@ public class UserService implements PanacheMongoRepository<User> {
     private void updateOrganizationSeats(org.bson.types.ObjectId orgId) {
         Organization org = Organization.findById(orgId);
         if (org != null) {
+            if (org.getSeatsUsed() >= org.getSeats()) {
+                throw new ValidationException("ORGANIZATION_FULL", "Maaf, kuota organisasi sudah penuh saat Anda mencoba bergabung.");
+            }
             org.setSeatsUsed(org.getSeatsUsed() + 1);
             org.update();
         }
@@ -324,6 +332,7 @@ public class UserService implements PanacheMongoRepository<User> {
         user.executeUpdate(update);
     }
 
+    @Transactional
     public void activateAccount(User user) {
         // Update object di memory Java
         user.setStatus(User.Status.ACTIVE);
@@ -339,6 +348,22 @@ public class UserService implements PanacheMongoRepository<User> {
         );
 
         user.executeUpdate(update);
+
+        // 1. Increment successfulReferrals pada referrer (jika ada)
+        if (user.getReferredBy() != null) {
+            User referrer = User.findById(user.getReferredBy());
+            if (referrer != null) {
+                Integer currentReferrals = referrer.getSuccessfulReferrals();
+                int current = (currentReferrals != null) ? currentReferrals : 0;
+                referrer.setSuccessfulReferrals(current + 1);
+                referrer.update();
+            }
+        }
+
+        // 2. Update organization seats (jika diundang)
+        if (user.getOrganizationId() != null && user.getInvitedBy() != null) {
+            updateOrganizationSeats(user.getOrganizationId());
+        }
     }
 
     public void updateProfile(String fullName, String phone, String bio, String dateOfBirth, User.Gender gender, String profilePicture, User user) {

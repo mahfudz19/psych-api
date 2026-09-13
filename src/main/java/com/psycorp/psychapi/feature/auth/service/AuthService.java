@@ -171,17 +171,6 @@ public class AuthService {
         // 5. Aktivasi akun dan bersihkan data verifikasi
         userService.activateAccount(user);
 
-        // 5a. Increment successfulReferrals pada referrer (jika ada)
-        if (user.getReferredBy() != null) {
-            User referrer = User.findById(user.getReferredBy());
-            if (referrer != null) {
-                Integer currentReferrals = referrer.getSuccessfulReferrals();
-                int current = (currentReferrals != null) ? currentReferrals : 0;
-                referrer.setSuccessfulReferrals(current + 1);
-                referrer.update();
-            }
-        }
-
         // 6. Generate Session (Otomatis Login setelah verifikasi sukses)
         String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getRoles());
         String refreshToken = jwtService.generateRefreshToken();
@@ -559,13 +548,10 @@ public class AuthService {
                 throw new ValidationException("EMAIL_EXISTS", "Email sudah terdaftar. Silakan langsung login menggunakan Google.");
             }
 
-            // 1. PINJAM LOGIKA REGISTRASI UTAMA UNTUK VALIDASI REFERRAL/ORGANIZATION
-            // Kita menggunakan UUID acak sebagai dummy password karena pendaftaran manual mewajibkannya.
-            String dummyPassword = UUID.randomUUID().toString() + "Ggl1!"; 
-            
+            // 1. PINJAM LOGIKA REGISTRASI UTAMA UNTUK VALIDASI REFERRAL/ORGANIZATION            
             User user = userService.register(
                 email,
-                dummyPassword,
+                null,
                 name,
                 referralCode,
                 accountType,
@@ -583,13 +569,7 @@ public class AuthService {
             user.setProviderId(googleId);
             
             // Langsung aktifkan tanpa verifikasi email
-            user.setStatus(User.Status.ACTIVE);
-            user.setExpiredAt(null);
-            
-            // Kosongkan password agar murni menjadi akun SSO
-            user.setPassword(null);
-            user.setUpdatedAt(Instant.now());
-            user.update(); // Simpan perubahan
+            userService.activateAccount(user);
 
             // 3. GENERATE SESSION (Berbeda dengan register manual, Google Register langsung login)
             String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getRoles());
