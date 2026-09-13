@@ -1,5 +1,7 @@
 package com.psycorp.psychapi.feature.subscription.model;
 
+import java.time.Instant;
+
 import org.bson.types.ObjectId;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -21,6 +23,10 @@ public class SubscriptionPlan extends PanacheMongoEntity {
     // Batasan fitur
     private Integer maxSeats; // Null jika trial, atau angka (e.g., 50 untuk Org Plan)
 
+    private Instant createdAt;
+    private Instant updatedAt;
+    private Instant deletedAt;
+
     // === CONSTRUCTOR ===
     public SubscriptionPlan() {}
 
@@ -32,6 +38,9 @@ public class SubscriptionPlan extends PanacheMongoEntity {
     public Integer getDurationDays() { return durationDays; }
     public TargetAudience getTargetAudience() { return targetAudience; }
     public Integer getMaxSeats() { return maxSeats; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
+    public Instant getDeletedAt() { return deletedAt; }
 
     // === SETTERS ===
     public void setName(String name) { this.name = name; }
@@ -40,6 +49,9 @@ public class SubscriptionPlan extends PanacheMongoEntity {
     public void setDurationDays(Integer durationDays) { this.durationDays = durationDays; }
     public void setTargetAudience(TargetAudience targetAudience) { this.targetAudience = targetAudience; }
     public void setMaxSeats(Integer maxSeats) { this.maxSeats = maxSeats; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
 
     // === ENUMS ===
     public enum TargetAudience {

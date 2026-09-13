@@ -24,6 +24,8 @@ public class Subscription extends PanacheMongoEntity {
     private Status status; // "ACTIVE", "CANCELED", "EXPIRED", "PAYMENT_PENDING"
     
     private String paymentGatewayId; // ID transaksi dari Midtrans/Stripe
+    private Instant createdAt;
+    private Instant updatedAt;
     
     // === CONSTRUCTOR ===
     public Subscription() {}
@@ -37,6 +39,8 @@ public class Subscription extends PanacheMongoEntity {
     public Instant getEndDate() { return endDate; }
     public Status getStatus() { return status; }
     public String getPaymentGatewayId() { return paymentGatewayId; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 
     // === SETTERS ===
     public void setPlanId(ObjectId planId) { this.planId = planId; }
@@ -46,6 +50,8 @@ public class Subscription extends PanacheMongoEntity {
     public void setEndDate(Instant endDate) { this.endDate = endDate; }
     public void setStatus(Status status) { this.status = status; }
     public void setPaymentGatewayId(String paymentGatewayId) { this.paymentGatewayId = paymentGatewayId; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
 
     // === ENUMS ===
     public enum SubscriberType {

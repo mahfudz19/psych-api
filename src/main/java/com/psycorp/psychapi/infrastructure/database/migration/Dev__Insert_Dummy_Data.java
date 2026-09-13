@@ -568,7 +568,10 @@ public class Dev__Insert_Dummy_Data {
             .append("price", price)
             .append("durationDays", durationDays)
             .append("targetAudience", targetAudience)
-            .append("maxSeats", maxSeats);
+            .append("maxSeats", maxSeats)
+            .append("createdAt", Instant.now())
+            .append("updatedAt", Instant.now())
+            .append("deletedAt", null);
         doc.entrySet().removeIf(entry -> entry.getValue() == null);
         return doc;
     }
@@ -581,7 +584,9 @@ public class Dev__Insert_Dummy_Data {
             .append("startDate", startDate)
             .append("endDate", endDate)
             .append("status", status)
-            .append("paymentGatewayId", paymentGatewayId);
+            .append("paymentGatewayId", paymentGatewayId)
+            .append("createdAt", Instant.now())
+            .append("updatedAt", Instant.now());
         doc.entrySet().removeIf(entry -> entry.getValue() == null);
         return doc;
     }
