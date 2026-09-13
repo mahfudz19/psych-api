@@ -132,7 +132,7 @@ public class AuthService {
         Instant newVerificationExpiresAt = Instant.now().plus(15, java.time.temporal.ChronoUnit.MINUTES);
 
         // 4. Update data user (Token baru & perpanjang TTL 24 jam)
-        user.renewVerification(hashedNewToken, newVerificationExpiresAt);
+        userService.renewVerification(user, hashedNewToken, newVerificationExpiresAt);
 
         // 5. Kirim email di background
         emailService.sendVerificationEmail(user.getEmail(), user.getFullName(), plainNewToken);
@@ -169,7 +169,7 @@ public class AuthService {
         }
 
         // 5. Aktivasi akun dan bersihkan data verifikasi
-        user.activateAccount();
+        userService.activateAccount(user);
 
         // 5a. Increment successfulReferrals pada referrer (jika ada)
         if (user.getReferredBy() != null) {
@@ -416,7 +416,7 @@ public class AuthService {
         String plainToken = UUID.randomUUID().toString();
         String hashedToken = hashToken(plainToken);
         Instant expiresAt = Instant.now().plus(15, ChronoUnit.MINUTES);
-        user.applyPasswordResetToken(hashedToken, expiresAt);
+        userService.applyPasswordResetToken(hashedToken, expiresAt, user);
 
         emailService.sendResetPasswordEmail(user.getEmail(), user.getFullName(), plainToken);
     }
@@ -438,7 +438,7 @@ public class AuthService {
         }
 
         String newHashedPassword = PasswordEncoder.hash(newPassword);
-        user.resetPassword(newHashedPassword);
+        userService.resetPassword(newHashedPassword, user);
 
         RefreshToken.revokeAllByUserId(user.getId(), RefreshToken.RevokeReason.fromValue("PASSWORD_CHANGED"));
     }
@@ -629,13 +629,14 @@ public class AuthService {
 
         // 2. Simpan ke DB
         try {
-            user.updateProfile(
+            userService.updateProfile(
                 request.fullName(),
                 request.phone(),
                 request.bio(),
                 request.dateOfBirth(),
                 request.gender(),
-                newPic
+                newPic,
+                user
             );
         } catch (Exception e) {
             if (isNewUpload) storageService.deletePublicFile(newPic);

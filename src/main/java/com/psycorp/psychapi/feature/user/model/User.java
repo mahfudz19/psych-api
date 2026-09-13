@@ -1,7 +1,6 @@
 package com.psycorp.psychapi.feature.user.model;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.bson.conversions.Bson;
@@ -12,7 +11,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
-import com.psycorp.psychapi.shared.util.DocumentUpdater;
 
 import io.quarkus.mongodb.panache.PanacheMongoEntity;
 import io.quarkus.mongodb.panache.common.MongoEntity;
@@ -368,99 +366,6 @@ public class User extends PanacheMongoEntity {
         }
     }
 
-    public static User create(String email, String password, String fullName, User referrer, User inviter, AccountType accountType, String hashedVerificationToken, Instant verificationExpiresAt) {
-        User user = new User();
-        
-        // WAJIB
-        user.email = email;
-        if (password != null) user.password = password;
-        user.fullName = fullName;
-        user.provider = Provider.local;
-        user.roles = List.of(Role.USER);
-        
-        user.status = Status.PENDING;
-        user.expiredAt = Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS);
-        user.verificationToken = hashedVerificationToken;
-        user.verificationExpiresAt = verificationExpiresAt;
-        
-        user.subscriptionTier = "free";
-        user.revenueSharePercentage = 0;
-        user.createdAt = Instant.now();
-        user.updatedAt = Instant.now();
-        user.loginAttempts = 0;
-        
-        // Auto-generate referral code
-        user.referralCode = generateReferralCode(email, user.createdAt);
-        user.referralIds = new ArrayList<>();
-        user.totalReferrals = 0;
-        user.successfulReferrals = 0;
-        user.referralEarnings = 0.0;
-        
-        // Set account type
-        user.accountType = accountType;
-
-        // Set roles dan organization info berdasarkan account type
-        if (accountType == AccountType.ORGANIZATION) {
-            user.setRoles(List.of(Role.USER, Role.ORGANIZATION));
-            user.setOrganizationRole(OrganizationRole.owner);
-            user.setInvitationStatus(InvitationStatus.accepted);
-            user.setInvitationAcceptedAt(Instant.now());
-        }
-                
-        // OPSIONAL - Set referral info jika ada referrer (sudah tervalidasi)
-        if (referrer != null) {
-            user.referredBy = referrer.id;  // Langsung ObjectId, bukan toHexString()
-            user.referredAt = Instant.now();
-        }
-        
-        // OPSIONAL - Set invitation info jika ada inviter (sudah tervalidasi)
-        if (inviter != null) {
-            user.invitedBy = inviter.id;  // Langsung ObjectId, bukan toHexString()
-            user.invitedOrganizationId = inviter.getInvitedOrganizationId();
-            user.invitationStatus = InvitationStatus.accepted;
-            user.invitationSentAt = Instant.now();
-            user.invitationAcceptedAt = Instant.now();
-            user.invitationRole = inviter.getInvitationRole() != null ? inviter.getInvitationRole() : OrganizationRole.member;
-        }
-        
-        return user;
-    }
-
-    public void renewVerification(String hashedNewToken, Instant newVerificationExpiresAt) {
-        // 1. Update nilai di dalam memori objek Java
-        this.verificationToken = hashedNewToken;
-        this.verificationExpiresAt = newVerificationExpiresAt;
-        this.expiredAt = Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS);
-        this.updatedAt = Instant.now();
-
-        // 2. Siapkan perintah update MongoDB menggunakan Updates builder
-        Bson update = Updates.combine(
-            Updates.set("verificationToken", this.verificationToken),
-            Updates.set("verificationExpiresAt", this.verificationExpiresAt),
-            Updates.set("expiredAt", this.expiredAt)
-        );
-
-        // 3. Eksekusi pembaruan ke database menggunakan metode executeUpdate yang sudah ada
-        this.executeUpdate(update);
-    }
-
-    public void activateAccount() {
-        // Update object di memory Java
-        this.status = Status.ACTIVE;
-        this.verificationToken = null;
-        this.verificationExpiresAt = null;
-        this.expiredAt = null;
-
-        Bson update = Updates.combine(
-            Updates.set("status", Status.ACTIVE.getValue()),
-            Updates.unset("verificationToken"),
-            Updates.unset("verificationExpiresAt"),
-            Updates.unset("expiredAt")
-        );
-
-        this.executeUpdate(update);
-    }
-
     public void executeUpdate(Bson update) {
         Bson updateWithTimestamp = Updates.combine(
             update,
@@ -469,73 +374,4 @@ public class User extends PanacheMongoEntity {
 
         User.mongoCollection().updateOne(Filters.eq("_id", this.id), updateWithTimestamp);
     }
-
-
-    public void updateProfile(String fullName, String phone, String bio, String dateOfBirth, Gender gender, String profilePicture) {
-        DocumentUpdater updater = DocumentUpdater.update()
-            .set("fullName", fullName)
-            .set("phone", phone)
-            .set("bio", bio)
-            .set("dateOfBirth", dateOfBirth)
-            .set("gender", gender)
-            .set("profilePicture", profilePicture);
-
-        if (updater.hasChanges()) {
-            this.executeUpdate(updater.build());
-        }
-    }
-
-    public void softDelete() {
-        this.deletedAt = Instant.now();
-        this.status = Status.DELETED;
-        this.updatedAt = Instant.now();
-    }
-
-    public void applyPasswordResetToken(String hashedToken, Instant expiresAt) {
-        this.resetPasswordToken = hashedToken;
-        this.resetPasswordExpiresAt = expiresAt;
-        this.updatedAt = Instant.now();
-
-        Bson update = Updates.combine(
-            Updates.set("resetPasswordToken", this.resetPasswordToken),
-            Updates.set("resetPasswordExpiresAt", this.resetPasswordExpiresAt)
-        );
-
-        this.executeUpdate(update);
-    }
-
-    public void resetPassword(String newHashedPassword) {
-        this.password = newHashedPassword;
-        this.resetPasswordToken = null;
-        this.resetPasswordExpiresAt = null;
-        this.updatedAt = Instant.now();
-
-        Bson update = Updates.combine(
-            Updates.set("password", this.password),
-            Updates.unset("resetPasswordToken"),
-            Updates.unset("resetPasswordExpiresAt")
-        );
-
-        this.executeUpdate(update);
-    }
-
-    private static String generateReferralCode(String email, Instant createdAt) {
-        if (email == null || email.isEmpty()) {
-            return "USR" + createdAt.getEpochSecond() + (int)(Math.random() * 1000);
-        }
-        
-        // Extract first 3 alphabetic characters for prefix
-        String alphaOnly = email.replaceAll("[^a-zA-Z]", "");
-        String prefix = alphaOnly.substring(0, Math.min(3, alphaOnly.length())).toUpperCase();
-        
-        // Use last 5 digits of timestamp
-        String timestamp = String.valueOf(createdAt.getEpochSecond());
-        String timeSuffix = timestamp.length() > 5 ? timestamp.substring(timestamp.length() - 5) : timestamp;
-        
-        // Add 3-digit random number for uniqueness (000-999)
-        String randomSuffix = String.format("%03d", (int)(Math.random() * 1000));
-        
-        return prefix + timeSuffix + randomSuffix;
-    }
-    
 }

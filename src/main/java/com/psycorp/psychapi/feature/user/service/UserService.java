@@ -4,6 +4,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.bson.conversions.Bson;
+
+import com.mongodb.client.model.Updates;
 import com.psycorp.psychapi.feature.organization.model.Organization;
 import com.psycorp.psychapi.feature.referral.service.ReferralService;
 import com.psycorp.psychapi.feature.user.model.User;
@@ -11,6 +14,7 @@ import com.psycorp.psychapi.feature.user.model.User.AccountType;
 import com.psycorp.psychapi.feature.user.model.User.Status;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.infrastructure.security.PasswordEncoder;
+import com.psycorp.psychapi.shared.util.DocumentUpdater;
 
 import io.quarkus.mongodb.panache.PanacheMongoRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -79,7 +83,7 @@ public class UserService implements PanacheMongoRepository<User> {
         }
         
         // 5. Create User object
-        User user = User.create(email, password, fullName, referrer, inviter, accountType, hashedVerificationToken, verificationExpiresAt);
+        User user = create(email, password, fullName, referrer, inviter, accountType, hashedVerificationToken, verificationExpiresAt);
         
         // 6. For direct add, override invitation info
         if (inviteCode != null && !inviteCode.isEmpty() && inviter != null) {
@@ -241,5 +245,164 @@ public class UserService implements PanacheMongoRepository<User> {
         if (!errors.isEmpty()) {
             throw new ValidationException("VALIDATION_ERROR", String.join(", ", errors));
         }
+    }
+
+    public static User create(String email, String password, String fullName, User referrer, User inviter, AccountType accountType, String hashedVerificationToken, Instant verificationExpiresAt) {
+        User user = new User();
+        
+        // WAJIB
+        user.setEmail(email);
+        if (password != null) user.setPassword(password);
+        user.setFullName(fullName);
+        user.setProvider(User.Provider.local);
+        user.setRoles(List.of(User.Role.USER));
+        
+        user.setStatus(Status.PENDING);
+        user.setExpiredAt(Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS));
+        user.setVerificationToken(hashedVerificationToken);
+        user.setVerificationExpiresAt(verificationExpiresAt);
+        
+        user.setSubscriptionTier("free");
+        user.setRevenueSharePercentage(0);
+        user.setCreatedAt(Instant.now());
+        user.setUpdatedAt(Instant.now());
+        user.setLoginAttempts(0);
+        
+        // Auto-generate referral code
+        user.setReferralCode(generateReferralCode(email, user.getCreatedAt()));
+        user.setReferralIds(new ArrayList<>());
+        user.setTotalReferrals(0);
+        user.setSuccessfulReferrals(0);
+        user.setReferralEarnings(0.0);
+        
+        // Set account type
+        user.setAccountType(accountType);
+
+        // Set roles dan organization info berdasarkan account type
+        if (accountType == AccountType.ORGANIZATION) {
+            user.setRoles(List.of(User.Role.USER, User.Role.ORGANIZATION));
+            user.setOrganizationRole(User.OrganizationRole.owner);
+            user.setInvitationStatus(User.InvitationStatus.accepted);
+            user.setInvitationAcceptedAt(Instant.now());
+        }
+                
+        // OPSIONAL - Set referral info jika ada referrer (sudah tervalidasi)
+        if (referrer != null) {
+            user.setReferredBy(referrer.id);
+            user.setReferredAt(Instant.now());
+        }
+        
+        // OPSIONAL - Set invitation info jika ada inviter (sudah tervalidasi)
+        if (inviter != null) {
+            user.setInvitedBy(inviter.id);
+            user.setInvitedOrganizationId(inviter.getInvitedOrganizationId());
+            user.setInvitationStatus(User.InvitationStatus.accepted);
+            user.setInvitationSentAt(Instant.now());
+            user.setInvitationAcceptedAt(Instant.now());
+            user.setInvitationRole(inviter.getInvitationRole() != null ? inviter.getInvitationRole() : User.OrganizationRole.member);
+        }
+        
+        return user;
+    }
+
+    public void renewVerification(User user, String hashedNewToken, Instant newVerificationExpiresAt) {
+        Instant expiredAt = Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS);
+        
+        // 1. Update nilai di dalam memori objek Java
+        user.setVerificationToken(hashedNewToken);
+        user.setVerificationExpiresAt(newVerificationExpiresAt);
+        user.setExpiredAt(expiredAt);
+
+        // 2. Siapkan perintah update MongoDB menggunakan Updates builder
+        Bson update = Updates.combine(
+            Updates.set("verificationToken", hashedNewToken),
+            Updates.set("verificationExpiresAt", newVerificationExpiresAt),
+            Updates.set("expiredAt", expiredAt)
+        );
+
+        // 3. Eksekusi pembaruan ke database menggunakan metode executeUpdate yang sudah ada
+        user.executeUpdate(update);
+    }
+
+    public void activateAccount(User user) {
+        // Update object di memory Java
+        user.setStatus(User.Status.ACTIVE);
+        user.setVerificationToken(null);
+        user.setVerificationExpiresAt(null);
+        user.setExpiredAt(null);
+
+        Bson update = Updates.combine(
+            Updates.set("status", User.Status.ACTIVE),
+            Updates.unset("verificationToken"),
+            Updates.unset("verificationExpiresAt"),
+            Updates.unset("expiredAt")
+        );
+
+        user.executeUpdate(update);
+    }
+
+    public void updateProfile(String fullName, String phone, String bio, String dateOfBirth, User.Gender gender, String profilePicture, User user) {
+        DocumentUpdater updater = DocumentUpdater.update()
+            .set("fullName", fullName)
+            .set("phone", phone)
+            .set("bio", bio)
+            .set("dateOfBirth", dateOfBirth)
+            .set("gender", gender)
+            .set("profilePicture", profilePicture);
+
+        if (updater.hasChanges()) {
+            user.executeUpdate(updater.build());
+        }
+    }
+
+    public void softDelete(User user) {
+        user.setDeletedAt(Instant.now());
+        user.setStatus(User.Status.DELETED);
+        user.setUpdatedAt(Instant.now());
+    }
+
+    public void applyPasswordResetToken(String hashedToken, Instant expiresAt, User user) {
+        user.setResetPasswordToken(hashedToken);
+        user.setResetPasswordExpiresAt(expiresAt);
+
+        Bson update = Updates.combine(
+            Updates.set("resetPasswordToken", hashedToken),
+            Updates.set("resetPasswordExpiresAt", expiresAt)
+        );
+
+        user.executeUpdate(update);
+    }
+
+    public void resetPassword(String newHashedPassword, User user) {
+        user.setPassword(newHashedPassword);
+        user.setResetPasswordToken(null);
+        user.setResetPasswordExpiresAt(null);
+
+        Bson update = Updates.combine(
+            Updates.set("password", newHashedPassword),
+            Updates.unset("resetPasswordToken"),
+            Updates.unset("resetPasswordExpiresAt")
+        );
+
+        user.executeUpdate(update);
+    }
+
+    private static String generateReferralCode(String email, Instant createdAt) {
+        if (email == null || email.isEmpty()) {
+            return "USR" + createdAt.getEpochSecond() + (int)(Math.random() * 1000);
+        }
+        
+        // Extract first 3 alphabetic characters for prefix
+        String alphaOnly = email.replaceAll("[^a-zA-Z]", "");
+        String prefix = alphaOnly.substring(0, Math.min(3, alphaOnly.length())).toUpperCase();
+        
+        // Use last 5 digits of timestamp
+        String timestamp = String.valueOf(createdAt.getEpochSecond());
+        String timeSuffix = timestamp.length() > 5 ? timestamp.substring(timestamp.length() - 5) : timestamp;
+        
+        // Add 3-digit random number for uniqueness (000-999)
+        String randomSuffix = String.format("%03d", (int)(Math.random() * 1000));
+        
+        return prefix + timeSuffix + randomSuffix;
     }
 }
