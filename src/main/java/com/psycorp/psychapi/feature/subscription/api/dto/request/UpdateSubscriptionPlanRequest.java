@@ -9,24 +9,24 @@ import jakarta.validation.constraints.Size;
 
 public record UpdateSubscriptionPlanRequest(
     @Size(max = 100, message = "Name must not exceed 100 characters")
-    @Schema(description = "Nama paket langganan", example = "Pro Individual")
+    @Schema(description = "Nama paket langganan", examples = "Pro Individual")
     String name,
 
     @Size(max = 50, message = "Code must not exceed 50 characters")
-    @Schema(description = "Kode unik untuk integrasi payment gateway", example = "PRO_IND")
+    @Schema(description = "Kode unik untuk integrasi payment gateway", examples = "PRO_IND")
     String code,
 
     @Min(value = 0, message = "Price cannot be negative")
-    @Schema(description = "Harga paket", example = "150000.0")
+    @Schema(description = "Harga paket", examples = "150000.0")
     Double price,
 
     @Min(value = 1, message = "Duration must be at least 1 day")
-    @Schema(description = "Durasi paket dalam hari", example = "30")
+    @Schema(description = "Durasi paket dalam hari", examples = "30")
     Integer durationDays,
 
-    @Schema(description = "Target market paket (USER atau ORGANIZATION)", example = "USER")
+    @Schema(description = "Target market paket (USER atau ORGANIZATION)", examples = "USER")
     TargetAudience targetAudience,
 
-    @Schema(description = "Batas maksimal kursi (null jika unlimited/tidak berlaku)", example = "50")
+    @Schema(description = "Batas maksimal kursi (null jika unlimited/tidak berlaku)", examples = "50")
     Integer maxSeats
 ) {}

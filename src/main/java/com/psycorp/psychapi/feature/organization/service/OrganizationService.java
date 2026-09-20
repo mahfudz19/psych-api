@@ -227,7 +227,7 @@ public class OrganizationService implements PanacheMongoRepository<Organization>
                 "UNAUTHORIZED",
                 "User does not have permission to perform this action. Required role: " + 
                     java.util.Arrays.stream(allowedRoles)
-                        .map(User.OrganizationRole::getValue)
+                        .map(r -> r.getValue())
                         .collect(java.util.stream.Collectors.joining(" or ")));
         }
     }

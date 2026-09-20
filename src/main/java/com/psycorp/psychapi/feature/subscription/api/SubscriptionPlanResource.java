@@ -45,7 +45,6 @@ import jakarta.ws.rs.core.Response;
 
 @Path("/api/v1/subscription-plans")
 @Authenticated
-@RolesAllowed("SUPERADMIN")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Subscription Plans", description = "API untuk mengelola katalog paket langganan")
@@ -56,6 +55,7 @@ public class SubscriptionPlanResource {
     SubscriptionPlanService planService;
 
     @POST
+    @RolesAllowed("SUPERADMIN")
     @Operation(summary = "Create subscription plan baru")
     @RequestBody(description = "Data paket langganan", required = true, content = @Content(schema = @Schema(implementation = CreateSubscriptionPlanRequest.class)))
     @APIResponse(responseCode = "201", description = "Plan created successfully", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
@@ -76,6 +76,39 @@ public class SubscriptionPlanResource {
     }
 
     @GET
+    @Path("/store")
+    @Operation(summary = "Get available plans for current user", description = "Otomatis mendeteksi tipe akun (USER/ORGANIZATION) dan mengembalikan paket yang sesuai tanpa paginasi.")
+    public Response getAvailablePlans(@jakarta.ws.rs.core.Context jakarta.ws.rs.container.ContainerRequestContext requestContext) {
+        com.psycorp.psychapi.feature.user.model.User user = (com.psycorp.psychapi.feature.user.model.User) requestContext.getProperty("validatedUser");
+        if (user == null) throw new jakarta.ws.rs.ForbiddenException("Authentication required");
+
+        SubscriptionPlan.TargetAudience target;
+
+        if (user.getAccountType() == com.psycorp.psychapi.feature.user.model.User.AccountType.ORGANIZATION) {
+            if (user.getOrganizationRole() != com.psycorp.psychapi.feature.user.model.User.OrganizationRole.owner && 
+                user.getOrganizationRole() != com.psycorp.psychapi.feature.user.model.User.OrganizationRole.admin) {
+                throw new jakarta.ws.rs.ForbiddenException("Hanya Owner atau Admin yang dapat mengakses menu langganan perusahaan.");
+            }
+            target = SubscriptionPlan.TargetAudience.ORGANIZATION;
+        } else {
+            target = SubscriptionPlan.TargetAudience.USER;
+        }
+
+        Bson filter = Filters.and(
+            Filters.eq("deletedAt", null),
+            Filters.eq("targetAudience", target.getValue())
+        );
+        
+        List<SubscriptionPlanResponse> data = planService.find(filter, MongoFilter.sort("price", "asc"))
+            .stream()
+            .map(SubscriptionPlanResponse::fromEntity)
+            .toList();
+
+        return ResponseHelper.ok(data, "Available plans retrieved successfully");
+    }
+
+    @GET
+    @RolesAllowed("SUPERADMIN")
     @Operation(summary = "Get all subscription plans with pagination", description = SubscriptionPlanListRequest.DESCRIPTION)
     @APIResponse(responseCode = "200", description = "Plans retrieved successfully", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
     @APIResponse(responseCode = "400", description = "Invalid request parameters", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
@@ -121,6 +154,7 @@ public class SubscriptionPlanResource {
 
     @DELETE
     @Path("/{id}")
+    @RolesAllowed("SUPERADMIN")
     @Operation(summary = "Soft delete subscription plan")
     @APIResponse(responseCode = "200", description = "Plan deleted successfully", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
     @APIResponse(responseCode = "401", description = "Unauthorized - Invalid or expired token", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
