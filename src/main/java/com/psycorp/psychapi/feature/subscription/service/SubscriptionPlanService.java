@@ -16,7 +16,7 @@ public class SubscriptionPlanService implements PanacheMongoRepository<Subscript
 
     @Transactional
     public SubscriptionPlan create(String name, String code, Double price, Integer durationDays, SubscriptionPlan.TargetAudience targetAudience, Integer maxSeats, Boolean recommended) {
-        if (find("code", code).firstResult() != null) {
+        if (find("code = ?1 and deletedAt is null", code).firstResult() != null) {
             throw new ValidationException("PLAN_CODE_EXISTS", "Kode plan '" + code + "' sudah digunakan");
         }
 
@@ -43,7 +43,7 @@ public class SubscriptionPlanService implements PanacheMongoRepository<Subscript
         }
 
         if (code != null && !code.equals(plan.getCode())) {
-            SubscriptionPlan existing = find("code", code).firstResult();
+            SubscriptionPlan existing = find("code = ?1 and deletedAt is null", code).firstResult();
             if (existing != null && !existing.getId().equals(id)) {
                 throw new ValidationException("PLAN_CODE_EXISTS", "Kode plan '" + code + "' sudah digunakan");
             }
