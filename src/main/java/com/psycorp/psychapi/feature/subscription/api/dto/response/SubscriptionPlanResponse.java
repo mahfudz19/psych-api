@@ -13,6 +13,7 @@ public record SubscriptionPlanResponse(
     Integer durationDays,
     TargetAudience targetAudience,
     Integer maxSeats,
+    Boolean recommended,
     Instant createdAt,
     Instant updatedAt
 ) {
@@ -25,6 +26,7 @@ public record SubscriptionPlanResponse(
             plan.getDurationDays(),
             plan.getTargetAudience(),
             plan.getMaxSeats(),
+            plan.getRecommended(),
             plan.getCreatedAt(),
             plan.getUpdatedAt()
         );

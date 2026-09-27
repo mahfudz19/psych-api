@@ -265,35 +265,35 @@ public class Dev__Insert_Dummy_Data {
         
         // Individual Plans
         ObjectId planIndBasic1M = new ObjectId();
-        allPlans.add(createPlanDocument(planIndBasic1M, "Individual Basic (Monthly)", "IND_BASIC_1M", 49000.0, 30, "USER", null));
+        allPlans.add(createPlanDocument(planIndBasic1M, "Individual Basic (Monthly)", "IND_BASIC_1M", 49000.0, 30, "USER", null, false));
         
         ObjectId planIndBasic1Y = new ObjectId();
-        allPlans.add(createPlanDocument(planIndBasic1Y, "Individual Basic (Yearly)", "IND_BASIC_1Y", 490000.0, 365, "USER", null));
+        allPlans.add(createPlanDocument(planIndBasic1Y, "Individual Basic (Yearly)", "IND_BASIC_1Y", 490000.0, 365, "USER", null, true));
         
         ObjectId planIndPrem1M = new ObjectId();
-        allPlans.add(createPlanDocument(planIndPrem1M, "Individual Premium (Monthly)", "IND_PREM_1M", 149000.0, 30, "USER", null));
+        allPlans.add(createPlanDocument(planIndPrem1M, "Individual Premium (Monthly)", "IND_PREM_1M", 149000.0, 30, "USER", null, false));
         
         ObjectId planIndPrem1Y = new ObjectId();
-        allPlans.add(createPlanDocument(planIndPrem1Y, "Individual Premium (Yearly)", "IND_PREM_1Y", 1490000.0, 365, "USER", null));
+        allPlans.add(createPlanDocument(planIndPrem1Y, "Individual Premium (Yearly)", "IND_PREM_1Y", 1490000.0, 365, "USER", null, false));
 
         // Organization Plans
         ObjectId planOrgStart1M = new ObjectId();
-        allPlans.add(createPlanDocument(planOrgStart1M, "Org Starter (Monthly)", "ORG_START_1M", 499000.0, 30, "ORGANIZATION", 15));
+        allPlans.add(createPlanDocument(planOrgStart1M, "Org Starter (Monthly)", "ORG_START_1M", 499000.0, 30, "ORGANIZATION", 15, false));
         
         ObjectId planOrgStart1Y = new ObjectId();
-        allPlans.add(createPlanDocument(planOrgStart1Y, "Org Starter (Yearly)", "ORG_START_1Y", 4990000.0, 365, "ORGANIZATION", 15));
+        allPlans.add(createPlanDocument(planOrgStart1Y, "Org Starter (Yearly)", "ORG_START_1Y", 4990000.0, 365, "ORGANIZATION", 15, false));
         
         ObjectId planOrgPro1M = new ObjectId();
-        allPlans.add(createPlanDocument(planOrgPro1M, "Org Pro (Monthly)", "ORG_PRO_1M", 1299000.0, 30, "ORGANIZATION", 50));
+        allPlans.add(createPlanDocument(planOrgPro1M, "Org Pro (Monthly)", "ORG_PRO_1M", 1299000.0, 30, "ORGANIZATION", 50, true));
         
         ObjectId planOrgPro1Y = new ObjectId();
-        allPlans.add(createPlanDocument(planOrgPro1Y, "Org Pro (Yearly)", "ORG_PRO_1Y", 12990000.0, 365, "ORGANIZATION", 50));
+        allPlans.add(createPlanDocument(planOrgPro1Y, "Org Pro (Yearly)", "ORG_PRO_1Y", 12990000.0, 365, "ORGANIZATION", 50, false));
         
         ObjectId planOrgEnt1M = new ObjectId();
-        allPlans.add(createPlanDocument(planOrgEnt1M, "Org Enterprise (Monthly)", "ORG_ENT_1M", 4999000.0, 30, "ORGANIZATION", 9999));
+        allPlans.add(createPlanDocument(planOrgEnt1M, "Org Enterprise (Monthly)", "ORG_ENT_1M", 4999000.0, 30, "ORGANIZATION", 9999, false));
         
         ObjectId planOrgEnt1Y = new ObjectId();
-        allPlans.add(createPlanDocument(planOrgEnt1Y, "Org Enterprise (Yearly)", "ORG_ENT_1Y", 49990000.0, 365, "ORGANIZATION", 9999));
+        allPlans.add(createPlanDocument(planOrgEnt1Y, "Org Enterprise (Yearly)", "ORG_ENT_1Y", 49990000.0, 365, "ORGANIZATION", 9999, false));
 
         subscriptionPlans.insertMany(allPlans);
 
@@ -430,7 +430,7 @@ public class Dev__Insert_Dummy_Data {
         return prefix + Math.abs(email.hashCode() % 90000 + 10000);
     }
 
-    private Document createPlanDocument(ObjectId id, String name, String code, Double price, Integer durationDays, String targetAudience, Integer maxSeats) {
+    private Document createPlanDocument(ObjectId id, String name, String code, Double price, Integer durationDays, String targetAudience, Integer maxSeats, Boolean recommended) {
         Document doc = new Document("_id", id)
             .append("name", name)
             .append("code", code)
@@ -438,6 +438,7 @@ public class Dev__Insert_Dummy_Data {
             .append("durationDays", durationDays)
             .append("targetAudience", targetAudience)
             .append("maxSeats", maxSeats)
+            .append("recommended", recommended)
             .append("createdAt", Instant.now())
             .append("updatedAt", Instant.now());
         doc.entrySet().removeIf(entry -> entry.getValue() == null);

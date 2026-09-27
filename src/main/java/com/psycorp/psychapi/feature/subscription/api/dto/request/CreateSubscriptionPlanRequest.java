@@ -35,5 +35,8 @@ public record CreateSubscriptionPlanRequest(
     TargetAudience targetAudience,
 
     @Schema(description = "Batas maksimal kursi (null jika unlimited/tidak berlaku)", examples = "50")
-    Integer maxSeats
+    Integer maxSeats,
+
+    @Schema(description = "Tandai sebagai paket yang direkomendasikan", examples = "false")
+    Boolean recommended
 ) {}

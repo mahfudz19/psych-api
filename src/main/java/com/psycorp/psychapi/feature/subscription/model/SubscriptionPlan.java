@@ -16,7 +16,8 @@ public class SubscriptionPlan extends PanacheMongoEntity {
     private String code; // e.g., "PRO_IND", "BIZ_ORG" (Unik untuk integrasi Payment Gateway)
     private Double price; 
     private Integer durationDays; // e.g., 30 (Bulanan), 365 (Tahunan)
-    
+    private Boolean recommended; // Paket yang direkomendasikan (ditandai di UI)
+
     // Target market: Apakah paket ini untuk dibeli oleh "USER" atau "ORGANIZATION"?
     private TargetAudience targetAudience; 
     
@@ -41,6 +42,7 @@ public class SubscriptionPlan extends PanacheMongoEntity {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public Instant getDeletedAt() { return deletedAt; }
+    public Boolean getRecommended() { return recommended; }
 
     // === SETTERS ===
     public void setName(String name) { this.name = name; }
@@ -52,6 +54,7 @@ public class SubscriptionPlan extends PanacheMongoEntity {
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
     public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
+    public void setRecommended(Boolean recommended) { this.recommended = recommended; }
 
     // === ENUMS ===
     public enum TargetAudience {

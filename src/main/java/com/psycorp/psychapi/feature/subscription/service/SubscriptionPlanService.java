@@ -15,7 +15,7 @@ import jakarta.transaction.Transactional;
 public class SubscriptionPlanService implements PanacheMongoRepository<SubscriptionPlan> {
 
     @Transactional
-    public SubscriptionPlan create(String name, String code, Double price, Integer durationDays, SubscriptionPlan.TargetAudience targetAudience, Integer maxSeats) {
+    public SubscriptionPlan create(String name, String code, Double price, Integer durationDays, SubscriptionPlan.TargetAudience targetAudience, Integer maxSeats, Boolean recommended) {
         if (find("code", code).firstResult() != null) {
             throw new ValidationException("PLAN_CODE_EXISTS", "Kode plan '" + code + "' sudah digunakan");
         }
@@ -27,6 +27,7 @@ public class SubscriptionPlanService implements PanacheMongoRepository<Subscript
         plan.setDurationDays(durationDays);
         plan.setTargetAudience(targetAudience);
         plan.setMaxSeats(maxSeats);
+        plan.setRecommended(recommended != null ? recommended : false);
         plan.setCreatedAt(Instant.now());
         plan.setUpdatedAt(Instant.now());
         
@@ -35,7 +36,7 @@ public class SubscriptionPlanService implements PanacheMongoRepository<Subscript
     }
 
     @Transactional
-    public SubscriptionPlan update(ObjectId id, String name, String code, Double price, Integer durationDays, SubscriptionPlan.TargetAudience targetAudience, Integer maxSeats) {
+    public SubscriptionPlan update(ObjectId id, String name, String code, Double price, Integer durationDays, SubscriptionPlan.TargetAudience targetAudience, Integer maxSeats, Boolean recommended) {
         SubscriptionPlan plan = findById(id);
         if (plan == null || plan.getDeletedAt() != null) {
             throw new ValidationException("PLAN_NOT_FOUND", "Paket tidak ditemukan");
@@ -54,6 +55,7 @@ public class SubscriptionPlanService implements PanacheMongoRepository<Subscript
         if (durationDays != null) plan.setDurationDays(durationDays);
         if (targetAudience != null) plan.setTargetAudience(targetAudience);
         if (maxSeats != null) plan.setMaxSeats(maxSeats);
+        if (recommended != null) plan.setRecommended(recommended);
         plan.setUpdatedAt(Instant.now());
 
         plan.update();

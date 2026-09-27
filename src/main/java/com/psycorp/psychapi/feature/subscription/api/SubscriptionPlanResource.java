@@ -70,7 +70,8 @@ public class SubscriptionPlanResource {
             request.price(),
             request.durationDays(),
             request.targetAudience(),
-            request.maxSeats()
+            request.maxSeats(),
+            request.recommended()
         );
         return ResponseHelper.created(SubscriptionPlanResponse.fromEntity(plan), "Subscription plan created successfully");
     }
@@ -147,7 +148,8 @@ public class SubscriptionPlanResource {
             request.price(),
             request.durationDays(),
             request.targetAudience(),
-            request.maxSeats()
+            request.maxSeats(),
+            request.recommended()
         );
         return ResponseHelper.ok(SubscriptionPlanResponse.fromEntity(plan), "Subscription plan updated successfully");
     }
