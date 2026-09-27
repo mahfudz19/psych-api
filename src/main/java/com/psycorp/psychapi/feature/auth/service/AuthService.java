@@ -28,7 +28,7 @@ import com.psycorp.psychapi.feature.auth.model.RefreshToken.RevokeReason;
 import com.psycorp.psychapi.feature.auth.model.RefreshToken.TokenStatus;
 import com.psycorp.psychapi.feature.storage.service.ProfilePictureChangedEvent;
 import com.psycorp.psychapi.feature.storage.service.StorageService;
-import com.psycorp.psychapi.feature.user.api.dto.response.UserResponse;
+import com.psycorp.psychapi.feature.subscription.service.SubscriptionService;
 import com.psycorp.psychapi.feature.user.model.User;
 import com.psycorp.psychapi.feature.user.model.User.AccountType;
 import com.psycorp.psychapi.feature.user.service.UserService;
@@ -61,6 +61,9 @@ public class AuthService {
 
     @Inject
     Event<ProfilePictureChangedEvent> profilePictureEvent;
+
+    @Inject 
+    SubscriptionService subscriptionService;
 
     @ConfigProperty(name = "google.client.id")
     String googleClientId;
@@ -105,8 +108,9 @@ public class AuthService {
         );
 
         emailService.sendVerificationEmail(user.getEmail(), user.getFullName(), plainVerificationToken);
+        UserInfoResponse.SubscriptionInfo subInfo = subscriptionService.getSubInfo(user);
 
-        return UserInfoResponse.from(user); 
+        return UserInfoResponse.from(user, subInfo); 
     }
 
     /**
@@ -136,8 +140,9 @@ public class AuthService {
 
         // 5. Kirim email di background
         emailService.sendVerificationEmail(user.getEmail(), user.getFullName(), plainNewToken);
-
-        return UserInfoResponse.from(user);
+        
+        UserInfoResponse.SubscriptionInfo subInfo = subscriptionService.getSubInfo(user);
+        return UserInfoResponse.from(user, subInfo);
     }
 
     /**
@@ -177,8 +182,9 @@ public class AuthService {
         Instant refreshTokenExpiry = jwtService.getRefreshTokenExpiry();
 
         saveRefreshToken(user.getId(), refreshToken, refreshTokenExpiry, deviceInfo);
+        UserInfoResponse.SubscriptionInfo subInfo = subscriptionService.getSubInfo(user);
 
-        UserResponse userResponse = UserResponse.fromEntity(user);
+        UserInfoResponse userResponse = UserInfoResponse.from(user, subInfo);
         return LoginResponse.of(userResponse, accessToken, refreshToken, jwtService.getAccessTokenExpiry());
     }
 
@@ -199,7 +205,8 @@ public class AuthService {
         saveRefreshToken(user.id, refreshToken, refreshTokenExpiry, deviceInfo);
 
         // Build response
-        UserResponse userResponse = UserResponse.fromEntity(user);
+        UserInfoResponse.SubscriptionInfo subInfo = subscriptionService.getSubInfo(user);
+        UserInfoResponse userResponse = UserInfoResponse.from(user, subInfo);
 
         return LoginResponse.of(userResponse, accessToken, refreshToken, jwtService.getAccessTokenExpiry());
     }
@@ -495,7 +502,8 @@ public class AuthService {
 
             saveRefreshToken(user.getId(), refreshToken, refreshTokenExpiry, deviceInfo);
 
-            UserResponse userResponse = UserResponse.fromEntity(user);
+            UserInfoResponse.SubscriptionInfo subInfo = subscriptionService.getSubInfo(user);
+            UserInfoResponse userResponse = UserInfoResponse.from(user, subInfo);
             return LoginResponse.of(userResponse, accessToken, refreshToken, jwtService.getAccessTokenExpiry());
 
         } catch (java.security.GeneralSecurityException | java.io.IOException e) {
@@ -578,7 +586,8 @@ public class AuthService {
 
             saveRefreshToken(user.getId(), refreshToken, refreshTokenExpiry, deviceInfo);
 
-            UserResponse userResponse = UserResponse.fromEntity(user);
+            UserInfoResponse.SubscriptionInfo subInfo = subscriptionService.getSubInfo(user);
+            UserInfoResponse userResponse = UserInfoResponse.from(user, subInfo);
             return LoginResponse.of(userResponse, accessToken, refreshToken, jwtService.getAccessTokenExpiry());
 
         } catch (java.security.GeneralSecurityException | java.io.IOException e) {

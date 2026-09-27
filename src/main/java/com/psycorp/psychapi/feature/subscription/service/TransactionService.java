@@ -5,9 +5,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
 
+import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.jboss.logging.Logger;
 
+import com.psycorp.psychapi.feature.subscription.api.dto.response.SubscriptionPlanResponse;
+import com.psycorp.psychapi.feature.subscription.api.dto.response.TransactionStatusResponse;
 import com.psycorp.psychapi.feature.subscription.model.Subscription;
 import com.psycorp.psychapi.feature.subscription.model.SubscriptionPlan;
 import com.psycorp.psychapi.feature.subscription.model.Transaction;
@@ -15,6 +18,7 @@ import com.psycorp.psychapi.infrastructure.exception.NotFoundException;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 
 import io.quarkus.mongodb.panache.PanacheMongoRepository;
+import io.quarkus.mongodb.panache.PanacheQuery;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -31,20 +35,36 @@ public class TransactionService implements PanacheMongoRepository<Transaction> {
 
     @Transactional
     public TransactionResult checkout(ObjectId buyerId, String buyerEmail, String planCode, Subscription.SubscriberType subscriberType) {
-        // 1. Validasi Paket
+        // 1. CEK TRANSAKSI PENDING
+        Transaction existingPending = find("subscriberId = ?1 and status = ?2", buyerId, Transaction.Status.PENDING).firstResult();
+        if (existingPending != null) {
+            throw new ValidationException("PENDING_TRANSACTION_EXISTS", "Anda masih memiliki tagihan yang belum dibayar. Silakan bayar atau batalkan tagihan tersebut terlebih dahulu.");
+        }
+
+        // 2. Validasi Paket
         SubscriptionPlan plan = planService.find("code", planCode).firstResult();
         if (plan == null) {
             throw new ValidationException("PLAN_NOT_FOUND", "Paket tidak ditemukan");
         }
 
-        // 2. Generate Reference ID Unik
+        // 3. CEK LANGGANAN AKTIF (Aturan MVP: Cancel-then-Resubscribe)
+        Subscription activeSubscription = Subscription.find(
+            "subscriberId = ?1 and status = ?2 and endDate > ?3", 
+            buyerId, Subscription.Status.ACTIVE, Instant.now()
+        ).firstResult();
+        
+        if (activeSubscription != null) {
+            throw new ValidationException("ACTIVE_SUBSCRIPTION_EXISTS", "Anda masih memiliki paket langganan yang aktif. Silakan batalkan langganan saat ini terlebih dahulu jika ingin mengganti paket.");
+        }
+
+        // 4. Generate Reference ID Unik
         String referenceId = "INV-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
-        // 3. Buat Tagihan di Xendit
+        // 5. Buat Tagihan di Xendit
         String description = "Pembelian paket: " + plan.getName();
         Map<String, Object> xenditInvoice = paymentService.createInvoiceRaw(referenceId, plan.getPrice(), buyerEmail, description);
 
-        // 4. Catat Transaksi di DB
+        // 6. Catat Transaksi di DB
         Transaction transaction = new Transaction();
         transaction.setReferenceId(referenceId);
         transaction.setXenditInvoiceId((String) xenditInvoice.get("id"));
@@ -112,5 +132,82 @@ public class TransactionService implements PanacheMongoRepository<Transaction> {
         }
 
         transaction.update();
+    }
+
+    public PanacheQuery<Transaction> getTransactionHistory(Bson filter, Bson sort, int page, int limit) {
+        return find(filter, sort).page(page - 1, limit);
+    }
+
+    @Transactional
+    public void cancelPendingTransaction(String referenceId, ObjectId buyerId) {
+        Transaction transaction = find("referenceId", referenceId).firstResult();
+        if (transaction == null) {
+            throw new NotFoundException("TX_NOT_FOUND", "Transaksi tidak ditemukan");
+        }
+        
+        if (!transaction.getSubscriberId().equals(buyerId)) {
+            throw new ValidationException("FORBIDDEN", "Anda tidak memiliki akses ke transaksi ini");
+        }
+
+        if (transaction.getStatus() != Transaction.Status.PENDING) {
+            throw new ValidationException("INVALID_STATUS", "Hanya transaksi berstatus PENDING yang dapat dibatalkan");
+        }
+
+        // Ubah status di database kita
+        transaction.setStatus(Transaction.Status.FAILED);
+        transaction.update();
+
+        paymentService.expireInvoice(transaction.getXenditInvoiceId());
+    }
+
+    public TransactionStatusResponse checkUserSubscriptionStatus(ObjectId buyerId) {
+        // Cek Langganan Aktif
+        Subscription activeSubscription = Subscription.find(
+            "subscriberId = ?1 and status = ?2 and endDate > ?3", 
+            buyerId, Subscription.Status.ACTIVE, Instant.now()
+        ).firstResult();
+        
+        // Cek Transaksi Pending
+        Transaction pendingTransaction = find(
+            "subscriberId = ?1 and status = ?2", 
+            buyerId, Transaction.Status.PENDING
+        ).firstResult();
+
+        TransactionStatusResponse.ActiveSubscriptionDetail activeSubDetail = null;
+        if (activeSubscription != null && activeSubscription.getPlanId() != null) {
+            SubscriptionPlan plan = planService.findById(activeSubscription.getPlanId());
+            if (plan != null) {
+                activeSubDetail = new TransactionStatusResponse.ActiveSubscriptionDetail(
+                    SubscriptionPlanResponse.fromEntity(plan),
+                    activeSubscription.getStartDate(),
+                    activeSubscription.getEndDate()
+                );
+            }
+        }
+
+        return new TransactionStatusResponse(
+            activeSubscription != null,
+            pendingTransaction != null,
+            pendingTransaction != null ? pendingTransaction.getReferenceId() : null,
+            activeSubDetail
+        );
+    }
+
+    @Transactional
+    public void cancelActiveSubscription(ObjectId buyerId) {
+        Subscription activeSubscription = Subscription.find(
+            "subscriberId = ?1 and status = ?2 and endDate > ?3", 
+            buyerId, Subscription.Status.ACTIVE, Instant.now()
+        ).firstResult();
+
+        if (activeSubscription == null) {
+            throw new ValidationException("NO_ACTIVE_SUBSCRIPTION", "Tidak ada langganan aktif untuk dibatalkan.");
+        }
+
+        // Langsung matikan akses (Sisa hari hangus) agar user bisa langsung beli paket baru
+        activeSubscription.setStatus(Subscription.Status.CANCELED);
+        activeSubscription.setCanceledAt(Instant.now());
+        activeSubscription.setUpdatedAt(Instant.now());
+        activeSubscription.update();
     }
 }

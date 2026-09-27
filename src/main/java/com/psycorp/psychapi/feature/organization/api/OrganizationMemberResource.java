@@ -25,6 +25,7 @@ import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationMe
 import com.psycorp.psychapi.feature.organization.model.Organization;
 import com.psycorp.psychapi.feature.organization.service.OrganizationMemberService;
 import com.psycorp.psychapi.feature.organization.service.OrganizationService;
+import com.psycorp.psychapi.feature.subscription.service.SubscriptionService;
 import com.psycorp.psychapi.feature.user.model.User;
 import com.psycorp.psychapi.feature.user.model.User.OrganizationRole;
 import com.psycorp.psychapi.feature.user.service.UserService;
@@ -68,6 +69,9 @@ public class OrganizationMemberResource {
 
     @Inject
     OrganizationService organizationService;
+
+    @Inject 
+    SubscriptionService subscriptionService;
 
     @GET
     @RolesAllowed({"ORG_OWNER", "ORG_ADMIN"})
@@ -173,7 +177,8 @@ public class OrganizationMemberResource {
 
         User user = memberService.joinOrganization(organization, currentUser);
 
-        UserInfoResponse response = UserInfoResponse.from(user);
+        UserInfoResponse.SubscriptionInfo subInfo = subscriptionService.getSubInfo(user);
+        UserInfoResponse response = UserInfoResponse.from(user, subInfo);
         return ResponseHelper.ok(response, "Joined organization successfully");
     }
 
@@ -194,7 +199,8 @@ public class OrganizationMemberResource {
         organizationService.validateOrganizationAccess(organization, currentUser, User.OrganizationRole.admin, User.OrganizationRole.member);
         
         User user = memberService.leaveOrganization(organization, currentUser);
-        UserInfoResponse response = UserInfoResponse.from(userService.findById(user.id));
+        UserInfoResponse.SubscriptionInfo subInfo = subscriptionService.getSubInfo(user);
+        UserInfoResponse response = UserInfoResponse.from(userService.findById(user.id), subInfo);
 
         return ResponseHelper.ok(response, "Left organization successfully");
     }

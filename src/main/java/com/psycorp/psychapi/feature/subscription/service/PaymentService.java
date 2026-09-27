@@ -98,4 +98,30 @@ public class PaymentService {
             throw new RuntimeException("Layanan pembayaran sedang gangguan.");
         }
     }
+
+    public void expireInvoice(String invoiceId) {
+        try {
+            Map<String, Object> params = new HashMap<>();
+            // Xendit API v2 untuk expire invoice
+            String requestBody = objectMapper.writeValueAsString(params);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://api.xendit.co/v2/invoices/" + invoiceId + "/expire!"))
+                .header("Authorization", authHeader)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() >= 400) {
+                log.errorf("Gagal meng-expire invoice Xendit: %s", response.body());
+            }
+        } catch (java.io.IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            log.error("Error saat memanggil API Expire Xendit", e);
+        }
+    }
 }

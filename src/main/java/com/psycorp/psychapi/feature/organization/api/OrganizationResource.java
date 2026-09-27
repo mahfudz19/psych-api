@@ -23,6 +23,7 @@ import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationRe
 import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationWithOwnerResponse;
 import com.psycorp.psychapi.feature.organization.model.Organization;
 import com.psycorp.psychapi.feature.organization.service.OrganizationService;
+import com.psycorp.psychapi.feature.subscription.service.SubscriptionService;
 import com.psycorp.psychapi.feature.user.model.User;
 import com.psycorp.psychapi.feature.user.service.UserService;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
@@ -63,6 +64,9 @@ public class OrganizationResource {
     
     @Inject
     UserService userService;
+
+    @Inject 
+    SubscriptionService subscriptionService;
 
     @POST
     @Operation(summary = "Create organization baru")
@@ -159,9 +163,10 @@ public class OrganizationResource {
         if (user == null) throw new ValidationException("USER_NOT_FOUND", "User not found");
         
         organizationService.deleteOrganization(orgId, user);
+        UserInfoResponse.SubscriptionInfo subInfo = subscriptionService.getSubInfo(user);
 
         return ResponseHelper.ok(
-            UserInfoResponse.from(userService.findById(user.id)), 
+            UserInfoResponse.from(userService.findById(user.id), subInfo), 
             "Organization deleted successfully"
         );
     }
@@ -175,7 +180,8 @@ public class OrganizationResource {
         User user = (User) requestContext.getProperty("validatedUser");
         if (user == null) throw new ValidationException("USER_NOT_FOUND", "User not found");
 
+        UserInfoResponse.SubscriptionInfo subInfo = subscriptionService.getSubInfo(user);
         organizationService.generateOrRegenerateInviteCode(user);
-        return ResponseHelper.ok(UserInfoResponse.from(user), "Invite code generated successfully");
+        return ResponseHelper.ok(UserInfoResponse.from(user, subInfo), "Invite code generated successfully");
     }
 }

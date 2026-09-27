@@ -31,6 +31,7 @@ import com.psycorp.psychapi.feature.auth.api.dto.response.UserInfoResponse;
 import com.psycorp.psychapi.feature.auth.model.DeviceInfo;
 import com.psycorp.psychapi.feature.auth.service.AuthService;
 import com.psycorp.psychapi.feature.auth.service.DeviceDetectionService;
+import com.psycorp.psychapi.feature.subscription.service.SubscriptionService;
 import com.psycorp.psychapi.feature.user.model.User;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.shared.response.ApiErrorResponse;
@@ -82,6 +83,9 @@ public class AuthResource {
 
     @Inject
     CookieHelper cookieHelper;
+
+    @Inject 
+    SubscriptionService subscriptionService;
 
     private static final String[] SESSION_SEARCH_FIELDS = { "deviceInfo.browser", "deviceInfo.os", "deviceInfo.ip", "deviceInfo.location" };
 
@@ -199,8 +203,9 @@ public class AuthResource {
         if (user == null) {
             throw new ForbiddenException("Authentication required");
         }
+        UserInfoResponse.SubscriptionInfo subInfo = subscriptionService.getSubInfo(user);
 
-        return ResponseHelper.ok(UserInfoResponse.from(user), "User info retrieved successfully");
+        return ResponseHelper.ok(UserInfoResponse.from(user, subInfo), "User info retrieved successfully");
     }
 
     @PUT
@@ -216,8 +221,9 @@ public class AuthResource {
         if (user == null) throw new ForbiddenException("Authentication required");
 
         authService.updateUserProfile(user, request);
+        UserInfoResponse.SubscriptionInfo subInfo = subscriptionService.getSubInfo(user);
 
-        return ResponseHelper.ok(UserInfoResponse.from(User.findById(user.getId())), "Profile updated successfully");
+        return ResponseHelper.ok(UserInfoResponse.from(User.findById(user.getId()), subInfo), "Profile updated successfully");
     }
 
     @POST

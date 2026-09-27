@@ -68,9 +68,18 @@ public record UserInfoResponse(
     Instant lastLoginAt,
     
     @Schema(description = "Waktu pembuatan akun", examples = "2024-01-01T00:00:00Z")
-    Instant createdAt
+    Instant createdAt,
+
+    SubscriptionInfo subscription
 ) {
-    public static UserInfoResponse from(com.psycorp.psychapi.feature.user.model.User user) {
+    public record SubscriptionInfo(
+        boolean isPremium,
+        String planId,
+        Instant startDate,
+        Instant endDate
+    ) {}
+
+    public static UserInfoResponse from(com.psycorp.psychapi.feature.user.model.User user, SubscriptionInfo subInfo) {
         return new UserInfoResponse(
             user.getId(),
             user.getEmail(),
@@ -89,7 +98,8 @@ public record UserInfoResponse(
             user.getInviteCode(),
             user.getStatus(),
             user.getLastLoginAt(),
-            user.getCreatedAt()
+            user.getCreatedAt(),
+            subInfo
         );
     }
 }

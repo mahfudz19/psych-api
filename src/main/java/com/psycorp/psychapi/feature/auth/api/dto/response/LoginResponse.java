@@ -4,7 +4,6 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.psycorp.psychapi.feature.user.api.dto.response.UserResponse;
 
 /**
  * Response DTO untuk login dan refresh token.
@@ -13,7 +12,7 @@ import com.psycorp.psychapi.feature.user.api.dto.response.UserResponse;
 @JsonInclude(Include.NON_NULL)
 public record LoginResponse(
     @Schema(description = "Informasi user yang login")
-    UserResponse user,
+    UserInfoResponse user,
     
     @Schema(description = "JWT access token", examples = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c")
     String accessToken,
@@ -35,7 +34,7 @@ public record LoginResponse(
      * @param expiresIn Token expiry time dalam milliseconds
      * @return LoginResponse dengan tokenType "Bearer"
      */
-    public static LoginResponse of(UserResponse user, String accessToken, String refreshToken, Long expiresIn) {
+    public static LoginResponse of(UserInfoResponse user, String accessToken, String refreshToken, Long expiresIn) {
         return new LoginResponse(user, accessToken, refreshToken, expiresIn, "Bearer");
     }
     
