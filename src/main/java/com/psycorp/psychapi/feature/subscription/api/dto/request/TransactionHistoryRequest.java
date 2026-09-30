@@ -1,5 +1,7 @@
 package com.psycorp.psychapi.feature.subscription.api.dto.request;
 
+import java.util.List;
+
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 
 import com.psycorp.psychapi.shared.request.PageableRequest;
@@ -15,6 +17,12 @@ public class TransactionHistoryRequest implements PageableRequest {
     @DefaultValue("1")
     @Parameter(description = "Nomor halaman (dimulai dari 1)")
     private int page;
+
+    @QueryParam("filter")
+    @Parameter(description = "Filter: 'field:operator:value'. Example: 'status:in:PAID,PENDING'")
+    private List<String> filter;
+
+    @Override public List<String> filter() { return filter != null ? filter : List.of(); }
 
     @QueryParam("limit")
     @DefaultValue("10")

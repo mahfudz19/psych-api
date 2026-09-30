@@ -2,6 +2,7 @@ package com.psycorp.psychapi.feature.subscription.service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -9,7 +10,9 @@ import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.jboss.logging.Logger;
 
+import com.psycorp.psychapi.feature.subscription.api.dto.response.AdminTransactionResponse;
 import com.psycorp.psychapi.feature.subscription.api.dto.response.SubscriptionPlanResponse;
+import com.psycorp.psychapi.feature.subscription.api.dto.response.TransactionHistoryResponse;
 import com.psycorp.psychapi.feature.subscription.api.dto.response.TransactionStatusResponse;
 import com.psycorp.psychapi.feature.subscription.model.Subscription;
 import com.psycorp.psychapi.feature.subscription.model.SubscriptionPlan;
@@ -209,5 +212,112 @@ public class TransactionService implements PanacheMongoRepository<Transaction> {
         activeSubscription.setCanceledAt(Instant.now());
         activeSubscription.setUpdatedAt(Instant.now());
         activeSubscription.update();
+    }
+
+    public List<TransactionHistoryResponse> buildHistoryResponse(List<Transaction> transactions) {
+        List<String> invoiceIds = transactions.stream()
+            .filter(t -> t.getStatus() == Transaction.Status.PAID && t.getXenditInvoiceId() != null)
+            .map(t -> t.getXenditInvoiceId())
+            .toList();
+
+        java.util.Map<String, Subscription> subscriptionMap = new java.util.HashMap<>();
+        if (!invoiceIds.isEmpty()) {
+            List<Subscription> subs = Subscription.list("paymentGatewayId in ?1", invoiceIds);
+            for (Subscription sub : subs) {
+                subscriptionMap.put(sub.getPaymentGatewayId(), sub);
+            }
+        }
+
+        return transactions.stream()
+            .map(t -> TransactionHistoryResponse.fromEntity(t, subscriptionMap.get(t.getXenditInvoiceId())))
+            .toList();
+    }
+
+    public List<AdminTransactionResponse> buildAdminHistoryResponse(List<Transaction> transactions) {
+        if (transactions.isEmpty()) return List.of();
+
+        // 1. Kumpulkan ID untuk batch query
+        List<String> invoiceIds = transactions.stream()
+            .filter(t -> t.getXenditInvoiceId() != null)
+            .map(t -> t.getXenditInvoiceId())
+            .toList();
+            
+        List<ObjectId> planIds = transactions.stream()
+            .map(t -> t.getPlanId())
+            .filter(id -> id != null)
+            .distinct()
+            .toList();
+
+        List<ObjectId> subscriberIds = transactions.stream()
+            .map(t -> t.getSubscriberId())
+            .filter(id -> id != null)
+            .distinct()
+            .toList();
+
+        // 2. Batch Query Data Terkait
+        java.util.Map<String, Subscription> subMap = invoiceIds.isEmpty() ? java.util.Map.of() : 
+            Subscription.<Subscription>list("paymentGatewayId in ?1", invoiceIds).stream()
+                .collect(java.util.stream.Collectors.toMap(s -> s.getPaymentGatewayId(), s -> s));
+
+        java.util.Map<ObjectId, SubscriptionPlan> planMap = planIds.isEmpty() ? java.util.Map.of() :
+            SubscriptionPlan.<SubscriptionPlan>list("_id in ?1", planIds).stream()
+                .collect(java.util.stream.Collectors.toMap(p -> p.getId(), p -> p));
+
+        // Untuk subscriber, kita cari di User
+        java.util.Map<ObjectId, com.psycorp.psychapi.feature.user.model.User> userMap = 
+            com.psycorp.psychapi.feature.user.model.User.<com.psycorp.psychapi.feature.user.model.User>list("_id in ?1", subscriberIds).stream()
+                .collect(java.util.stream.Collectors.toMap(u -> u.getId(), u -> u));
+
+        // 3. Mapping ke DTO
+        return transactions.stream().map(t -> {
+            Subscription sub = subMap.get(t.getXenditInvoiceId());
+            SubscriptionPlan plan = planMap.get(t.getPlanId());
+            
+            String subEmail = null;
+            String subName = null;
+            
+            if (t.getSubscriberType() == Subscription.SubscriberType.USER) {
+                com.psycorp.psychapi.feature.user.model.User u = userMap.get(t.getSubscriberId());
+                if (u != null) {
+                    subEmail = u.getEmail();
+                    subName = u.getFullName();
+                }
+            } else {
+                // Fallback untuk Organization jika belum ada map-nya
+                subName = "Organization " + t.getSubscriberId().toHexString();
+            }
+
+            AdminTransactionResponse.SubscriptionDetail subDetail = null;
+            if (sub != null) {
+                subDetail = new AdminTransactionResponse.SubscriptionDetail(
+                    sub.getId().toHexString(),
+                    sub.getStatus(),
+                    sub.getStartDate(),
+                    sub.getEndDate(),
+                    sub.getCanceledAt()
+                );
+            }
+
+            return new AdminTransactionResponse(
+                t.getSubscriberId() != null ? t.getSubscriberId().toHexString() : null,
+                t.getSubscriberType(),
+                subEmail,
+                subName,
+                t.getPlanId() != null ? t.getPlanId().toHexString() : null,
+                plan != null ? plan.getCode() : null,
+                plan != null ? plan.getName() : null,
+                t.getAmount(),
+                "IDR",
+                t.getReferenceId(),
+                t.getXenditInvoiceId(),
+                t.getCheckoutUrl(),
+                t.getPaymentMethod(),
+                t.getStatus(),
+                t.getCreatedAt(),
+                t.getPaidAt(),
+                t.getExpiredAt(),
+                subDetail
+            );
+        }).toList();
     }
 }

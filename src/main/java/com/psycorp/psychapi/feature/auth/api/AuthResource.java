@@ -87,8 +87,6 @@ public class AuthResource {
     @Inject 
     SubscriptionService subscriptionService;
 
-    private static final String[] SESSION_SEARCH_FIELDS = { "deviceInfo.browser", "deviceInfo.os", "deviceInfo.ip", "deviceInfo.location" };
-
     public AuthResource(AuthService authService) {
         this.authService = authService;
     }
@@ -194,10 +192,7 @@ public class AuthResource {
     @APIResponse(responseCode = "401", description = "Unauthorized - Invalid or expired token", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     @APIResponse(responseCode = "403", description = "Forbidden - User not found or inactive", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     @APIResponse(responseCode = "500", description = "Internal server error", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
-    public Response me(
-        @Parameter(description = "HTTP Headers dengan Authorization header", required = true)
-        @Context ContainerRequestContext requestContext
-    ) {
+    public Response me(@Parameter(description = "HTTP Headers dengan Authorization header", required = true) @Context ContainerRequestContext requestContext) {
         User user = (User) requestContext.getProperty("validatedUser");
         
         if (user == null) {
@@ -266,7 +261,7 @@ public class AuthResource {
         User user = (User) requestContext.getProperty("validatedUser");
         if (user == null) throw new ForbiddenException("Authentication required");
 
-        Bson filter = MongoFilter.fromRequest(request, SESSION_SEARCH_FIELDS);
+        Bson filter = MongoFilter.fromRequest(request, SessionListRequest.SESSION_SEARCH_FIELDS);
         Bson sort = MongoFilter.sort(request);
 
         List<SessionResponse> sessions = authService.getSessions(user.getId(), filter, sort, request.page(), request.limit());

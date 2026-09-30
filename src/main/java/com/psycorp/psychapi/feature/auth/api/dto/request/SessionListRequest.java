@@ -37,4 +37,6 @@ public record SessionListRequest(
     @DefaultValue("desc")
     @Parameter(description = "Sort order: asc or desc", example = "desc")
     String sortOrder
-) implements PageableRequest {}
+) implements PageableRequest {
+    public static final String[] SESSION_SEARCH_FIELDS = { "deviceInfo.browser", "deviceInfo.os", "deviceInfo.ip", "deviceInfo.location" };
+}

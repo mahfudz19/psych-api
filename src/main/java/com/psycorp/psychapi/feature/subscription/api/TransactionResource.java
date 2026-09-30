@@ -12,6 +12,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import com.mongodb.client.model.Filters;
 import com.psycorp.psychapi.feature.subscription.api.dto.request.CheckoutRequest;
 import com.psycorp.psychapi.feature.subscription.api.dto.request.TransactionHistoryRequest;
+import com.psycorp.psychapi.feature.subscription.api.dto.response.AdminTransactionResponse;
 import com.psycorp.psychapi.feature.subscription.api.dto.response.CheckoutResponse;
 import com.psycorp.psychapi.feature.subscription.api.dto.response.TransactionDetailResponse;
 import com.psycorp.psychapi.feature.subscription.api.dto.response.TransactionHistoryResponse;
@@ -26,6 +27,7 @@ import com.psycorp.psychapi.shared.util.MongoFilter;
 
 import io.quarkus.mongodb.panache.PanacheQuery;
 import io.quarkus.security.Authenticated;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.BeanParam;
@@ -69,25 +71,8 @@ public class TransactionResource {
         long total = transactionService.count(finalFilter);
         List<Transaction> transactions = query.list();
 
-        // Ambil semua xenditInvoiceId dari transaksi PAID untuk mencari Subscription-nya
-        List<String> invoiceIds = transactions.stream()
-            .filter(t -> t.getStatus() == Transaction.Status.PAID && t.getXenditInvoiceId() != null)
-            .map(t -> t.getXenditInvoiceId())
-            .toList();
-
-        // Map Subscription berdasarkan paymentGatewayId (xenditInvoiceId)
-        java.util.Map<String, Subscription> subscriptionMap = new java.util.HashMap<>();
-        if (!invoiceIds.isEmpty()) {
-            List<Subscription> subs = Subscription.list("paymentGatewayId in ?1", invoiceIds);
-            for (Subscription sub : subs) {
-                subscriptionMap.put(sub.getPaymentGatewayId(), sub);
-            }
-        }
-
         // Mapping ke DTO dengan menyertakan data Subscription
-        List<TransactionHistoryResponse> data = transactions.stream()
-            .map(t -> TransactionHistoryResponse.fromEntity(t, subscriptionMap.get(t.getXenditInvoiceId())))
-            .toList();
+        List<TransactionHistoryResponse> data = transactionService.buildHistoryResponse(transactions);
             
         PaginationMeta meta = PaginationMeta.of(request, total);
 
@@ -197,5 +182,26 @@ public class TransactionResource {
         transactionService.cancelActiveSubscription(buyerId);
         
         return ResponseHelper.ok(null, "Langganan aktif berhasil dibatalkan. Anda sekarang dapat membeli paket baru.");
+    }
+
+    @GET
+    @Path("/admin/all")
+    @RolesAllowed("SUPERADMIN")
+    @Operation(summary = "Get all transactions (SUPERADMIN)", description = "Melihat semua riwayat transaksi dari seluruh user dengan paginasi, search, dan filter")
+    public Response getAllTransactions(@BeanParam TransactionHistoryRequest request) {
+        Bson filter = MongoFilter.fromRequest(request, TransactionHistoryRequest.SEARCH_FIELDS);
+        Bson sort = MongoFilter.sort(request);
+
+        PanacheQuery<Transaction> query = transactionService.getTransactionHistory(
+            filter != null ? filter : new org.bson.Document(), sort, request.page(), request.limit());
+        long total = transactionService.count(filter != null ? filter : new org.bson.Document());
+        List<Transaction> transactions = query.list();
+
+        // UBAH BARIS INI:
+        List<AdminTransactionResponse> data = transactionService.buildAdminHistoryResponse(transactions);
+        
+        PaginationMeta meta = PaginationMeta.of(request, total);
+
+        return ResponseHelper.ok(data, "Semua transaksi berhasil diambil", meta);
     }
 }

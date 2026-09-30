@@ -11,6 +11,14 @@ import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import com.mongodb.client.model.Filters;
+import com.psycorp.psychapi.feature.auth.api.dto.request.SessionListRequest;
+import com.psycorp.psychapi.feature.auth.api.dto.response.SessionResponse;
+import com.psycorp.psychapi.feature.auth.service.AuthService;
+import com.psycorp.psychapi.feature.subscription.api.dto.request.TransactionHistoryRequest;
+import com.psycorp.psychapi.feature.subscription.api.dto.response.TransactionHistoryResponse;
+import com.psycorp.psychapi.feature.subscription.model.Transaction;
+import com.psycorp.psychapi.feature.subscription.service.TransactionService;
 import com.psycorp.psychapi.feature.user.api.dto.request.UserListRequest;
 import com.psycorp.psychapi.feature.user.api.dto.response.UserResponse;
 import com.psycorp.psychapi.feature.user.model.User;
@@ -43,6 +51,12 @@ public class UserResource {
 
     @Inject
     UserService userService;
+
+    @Inject
+    AuthService authService;
+
+    @Inject
+    TransactionService transactionService;
 
     @GET
     @RolesAllowed("SUPERADMIN")
@@ -84,5 +98,51 @@ public class UserResource {
         User user = userService.findById(id);
         UserResponse data = UserResponse.fromEntity(user);
         return ResponseHelper.ok(data, "User retrieved successfully");
+    }
+    
+    @GET
+    @Path("/{id}/sessions")
+    @RolesAllowed("SUPERADMIN")
+    @Operation(summary = "Get user sessions by ID (SUPERADMIN)", description = "Mengambil daftar semua sesi login dari user tertentu berdasarkan userId dengan pagination.")
+    @APIResponse(responseCode = "200", description = "Sessions retrieved successfully", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @APIResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    @APIResponse(responseCode = "403", description = "Forbidden - Requires SUPERADMIN role", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    public Response getSessionsByUserId(
+        @Parameter(description = "User ObjectId", required = true)
+        @PathParam("id") org.bson.types.ObjectId userId,
+        @BeanParam SessionListRequest request
+    ) {
+        Bson filter = MongoFilter.fromRequest(request, SessionListRequest.SESSION_SEARCH_FIELDS);
+        Bson sort = MongoFilter.sort(request);
+
+        List<SessionResponse> sessions = authService.getSessions(userId, filter, sort, request.page(), request.limit());
+        long total = authService.getSessionsCount(userId, filter);
+
+        PaginationMeta meta = PaginationMeta.of(request, total);
+        return ResponseHelper.ok(sessions, "Sessions retrieved successfully", meta);
+    }
+
+    @GET
+    @Path("/{id}/transactions")
+    @RolesAllowed("SUPERADMIN")
+    @Operation(summary = "Get transactions by user ID (SUPERADMIN)", description = "Melihat riwayat transaksi user tertentu berdasarkan userId")
+    public Response getTransactionsByUser(
+        @Parameter(description = "User/Subscriber ObjectId", required = true)
+        @PathParam("id") ObjectId userId,
+        @BeanParam TransactionHistoryRequest request
+    ) {
+        Bson baseFilter = Filters.eq("subscriberId", userId);
+        Bson searchFilter = MongoFilter.fromRequest(request, TransactionHistoryRequest.SEARCH_FIELDS);
+        Bson finalFilter = MongoFilter.and(baseFilter, searchFilter);
+        Bson sort = MongoFilter.sort(request);
+
+        PanacheQuery<Transaction> query = transactionService.getTransactionHistory(finalFilter, sort, request.page(), request.limit());
+        long total = transactionService.count(finalFilter);
+        List<Transaction> transactions = query.list();
+
+        List<TransactionHistoryResponse> data = transactionService.buildHistoryResponse(transactions);
+        PaginationMeta meta = PaginationMeta.of(request, total);
+
+        return ResponseHelper.ok(data, "Transaksi user berhasil diambil", meta);
     }
 }
