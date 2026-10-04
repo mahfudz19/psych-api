@@ -10,7 +10,7 @@ import org.jboss.logging.Logger;
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.GeoIp2Exception;
 import com.maxmind.geoip2.model.CityResponse;
-import com.psycorp.psychapi.feature.auth.model.DeviceInfo;
+import com.psycorp.psychapi.feature.auth.models.DeviceInfo;
 
 import io.vertx.core.http.HttpServerRequest;
 import jakarta.annotation.PostConstruct;

@@ -7,8 +7,8 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.psycorp.psychapi.feature.organization.model.Organization;
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.organization.models.Organization;
+import com.psycorp.psychapi.feature.user.models.User;
 
 @Schema(description = "Detail lengkap organization beserta daftar members")
 @JsonInclude(Include.NON_NULL)

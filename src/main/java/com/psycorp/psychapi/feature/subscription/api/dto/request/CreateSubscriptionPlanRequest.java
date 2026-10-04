@@ -2,7 +2,7 @@ package com.psycorp.psychapi.feature.subscription.api.dto.request;
 
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
-import com.psycorp.psychapi.feature.subscription.model.SubscriptionPlan.TargetAudience;
+import com.psycorp.psychapi.feature.subscription.models.SubscriptionPlan.TargetAudience;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;

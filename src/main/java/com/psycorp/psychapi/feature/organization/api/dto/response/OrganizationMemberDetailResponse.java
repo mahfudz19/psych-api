@@ -6,7 +6,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.models.User;
 
 @Schema(description = "Detail lengkap member organization untuk admin/owner view")
 @JsonInclude(Include.NON_NULL)

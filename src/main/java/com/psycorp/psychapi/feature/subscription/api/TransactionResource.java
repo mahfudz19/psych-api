@@ -17,10 +17,10 @@ import com.psycorp.psychapi.feature.subscription.api.dto.response.CheckoutRespon
 import com.psycorp.psychapi.feature.subscription.api.dto.response.TransactionDetailResponse;
 import com.psycorp.psychapi.feature.subscription.api.dto.response.TransactionHistoryResponse;
 import com.psycorp.psychapi.feature.subscription.api.dto.response.TransactionStatusResponse;
-import com.psycorp.psychapi.feature.subscription.model.Subscription;
-import com.psycorp.psychapi.feature.subscription.model.Transaction;
+import com.psycorp.psychapi.feature.subscription.models.Subscription;
+import com.psycorp.psychapi.feature.subscription.models.Transaction;
 import com.psycorp.psychapi.feature.subscription.service.TransactionService;
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.models.User;
 import com.psycorp.psychapi.shared.response.PaginationMeta;
 import com.psycorp.psychapi.shared.response.ResponseHelper;
 import com.psycorp.psychapi.shared.util.MongoFilter;

@@ -18,7 +18,7 @@ import com.psycorp.psychapi.feature.subscription.api.dto.request.CreateSubscript
 import com.psycorp.psychapi.feature.subscription.api.dto.request.SubscriptionPlanListRequest;
 import com.psycorp.psychapi.feature.subscription.api.dto.request.UpdateSubscriptionPlanRequest;
 import com.psycorp.psychapi.feature.subscription.api.dto.response.SubscriptionPlanResponse;
-import com.psycorp.psychapi.feature.subscription.model.SubscriptionPlan;
+import com.psycorp.psychapi.feature.subscription.models.SubscriptionPlan;
 import com.psycorp.psychapi.feature.subscription.service.SubscriptionPlanService;
 import com.psycorp.psychapi.shared.response.ApiErrorResponse;
 import com.psycorp.psychapi.shared.response.ApiResponse;
@@ -80,14 +80,14 @@ public class SubscriptionPlanResource {
     @Path("/store")
     @Operation(summary = "Get available plans for current user", description = "Otomatis mendeteksi tipe akun (USER/ORGANIZATION) dan mengembalikan paket yang sesuai tanpa paginasi.")
     public Response getAvailablePlans(@jakarta.ws.rs.core.Context jakarta.ws.rs.container.ContainerRequestContext requestContext) {
-        com.psycorp.psychapi.feature.user.model.User user = (com.psycorp.psychapi.feature.user.model.User) requestContext.getProperty("validatedUser");
+        com.psycorp.psychapi.feature.user.models.User user = (com.psycorp.psychapi.feature.user.models.User) requestContext.getProperty("validatedUser");
         if (user == null) throw new jakarta.ws.rs.ForbiddenException("Authentication required");
 
         SubscriptionPlan.TargetAudience target;
 
-        if (user.getAccountType() == com.psycorp.psychapi.feature.user.model.User.AccountType.ORGANIZATION) {
-            if (user.getOrganizationRole() != com.psycorp.psychapi.feature.user.model.User.OrganizationRole.owner && 
-                user.getOrganizationRole() != com.psycorp.psychapi.feature.user.model.User.OrganizationRole.admin) {
+        if (user.getAccountType() == com.psycorp.psychapi.feature.user.models.User.AccountType.ORGANIZATION) {
+            if (user.getOrganizationRole() != com.psycorp.psychapi.feature.user.models.User.OrganizationRole.owner && 
+                user.getOrganizationRole() != com.psycorp.psychapi.feature.user.models.User.OrganizationRole.admin) {
                 throw new jakarta.ws.rs.ForbiddenException("Hanya Owner atau Admin yang dapat mengakses menu langganan perusahaan.");
             }
             target = SubscriptionPlan.TargetAudience.ORGANIZATION;

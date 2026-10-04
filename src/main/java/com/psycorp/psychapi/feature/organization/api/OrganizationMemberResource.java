@@ -22,12 +22,12 @@ import static com.psycorp.psychapi.feature.organization.api.dto.request.Organiza
 import com.psycorp.psychapi.feature.organization.api.dto.request.OrganizationMemberRequests.UpdateMemberRoleRequest;
 import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationMemberDetailResponse;
 import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationMemberResponse;
-import com.psycorp.psychapi.feature.organization.model.Organization;
+import com.psycorp.psychapi.feature.organization.models.Organization;
 import com.psycorp.psychapi.feature.organization.service.OrganizationMemberService;
 import com.psycorp.psychapi.feature.organization.service.OrganizationService;
 import com.psycorp.psychapi.feature.subscription.service.SubscriptionService;
-import com.psycorp.psychapi.feature.user.model.User;
-import com.psycorp.psychapi.feature.user.model.User.OrganizationRole;
+import com.psycorp.psychapi.feature.user.models.User;
+import com.psycorp.psychapi.feature.user.models.User.OrganizationRole;
 import com.psycorp.psychapi.feature.user.service.UserService;
 import com.psycorp.psychapi.infrastructure.exception.NotFoundException;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;

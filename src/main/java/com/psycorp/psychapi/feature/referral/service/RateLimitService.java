@@ -9,7 +9,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Updates;
-import com.psycorp.psychapi.feature.referral.model.RateLimitEntry;
+import com.psycorp.psychapi.feature.referral.models.RateLimitEntry;
 import com.psycorp.psychapi.infrastructure.exception.RateLimitExceededException;
 
 import jakarta.enterprise.context.ApplicationScoped;

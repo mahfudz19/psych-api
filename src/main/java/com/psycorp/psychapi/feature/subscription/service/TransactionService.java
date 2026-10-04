@@ -14,9 +14,9 @@ import com.psycorp.psychapi.feature.subscription.api.dto.response.AdminTransacti
 import com.psycorp.psychapi.feature.subscription.api.dto.response.SubscriptionPlanResponse;
 import com.psycorp.psychapi.feature.subscription.api.dto.response.TransactionHistoryResponse;
 import com.psycorp.psychapi.feature.subscription.api.dto.response.TransactionStatusResponse;
-import com.psycorp.psychapi.feature.subscription.model.Subscription;
-import com.psycorp.psychapi.feature.subscription.model.SubscriptionPlan;
-import com.psycorp.psychapi.feature.subscription.model.Transaction;
+import com.psycorp.psychapi.feature.subscription.models.Subscription;
+import com.psycorp.psychapi.feature.subscription.models.SubscriptionPlan;
+import com.psycorp.psychapi.feature.subscription.models.Transaction;
 import com.psycorp.psychapi.infrastructure.exception.NotFoundException;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 
@@ -264,8 +264,8 @@ public class TransactionService implements PanacheMongoRepository<Transaction> {
                 .collect(java.util.stream.Collectors.toMap(p -> p.getId(), p -> p));
 
         // Untuk subscriber, kita cari di User
-        java.util.Map<ObjectId, com.psycorp.psychapi.feature.user.model.User> userMap = 
-            com.psycorp.psychapi.feature.user.model.User.<com.psycorp.psychapi.feature.user.model.User>list("_id in ?1", subscriberIds).stream()
+        java.util.Map<ObjectId, com.psycorp.psychapi.feature.user.models.User> userMap = 
+            com.psycorp.psychapi.feature.user.models.User.<com.psycorp.psychapi.feature.user.models.User>list("_id in ?1", subscriberIds).stream()
                 .collect(java.util.stream.Collectors.toMap(u -> u.getId(), u -> u));
 
         // 3. Mapping ke DTO
@@ -277,7 +277,7 @@ public class TransactionService implements PanacheMongoRepository<Transaction> {
             String subName = null;
             
             if (t.getSubscriberType() == Subscription.SubscriberType.USER) {
-                com.psycorp.psychapi.feature.user.model.User u = userMap.get(t.getSubscriberId());
+                com.psycorp.psychapi.feature.user.models.User u = userMap.get(t.getSubscriberId());
                 if (u != null) {
                     subEmail = u.getEmail();
                     subName = u.getFullName();

@@ -3,8 +3,8 @@ package com.psycorp.psychapi.feature.organization.service;
 import java.util.List;
 import java.util.Objects;
 
-import com.psycorp.psychapi.feature.organization.model.Organization;
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.organization.models.Organization;
+import com.psycorp.psychapi.feature.user.models.User;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.shared.util.DocumentUpdater;
 

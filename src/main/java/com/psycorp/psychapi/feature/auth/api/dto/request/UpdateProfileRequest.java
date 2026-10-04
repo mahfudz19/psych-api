@@ -1,6 +1,6 @@
 package com.psycorp.psychapi.feature.auth.api.dto.request;
 
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.models.User;
 
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;

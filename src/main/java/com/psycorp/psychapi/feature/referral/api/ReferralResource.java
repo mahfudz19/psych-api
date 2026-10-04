@@ -12,7 +12,7 @@ import com.psycorp.psychapi.feature.referral.api.dto.request.RegenerateReferralR
 import com.psycorp.psychapi.feature.referral.api.dto.response.ReferralCodeResponse;
 import com.psycorp.psychapi.feature.referral.api.dto.response.ReferralStatsResponse;
 import com.psycorp.psychapi.feature.referral.service.ReferralService;
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.models.User;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.shared.response.ApiErrorResponse;
 import com.psycorp.psychapi.shared.response.ApiResponse;

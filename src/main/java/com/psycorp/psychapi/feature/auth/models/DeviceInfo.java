@@ -1,4 +1,4 @@
-package com.psycorp.psychapi.feature.auth.model;
+package com.psycorp.psychapi.feature.auth.models;
 
 import java.time.Instant;
 

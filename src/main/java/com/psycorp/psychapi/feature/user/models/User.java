@@ -1,4 +1,4 @@
-package com.psycorp.psychapi.feature.user.model;
+package com.psycorp.psychapi.feature.user.models;
 
 import java.time.Instant;
 import java.util.List;

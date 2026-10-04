@@ -4,8 +4,8 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.psycorp.psychapi.feature.organization.model.Organization;
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.organization.models.Organization;
+import com.psycorp.psychapi.feature.user.models.User;
 
 @JsonInclude(Include.NON_NULL)
 public record OrganizationWithOwnerResponse(

@@ -6,7 +6,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.models.User;
 
 /**
  * Response DTO untuk referral statistics.

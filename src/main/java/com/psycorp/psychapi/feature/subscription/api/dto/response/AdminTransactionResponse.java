@@ -3,8 +3,8 @@ package com.psycorp.psychapi.feature.subscription.api.dto.response;
 import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.psycorp.psychapi.feature.subscription.model.Subscription;
-import com.psycorp.psychapi.feature.subscription.model.Transaction;
+import com.psycorp.psychapi.feature.subscription.models.Subscription;
+import com.psycorp.psychapi.feature.subscription.models.Transaction;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AdminTransactionResponse(

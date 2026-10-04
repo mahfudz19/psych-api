@@ -1,4 +1,4 @@
-package com.psycorp.psychapi.feature.organization.model;
+package com.psycorp.psychapi.feature.organization.models;
 
 import java.time.Instant;
 

@@ -2,7 +2,7 @@ package com.psycorp.psychapi.feature.auth.api.dto.request;
 
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
-import com.psycorp.psychapi.feature.user.model.User.AccountType;
+import com.psycorp.psychapi.feature.user.models.User.AccountType;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 
 import jakarta.validation.constraints.Email;

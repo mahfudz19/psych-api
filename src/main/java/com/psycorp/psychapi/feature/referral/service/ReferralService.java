@@ -3,7 +3,7 @@ package com.psycorp.psychapi.feature.referral.service;
 import java.security.SecureRandom;
 import java.time.Instant;
 
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.models.User;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 
 import jakarta.enterprise.context.ApplicationScoped;

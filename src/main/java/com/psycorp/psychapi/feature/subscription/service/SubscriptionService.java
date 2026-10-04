@@ -5,8 +5,8 @@ import java.time.Instant;
 import org.bson.types.ObjectId;
 
 import com.psycorp.psychapi.feature.auth.api.dto.response.UserInfoResponse;
-import com.psycorp.psychapi.feature.subscription.model.Subscription;
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.subscription.models.Subscription;
+import com.psycorp.psychapi.feature.user.models.User;
 
 import io.quarkus.mongodb.panache.PanacheMongoRepository;
 import jakarta.enterprise.context.ApplicationScoped;

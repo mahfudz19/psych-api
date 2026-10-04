@@ -6,7 +6,7 @@ import java.util.List;
 import org.bson.types.ObjectId;
 
 import com.psycorp.psychapi.feature.auth.service.JwtService;
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.models.User;
 import com.psycorp.psychapi.shared.response.ApiErrorResponse;
 
 import jakarta.annotation.Priority;

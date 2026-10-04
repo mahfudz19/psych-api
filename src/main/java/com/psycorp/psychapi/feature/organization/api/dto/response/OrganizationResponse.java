@@ -22,7 +22,7 @@ public record OrganizationResponse(
     Instant createdAt,
     Instant updatedAt
 ) {
-    public static OrganizationResponse fromEntity(com.psycorp.psychapi.feature.organization.model.Organization org) {
+    public static OrganizationResponse fromEntity(com.psycorp.psychapi.feature.organization.models.Organization org) {
         return new OrganizationResponse(
             org.getId() != null ? org.getId().toHexString() : null,
             org.getName(),

@@ -6,8 +6,8 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.psycorp.psychapi.feature.auth.model.DeviceInfo;
-import com.psycorp.psychapi.feature.auth.model.RefreshToken;
+import com.psycorp.psychapi.feature.auth.models.DeviceInfo;
+import com.psycorp.psychapi.feature.auth.models.RefreshToken;
 
 /**
  * Response wrapper untuk session data.

@@ -21,10 +21,10 @@ import com.psycorp.psychapi.feature.organization.api.dto.request.UpdateOrganizat
 import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationDetailResponse;
 import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationResponse;
 import com.psycorp.psychapi.feature.organization.api.dto.response.OrganizationWithOwnerResponse;
-import com.psycorp.psychapi.feature.organization.model.Organization;
+import com.psycorp.psychapi.feature.organization.models.Organization;
 import com.psycorp.psychapi.feature.organization.service.OrganizationService;
 import com.psycorp.psychapi.feature.subscription.service.SubscriptionService;
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.models.User;
 import com.psycorp.psychapi.feature.user.service.UserService;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.shared.response.PaginationMeta;

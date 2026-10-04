@@ -7,7 +7,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.models.User;
 
 /**
  * Response DTO untuk informasi user.
@@ -87,7 +87,7 @@ public record UserResponse(
     @Schema(description = "Tipe akun", examples = "PERSONAL")
     User.AccountType accountType
 ) {
-    public static UserResponse fromEntity(com.psycorp.psychapi.feature.user.model.User user) {
+    public static UserResponse fromEntity(com.psycorp.psychapi.feature.user.models.User user) {
         return new UserResponse(
             user.getId() != null ? user.getId().toHexString() : null,
             user.getEmail(),

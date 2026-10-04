@@ -4,7 +4,7 @@ import java.time.Instant;
 
 import org.bson.types.ObjectId;
 
-import com.psycorp.psychapi.feature.subscription.model.SubscriptionPlan;
+import com.psycorp.psychapi.feature.subscription.models.SubscriptionPlan;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 
 import io.quarkus.mongodb.panache.PanacheMongoRepository;

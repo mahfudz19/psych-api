@@ -2,7 +2,7 @@ package com.psycorp.psychapi.feature.subscription.api.dto.response;
 
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
-import com.psycorp.psychapi.feature.subscription.model.Transaction;
+import com.psycorp.psychapi.feature.subscription.models.Transaction;
 
 public record TransactionDetailResponse(
     @Schema(description = "ID referensi transaksi", examples = "INV-12345678")

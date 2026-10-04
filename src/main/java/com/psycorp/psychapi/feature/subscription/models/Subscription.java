@@ -1,4 +1,4 @@
-package com.psycorp.psychapi.feature.subscription.model;
+package com.psycorp.psychapi.feature.subscription.models;
 
 import java.time.Instant;
 

@@ -9,7 +9,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import com.psycorp.psychapi.feature.storage.api.dto.request.UploadUrlRequest;
 import com.psycorp.psychapi.feature.storage.api.dto.response.UploadUrlResponse;
 import com.psycorp.psychapi.feature.storage.service.StorageService;
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.models.User;
 import com.psycorp.psychapi.shared.response.ApiErrorResponse;
 import com.psycorp.psychapi.shared.response.ApiResponse;
 import com.psycorp.psychapi.shared.response.ResponseHelper;

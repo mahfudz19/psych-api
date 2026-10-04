@@ -1,4 +1,4 @@
-package com.psycorp.psychapi.feature.referral.model;
+package com.psycorp.psychapi.feature.referral.models;
 
 import java.time.Instant;
 

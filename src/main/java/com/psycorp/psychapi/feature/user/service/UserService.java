@@ -7,12 +7,12 @@ import java.util.List;
 import org.bson.conversions.Bson;
 
 import com.mongodb.client.model.Updates;
-import com.psycorp.psychapi.feature.organization.model.Organization;
+import com.psycorp.psychapi.feature.organization.models.Organization;
 import com.psycorp.psychapi.feature.organization.service.OrganizationService;
 import com.psycorp.psychapi.feature.referral.service.ReferralService;
-import com.psycorp.psychapi.feature.user.model.User;
-import com.psycorp.psychapi.feature.user.model.User.AccountType;
-import com.psycorp.psychapi.feature.user.model.User.Status;
+import com.psycorp.psychapi.feature.user.models.User;
+import com.psycorp.psychapi.feature.user.models.User.AccountType;
+import com.psycorp.psychapi.feature.user.models.User.Status;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import com.psycorp.psychapi.infrastructure.security.PasswordEncoder;
 import com.psycorp.psychapi.shared.util.DocumentUpdater;

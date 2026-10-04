@@ -2,7 +2,7 @@ package com.psycorp.psychapi.feature.organization.api.dto.response;
 
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
-import com.psycorp.psychapi.feature.user.model.User;
+import com.psycorp.psychapi.feature.user.models.User;
 
 /**
  * Response DTO untuk Organization Member.

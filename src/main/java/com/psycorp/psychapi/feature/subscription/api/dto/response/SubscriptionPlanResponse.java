@@ -2,8 +2,8 @@ package com.psycorp.psychapi.feature.subscription.api.dto.response;
 
 import java.time.Instant;
 
-import com.psycorp.psychapi.feature.subscription.model.SubscriptionPlan;
-import com.psycorp.psychapi.feature.subscription.model.SubscriptionPlan.TargetAudience;
+import com.psycorp.psychapi.feature.subscription.models.SubscriptionPlan;
+import com.psycorp.psychapi.feature.subscription.models.SubscriptionPlan.TargetAudience;
 
 public record SubscriptionPlanResponse(
     String id,
