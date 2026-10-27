@@ -12,7 +12,7 @@ import io.quarkus.mongodb.panache.common.MongoEntity;
 
 @MongoEntity(collection = "subscriptions")
 public class Subscription extends PanacheMongoEntity {
-    private ObjectId planId; 
+    private ObjectId planId;
     
     // POLIMORFISME: Siapa yang berlangganan?
     private SubscriberType subscriberType; // "USER" atau "ORGANIZATION"

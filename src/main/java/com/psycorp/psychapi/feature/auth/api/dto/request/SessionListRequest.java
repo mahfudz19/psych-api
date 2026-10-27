@@ -39,4 +39,35 @@ public record SessionListRequest(
     String sortOrder
 ) implements PageableRequest {
     public static final String[] SESSION_SEARCH_FIELDS = { "deviceInfo.browser", "deviceInfo.os", "deviceInfo.ip", "deviceInfo.location" };
+    private static final List<String> DEVICE_FIELDS = List.of("lastActive", "browser", "os", "ip", "location");
+
+    @Override
+    public String sortBy() {
+        if (sortBy != null) {
+            for (String field : DEVICE_FIELDS) {
+                if (field.equalsIgnoreCase(sortBy)) {
+                    return "deviceInfo." + field;
+                }
+            }
+        }
+        return sortBy;
+    }
+
+    @Override
+    public List<String> filter() {
+        if (filter == null) {
+            return List.of();
+        }
+        return filter.stream()
+            .map(f -> {
+                if (f == null) return null;
+                for (String field : DEVICE_FIELDS) {
+                    if (f.startsWith(field + ":")) {
+                        return "deviceInfo." + f;
+                    }
+                }
+                return f;
+            })
+            .toList();
+    }
 }

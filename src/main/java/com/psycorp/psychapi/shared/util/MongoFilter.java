@@ -4,11 +4,11 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
 
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
@@ -45,17 +45,41 @@ public final class MongoFilter {
         // Prevent instantiation
     }
 
-    private static Date toDate(String value) {
+    private static Instant toInstant(String value) {
         try {
-            return Date.from(Instant.parse(value));
+            return Instant.parse(value);
         } catch (DateTimeParseException e) {
-            return Date.from(Instant.parse(value + "T00:00:00Z"));
+            if (!value.contains("T")) {
+                return Instant.parse(value + "T00:00:00Z");
+            }
+            if (!value.endsWith("Z")) {
+                return Instant.parse(value + "Z");
+            }
+            throw e;
         }
     }
 
-    private static Object toDateOrString(String value) {
+    private static boolean isObjectIdField(String field) {
+        if (field == null) return false;
+        String lower = field.toLowerCase();
+        return lower.equals("id") || lower.equals("_id") || lower.endsWith("id") || lower.endsWith("_id");
+    }
+
+    private static Object toTypedValue(String field, String value) {
+        if (value == null) {
+            return null;
+        }
+        if (isObjectIdField(field) && ObjectId.isValid(value)) {
+            return new ObjectId(value);
+        }
+        if ("true".equalsIgnoreCase(value)) {
+            return Boolean.TRUE;
+        }
+        if ("false".equalsIgnoreCase(value)) {
+            return Boolean.FALSE;
+        }
         try {
-            return toDate(value);
+            return toInstant(value);
         } catch (DateTimeParseException e) {
             return value;
         }
@@ -87,32 +111,59 @@ public final class MongoFilter {
         String field = parts[0];
         String operator = parts[1].toLowerCase();
         String value = parts[2];
+
+        if ("deviceInfo".equals(field)) {
+            return Filters.or(
+                Filters.regex("deviceInfo.os", value, "i"),
+                Filters.regex("deviceInfo.browser", value, "i"),
+                Filters.regex("deviceInfo.userAgent", value, "i"),
+                Filters.regex("deviceInfo.ip", value, "i"),
+                Filters.regex("deviceInfo.location", value, "i")
+            );
+        }
         
         return switch (operator) {
             case "in" -> {
                 String[] values = value.split(",");
-                yield Filters.in(field, Arrays.asList(values));
+                List<Object> typedValues = Arrays.stream(values)
+                    .map(v -> toTypedValue(field, v.trim()))
+                    .toList();
+                yield Filters.in(field, typedValues);
             }
             case "nin" -> {
                 String[] values = value.split(",");
-                yield Filters.nin(field, Arrays.asList(values));
+                List<Object> typedValues = Arrays.stream(values)
+                    .map(v -> toTypedValue(field, v.trim()))
+                    .toList();
+                yield Filters.nin(field, typedValues);
             }
-            case "eq" -> Filters.eq(field, toDateOrString(value));
-            case "ne" -> Filters.ne(field, toDateOrString(value));
-            case "gt" -> Filters.gt(field, toDateOrString(value));
-            case "gte" -> Filters.gte(field, toDateOrString(value));
-            case "lt" -> Filters.lt(field, toDateOrString(value));
-            case "lte" -> Filters.lte(field, toDateOrString(value));
+            case "eq" -> Filters.eq(field, toTypedValue(field, value));
+            case "ne" -> Filters.ne(field, toTypedValue(field, value));
+            case "gt" -> Filters.gt(field, toTypedValue(field, value));
+            case "gte" -> Filters.gte(field, toTypedValue(field, value));
+            case "lt" -> Filters.lt(field, toTypedValue(field, value));
+            case "lte" -> Filters.lte(field, toTypedValue(field, value));
             case "between" -> {
                 String[] range = value.split(",", 2);
                 if (range.length < 2) yield null;
                 yield Filters.and(
-                    Filters.gte(field, toDate(range[0])),
-                    Filters.lte(field, toDate(range[1]))
+                    Filters.gte(field, toTypedValue(field, range[0].trim())),
+                    Filters.lte(field, toTypedValue(field, range[1].trim()))
                 );
             }
-            case "contains" -> Filters.regex(field, value, "i");
-            default -> Filters.eq(field, value);
+            case "contains" -> {
+                if (isObjectIdField(field)) {
+                    if (ObjectId.isValid(value)) {
+                        yield Filters.eq(field, new ObjectId(value));
+                    }
+                    yield Filters.expr(new Document("$regexMatch",
+                        new Document("input", new Document("$toString", "$" + field))
+                            .append("regex", value)
+                            .append("options", "i")));
+                }
+                yield Filters.regex(field, value, "i");
+            }
+            default -> Filters.eq(field, toTypedValue(field, value));
         };
     }
     
