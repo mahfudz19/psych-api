@@ -56,24 +56,28 @@ public class TransactionResource {
 
     @GET
     @Operation(summary = "Get transaction history", description = "Melihat riwayat transaksi user/organisasi saat ini dengan paginasi")
-    public Response getHistory(@BeanParam TransactionHistoryRequest request, @Context ContainerRequestContext requestContext) {
+    public Response getHistory(@BeanParam TransactionHistoryRequest request,
+            @Context ContainerRequestContext requestContext) {
         User user = (User) requestContext.getProperty("validatedUser");
-        if (user == null) throw new ForbiddenException("Authentication required");
+        if (user == null)
+            throw new ForbiddenException("Authentication required");
 
-        ObjectId buyerId = user.getAccountType() == User.AccountType.ORGANIZATION ? user.getOrganizationId() : user.getId();
-        
+        ObjectId buyerId = user.getAccountType() == User.AccountType.ORGANIZATION ? user.getOrganizationId()
+                : user.getId();
+
         Bson baseFilter = Filters.eq("subscriberId", buyerId);
         Bson searchFilter = MongoFilter.fromRequest(request, TransactionHistoryRequest.SEARCH_FIELDS);
         Bson finalFilter = MongoFilter.and(baseFilter, searchFilter);
         Bson sort = MongoFilter.sort(request);
 
-        PanacheQuery<Transaction> query = transactionService.getTransactionHistory(finalFilter, sort, request.page(), request.limit());
+        PanacheQuery<Transaction> query = transactionService.getTransactionHistory(finalFilter, sort, request.page(),
+                request.limit());
         long total = transactionService.count(finalFilter);
         List<Transaction> transactions = query.list();
 
         // Mapping ke DTO dengan menyertakan data Subscription
         List<TransactionHistoryResponse> data = transactionService.buildHistoryResponse(transactions);
-            
+
         PaginationMeta meta = PaginationMeta.of(request, total);
 
         return ResponseHelper.ok(data, "Riwayat transaksi berhasil diambil", meta);
@@ -84,9 +88,11 @@ public class TransactionResource {
     @Operation(summary = "Cek status transaksi pending dan langganan aktif", description = "Digunakan untuk mendeteksi apakah user masih memiliki tagihan yang belum dibayar atau paket yang masih aktif")
     public Response getStatus(@Context ContainerRequestContext requestContext) {
         User user = (User) requestContext.getProperty("validatedUser");
-        if (user == null) throw new ForbiddenException("Authentication required");
+        if (user == null)
+            throw new ForbiddenException("Authentication required");
 
-        ObjectId buyerId = user.getAccountType() == User.AccountType.ORGANIZATION ? user.getOrganizationId() : user.getId();
+        ObjectId buyerId = user.getAccountType() == User.AccountType.ORGANIZATION ? user.getOrganizationId()
+                : user.getId();
 
         TransactionStatusResponse statusResponse = transactionService.checkUserSubscriptionStatus(buyerId);
 
@@ -98,14 +104,15 @@ public class TransactionResource {
     @Operation(summary = "Checkout pembelian paket langganan")
     public Response checkout(@Valid CheckoutRequest request, @Context ContainerRequestContext requestContext) {
         User user = (User) requestContext.getProperty("validatedUser");
-        if (user == null) throw new ForbiddenException("Authentication required");
+        if (user == null)
+            throw new ForbiddenException("Authentication required");
 
         Subscription.SubscriberType subscriberType;
         ObjectId buyerId;
 
         if (user.getAccountType() == User.AccountType.ORGANIZATION) {
-            if (user.getOrganizationRole() != User.OrganizationRole.owner && 
-                user.getOrganizationRole() != User.OrganizationRole.admin) {
+            if (user.getOrganizationRole() != User.OrganizationRole.owner &&
+                    user.getOrganizationRole() != User.OrganizationRole.admin) {
                 throw new ForbiddenException("Hanya Owner atau Admin yang dapat melakukan pembelian untuk perusahaan.");
             }
             subscriberType = Subscription.SubscriberType.ORGANIZATION;
@@ -117,18 +124,16 @@ public class TransactionResource {
 
         // Panggil Service
         TransactionService.TransactionResult result = transactionService.checkout(
-            buyerId, user.getEmail(), request.planCode(), subscriberType
-        );
+                buyerId, user.getEmail(), request.planCode(), subscriberType);
 
         // Susun Response dengan data Bank/QRIS dari Xendit
         CheckoutResponse responseData = new CheckoutResponse(
-            result.transaction().getReferenceId(),
-            result.transaction().getCheckoutUrl(),
-            result.transaction().getStatus(),
-            result.invoiceData().get("available_banks"),
-            result.invoiceData().get("available_qr_codes"),
-            result.invoiceData().get("available_ewallets")
-        );
+                result.transaction().getReferenceId(),
+                result.transaction().getCheckoutUrl(),
+                result.transaction().getStatus(),
+                result.invoiceData().get("available_banks"),
+                result.invoiceData().get("available_qr_codes"),
+                result.invoiceData().get("available_ewallets"));
 
         return ResponseHelper.created(responseData, "Checkout berhasil");
     }
@@ -136,22 +141,24 @@ public class TransactionResource {
     @GET
     @Path("/{referenceId}")
     @Operation(summary = "Cek detail dan status transaksi")
-    public Response getTransaction(@PathParam("referenceId") String referenceId, @Context ContainerRequestContext requestContext) {
+    public Response getTransaction(@PathParam("referenceId") String referenceId,
+            @Context ContainerRequestContext requestContext) {
         User user = (User) requestContext.getProperty("validatedUser");
-        if (user == null) throw new ForbiddenException("Authentication required");
+        if (user == null)
+            throw new ForbiddenException("Authentication required");
 
-        ObjectId buyerId = user.getAccountType() == User.AccountType.ORGANIZATION ? user.getOrganizationId() : user.getId();
+        ObjectId buyerId = user.getAccountType() == User.AccountType.ORGANIZATION ? user.getOrganizationId()
+                : user.getId();
 
         TransactionService.TransactionResult result = transactionService.getTransactionDetail(referenceId, buyerId);
 
         TransactionDetailResponse responseData = new TransactionDetailResponse(
-            result.transaction().getReferenceId(),
-            result.transaction().getCheckoutUrl(),
-            result.transaction().getStatus(),
-            result.invoiceData().get("available_banks"),
-            result.invoiceData().get("available_qr_codes"),
-            result.invoiceData().get("available_ewallets")
-        );
+                result.transaction().getReferenceId(),
+                result.transaction().getCheckoutUrl(),
+                result.transaction().getStatus(),
+                result.invoiceData().get("available_banks"),
+                result.invoiceData().get("available_qr_codes"),
+                result.invoiceData().get("available_ewallets"));
 
         return ResponseHelper.ok(responseData, "Detail transaksi berhasil diambil");
     }
@@ -159,14 +166,17 @@ public class TransactionResource {
     @POST
     @Path("/{referenceId}/cancel")
     @Operation(summary = "Cancel pending transaction", description = "Membatalkan transaksi yang belum dibayar")
-    public Response cancelTransaction(@PathParam("referenceId") String referenceId, @Context ContainerRequestContext requestContext) {
+    public Response cancelTransaction(@PathParam("referenceId") String referenceId,
+            @Context ContainerRequestContext requestContext) {
         User user = (User) requestContext.getProperty("validatedUser");
-        if (user == null) throw new ForbiddenException("Authentication required");
+        if (user == null)
+            throw new ForbiddenException("Authentication required");
 
-        ObjectId buyerId = user.getAccountType() == User.AccountType.ORGANIZATION ? user.getOrganizationId() : user.getId();
-        
+        ObjectId buyerId = user.getAccountType() == User.AccountType.ORGANIZATION ? user.getOrganizationId()
+                : user.getId();
+
         transactionService.cancelPendingTransaction(referenceId, buyerId);
-        
+
         return ResponseHelper.ok(null, "Transaksi berhasil dibatalkan");
     }
 
@@ -175,12 +185,14 @@ public class TransactionResource {
     @Operation(summary = "Cancel active subscription", description = "Membatalkan langganan yang sedang aktif saat ini agar bisa membeli paket lain. Sisa hari akan hangus.")
     public Response cancelActiveSubscription(@Context ContainerRequestContext requestContext) {
         User user = (User) requestContext.getProperty("validatedUser");
-        if (user == null) throw new ForbiddenException("Authentication required");
+        if (user == null)
+            throw new ForbiddenException("Authentication required");
 
-        ObjectId buyerId = user.getAccountType() == User.AccountType.ORGANIZATION ? user.getOrganizationId() : user.getId();
-        
+        ObjectId buyerId = user.getAccountType() == User.AccountType.ORGANIZATION ? user.getOrganizationId()
+                : user.getId();
+
         transactionService.cancelActiveSubscription(buyerId);
-        
+
         return ResponseHelper.ok(null, "Langganan aktif berhasil dibatalkan. Anda sekarang dapat membeli paket baru.");
     }
 
@@ -193,13 +205,12 @@ public class TransactionResource {
         Bson sort = MongoFilter.sort(request);
 
         PanacheQuery<Transaction> query = transactionService.getTransactionHistory(
-            filter != null ? filter : new org.bson.Document(), sort, request.page(), request.limit());
+                filter != null ? filter : new org.bson.Document(), sort, request.page(), request.limit());
         long total = transactionService.count(filter != null ? filter : new org.bson.Document());
         List<Transaction> transactions = query.list();
 
-        // UBAH BARIS INI:
         List<AdminTransactionResponse> data = transactionService.buildAdminHistoryResponse(transactions);
-        
+
         PaginationMeta meta = PaginationMeta.of(request, total);
 
         return ResponseHelper.ok(data, "Semua transaksi berhasil diambil", meta);

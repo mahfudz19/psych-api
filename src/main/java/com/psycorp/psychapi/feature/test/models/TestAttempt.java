@@ -11,11 +11,14 @@ import io.quarkus.mongodb.panache.common.MongoEntity;
 
 @MongoEntity(collection = "test_attempts")
 public class TestAttempt extends PanacheMongoEntity {
+    private ObjectId userId;
     private ObjectId assignmentId;
     private ObjectId workspaceId;
     private ObjectId participantId;
     private ObjectId testId;
     private String testVersion;
+    private String testCode;
+    private String testName;
     private Integer attemptNumber = 1;
     private AttemptStatus status = AttemptStatus.IN_PROGRESS;
     private ObjectId currentSectionId;
@@ -28,6 +31,8 @@ public class TestAttempt extends PanacheMongoEntity {
     private List<Map<String, Object>> anomalyFlags;
     private Boolean proctored = false;
     private ScoringStatus scoringStatus = ScoringStatus.PENDING;
+    private Instant createdAt;
+    private Instant updatedAt;
 
     public enum AttemptStatus {
         IN_PROGRESS("IN_PROGRESS"), COMPLETED("COMPLETED"), ABANDONED("ABANDONED"), EXPIRED("EXPIRED");
@@ -49,6 +54,8 @@ public class TestAttempt extends PanacheMongoEntity {
         }
     }
 
+    public ObjectId getUserId() { return userId; }
+    public void setUserId(ObjectId userId) { this.userId = userId; }
     public ObjectId getAssignmentId() { return assignmentId; }
     public void setAssignmentId(ObjectId assignmentId) { this.assignmentId = assignmentId; }
     public ObjectId getWorkspaceId() { return workspaceId; }
@@ -59,6 +66,10 @@ public class TestAttempt extends PanacheMongoEntity {
     public void setTestId(ObjectId testId) { this.testId = testId; }
     public String getTestVersion() { return testVersion; }
     public void setTestVersion(String testVersion) { this.testVersion = testVersion; }
+    public String getTestCode() { return testCode; }
+    public void setTestCode(String testCode) { this.testCode = testCode; }
+    public String getTestName() { return testName; }
+    public void setTestName(String testName) { this.testName = testName; }
     public Integer getAttemptNumber() { return attemptNumber; }
     public void setAttemptNumber(Integer attemptNumber) { this.attemptNumber = attemptNumber; }
     public AttemptStatus getStatus() { return status; }
@@ -83,4 +94,8 @@ public class TestAttempt extends PanacheMongoEntity {
     public void setProctored(Boolean proctored) { this.proctored = proctored; }
     public ScoringStatus getScoringStatus() { return scoringStatus; }
     public void setScoringStatus(ScoringStatus scoringStatus) { this.scoringStatus = scoringStatus; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
 }

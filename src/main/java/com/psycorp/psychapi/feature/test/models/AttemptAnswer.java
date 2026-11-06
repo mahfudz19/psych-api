@@ -14,10 +14,13 @@ public class AttemptAnswer extends PanacheMongoEntity {
     private ObjectId attemptId;
     private ObjectId sectionId;
     private ObjectId testId;
+    private ObjectId userId;
     private List<Map<String, Object>> answers;
     private AnswerStatus status = AnswerStatus.OPEN;
     private Instant savedAt = Instant.now();
     private Integer revision = 0;
+    private Instant createdAt;
+    private Instant updatedAt;
 
     public enum AnswerStatus {
         OPEN("OPEN"), SUBMITTED("SUBMITTED"), AUTO_CLOSED("AUTO_CLOSED");
@@ -43,4 +46,10 @@ public class AttemptAnswer extends PanacheMongoEntity {
     public void setSavedAt(Instant savedAt) { this.savedAt = savedAt; }
     public Integer getRevision() { return revision; }
     public void setRevision(Integer revision) { this.revision = revision; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public ObjectId getUserId() { return userId; }
+    public void setUserId(ObjectId userId) { this.userId = userId; }
 }

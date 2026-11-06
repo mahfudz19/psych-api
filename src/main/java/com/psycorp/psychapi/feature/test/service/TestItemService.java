@@ -189,6 +189,12 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         return count("testId = ?1 and sectionId = ?2 and deletedAt is null", testId, sectionId);
     }
 
+    /** Soal ACTIVE bukan contoh, diurutkan number, untuk ditampilkan ke peserta. */
+    public List<TestItem> listActiveBySection(ObjectId testId, ObjectId sectionId) {
+        return find("testId = ?1 and sectionId = ?2 and status = 'ACTIVE' and isExample = false and deletedAt is null",
+                io.quarkus.panache.common.Sort.ascending("number"), testId, sectionId).list();
+    }
+
     /**
      * Menghitung soal yang punya scaleId itu ATAU option scoringnya memetakan ke
      * scaleId.
@@ -235,7 +241,6 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void extractAndValidateScaleIds(ObjectId testId, Map<?, ?> scoringMap) {
         // scaleMappings langsung
         Object mappings = scoringMap.get("scaleMappings");
@@ -368,7 +373,6 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         return found.stream().anyMatch(i -> !i.getId().equals(excludeItemId));
     }
 
-    @SuppressWarnings("unchecked")
     private boolean itemReferencesScale(TestItem item, ObjectId scaleId) {
         if (item.getOptions() == null)
             return false;
@@ -381,7 +385,6 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         return false;
     }
 
-    @SuppressWarnings("unchecked")
     private boolean containsScaleId(Map<?, ?> scoringMap, ObjectId targetId) {
         Object mappings = scoringMap.get("scaleMappings");
         if (mappings instanceof List<?> list) {
