@@ -121,7 +121,8 @@ public class TestAttemptService implements PanacheMongoRepository<TestAttempt> {
 
     /**
      * Mulai section. Idempoten: kalau sudah IN_PROGRESS, kembalikan state yang ada.
-     * Mengembalikan map berisi section info + items (tanpa kunci) + answers tersimpan.
+     * Mengembalikan map berisi section info + items (tanpa kunci) + answers
+     * tersimpan.
      */
     public Map<String, Object> startSection(ObjectId attemptId, ObjectId userId, ObjectId sectionId) {
         TestAttempt attempt = getOwned(attemptId, userId);
@@ -174,7 +175,8 @@ public class TestAttemptService implements PanacheMongoRepository<TestAttempt> {
         // Ambil jawaban tersimpan
         var answerDoc = answerService.findBySection(attemptId, sectionId);
         List<Map<String, Object>> savedAnswers = answerDoc != null && answerDoc.getAnswers() != null
-                ? answerDoc.getAnswers() : List.of();
+                ? answerDoc.getAnswers()
+                : List.of();
 
         // Bangun section info
         Map<String, Object> sectionInfo = new HashMap<>(state);
@@ -253,7 +255,8 @@ public class TestAttemptService implements PanacheMongoRepository<TestAttempt> {
             }
         } else {
             var answerDoc = answerService.findBySection(attemptId, sectionId);
-            if (answerDoc != null) answerService.close(answerDoc, AnswerStatus.SUBMITTED);
+            if (answerDoc != null)
+                answerService.close(answerDoc, AnswerStatus.SUBMITTED);
         }
 
         // Tandai section COMPLETED
@@ -342,20 +345,24 @@ public class TestAttemptService implements PanacheMongoRepository<TestAttempt> {
 
     /** Menutup semua section yang deadlineAt-nya sudah lewat. */
     private void lazyCloseExpired(TestAttempt attempt) {
-        if (attempt.getSectionStates() == null) return;
+        if (attempt.getSectionStates() == null)
+            return;
         Instant now = Instant.now();
         boolean changed = false;
         List<ObjectId> expiredSections = new ArrayList<>();
 
         for (Map<String, Object> state : attempt.getSectionStates()) {
-            if (!"IN_PROGRESS".equals(state.get("status"))) continue;
+            if (!"IN_PROGRESS".equals(state.get("status")))
+                continue;
             String deadlineStr = (String) state.get("deadlineAt");
-            if (deadlineStr == null) continue;
+            if (deadlineStr == null)
+                continue;
             if (now.isAfter(Instant.parse(deadlineStr))) {
                 state.put("status", "EXPIRED");
                 state.put("completedAt", now.toString());
                 Object rawId = state.get("sectionId");
-                if (rawId != null) expiredSections.add(new ObjectId(rawId.toString()));
+                if (rawId != null)
+                    expiredSections.add(new ObjectId(rawId.toString()));
                 changed = true;
             }
         }
@@ -377,7 +384,8 @@ public class TestAttemptService implements PanacheMongoRepository<TestAttempt> {
             state.put("itemCount", s.getItemCount());
             state.put("timeLimitSeconds", s.getTimeLimitSeconds());
             state.put("navigationPolicy", s.getNavigationPolicy() != null
-                    ? s.getNavigationPolicy().getValue() : "FREE");
+                    ? s.getNavigationPolicy().getValue()
+                    : "FREE");
             state.put("status", "NOT_STARTED");
             state.put("startedAt", null);
             state.put("deadlineAt", null);
@@ -387,7 +395,8 @@ public class TestAttemptService implements PanacheMongoRepository<TestAttempt> {
     }
 
     private Map<String, Object> getSectionState(TestAttempt attempt, ObjectId sectionId) {
-        if (attempt.getSectionStates() == null) return null;
+        if (attempt.getSectionStates() == null)
+            return null;
         return attempt.getSectionStates().stream()
                 .filter(s -> sectionId.toHexString().equals(String.valueOf(s.get("sectionId"))))
                 .findFirst().orElse(null);

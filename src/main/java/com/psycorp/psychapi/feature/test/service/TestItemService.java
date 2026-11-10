@@ -191,7 +191,7 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
 
     /** Soal ACTIVE bukan contoh, diurutkan number, untuk ditampilkan ke peserta. */
     public List<TestItem> listActiveBySection(ObjectId testId, ObjectId sectionId) {
-        return find("testId = ?1 and sectionId = ?2 and status = 'ACTIVE' and isExample = false and deletedAt is null",
+        return find("{'testId': ?1, 'sectionId': ?2, 'status': 'ACTIVE', 'isExample': false, 'deletedAt': null}",
                 io.quarkus.panache.common.Sort.ascending("number"), testId, sectionId).list();
     }
 

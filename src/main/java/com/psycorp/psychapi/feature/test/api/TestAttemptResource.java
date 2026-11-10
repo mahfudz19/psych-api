@@ -11,7 +11,6 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import com.mongodb.client.model.Filters;
 import com.psycorp.psychapi.feature.test.api.dto.request.AttemptListRequest;
 import com.psycorp.psychapi.feature.test.api.dto.request.SaveAnswersRequest;
-import com.psycorp.psychapi.feature.test.api.dto.request.StartAttemptRequest;
 import com.psycorp.psychapi.feature.test.api.dto.request.SubmitSectionRequest;
 import com.psycorp.psychapi.feature.test.api.dto.request.TestDefinitionListRequest;
 import com.psycorp.psychapi.feature.test.api.dto.response.AttemptResponse;
@@ -119,12 +118,12 @@ public class TestAttemptResource {
   // ATTEMPT
   // =====================================================================
 
-  @POST
-  @Path("/attempts")
+  @GET
+  @Path("/attempts/start/{testId}")
   @Operation(summary = "Mulai atau lanjutkan attempt")
   public Response startOrResume(
       @Context ContainerRequestContext requestContext,
-      @Valid StartAttemptRequest req) {
+      @PathParam("testId") ObjectId testId) {
 
     User user = (User) requestContext.getProperty("validatedUser");
     if (user == null)
@@ -132,9 +131,9 @@ public class TestAttemptResource {
 
     boolean isNew = attemptService.find(
         "userId = ?1 and testId = ?2 and status = 'IN_PROGRESS'",
-        user.id, req.testId()).firstResult() == null;
+        user.id, testId).firstResult() == null;
 
-    TestAttempt attempt = attemptService.startOrResume(user.id, req.testId());
+    TestAttempt attempt = attemptService.startOrResume(user.id, testId);
     List<Map<String, Object>> sections = attemptService.buildSectionsWithCount(attempt);
     AttemptResponse resp = AttemptResponse.fromEntity(attempt, sections);
 
