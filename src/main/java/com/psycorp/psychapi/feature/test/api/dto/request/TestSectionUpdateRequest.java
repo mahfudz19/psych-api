@@ -11,16 +11,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record TestSectionUpdateRequest(
-    @NotNull(message = "Order is required") Integer order,
-    @NotBlank(message = "Name is required") String name,
-    String instructions,
-    List<Map<String, Object>> examples,
-    Boolean showExamplesFirst,
-    Integer timeLimitSeconds,
-    Integer itemCount,
-    NavigationPolicy navigationPolicy,
-    DefaultItemType defaultItemType,
-    Map<String, Object> stimulusPhase,
-    Map<String, Object> config,
-    SectionStatus status
-) {}
+        @NotNull(message = "Order is required") Integer order,
+        @NotBlank(message = "Name is required") String name,
+        String instructions,
+        List<Map<String, Object>> examples,
+        Boolean showExamplesFirst,
+        Integer timeLimitSeconds,
+        NavigationPolicy navigationPolicy,
+        DefaultItemType defaultItemType,
+        Map<String, Object> stimulusPhase,
+        Map<String, Object> config,
+        SectionStatus status) {
+}

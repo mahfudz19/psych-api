@@ -237,8 +237,6 @@ public class TestAttemptResource {
         String.valueOf(sectionInfo.get("sectionId")),
         String.valueOf(sectionInfo.get("code")),
         String.valueOf(sectionInfo.get("name")),
-        null, // instructions tidak disimpan di sectionStates — ambil dari TestSection
-        null, null,
         sectionInfo.get("timeLimitSeconds") instanceof Integer i ? i : null,
         String.valueOf(sectionInfo.get("navigationPolicy")),
         sectionInfo.get("itemCount") instanceof Integer ic ? ic : null,
@@ -250,15 +248,11 @@ public class TestAttemptResource {
             : null,
         java.time.Instant.now());
 
-    // Ambil instructions dan examples dari TestSection
     TestSection section = sectionService.findInTest(
         attemptService.getOwned(attemptId, user.id).getTestId(), sectionId);
     SectionStartResponse.SectionInfo full = section != null
         ? new SectionStartResponse.SectionInfo(
             si.id(), si.code(), si.name(),
-            section.getInstructions(),
-            section.getExamples(),
-            section.getShowExamplesFirst(),
             si.timeLimitSeconds(), si.navigationPolicy(), si.itemCount(),
             si.startedAt(), si.deadlineAt(), si.serverTime())
         : si;

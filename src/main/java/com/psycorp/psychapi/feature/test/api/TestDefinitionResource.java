@@ -175,7 +175,7 @@ public class TestDefinitionResource {
 
     @GET
     @Path("/{testId}/sections/{sectionId}")
-    @RolesAllowed({ "SUPERADMIN" })
+    // @RolesAllowed({ "SUPERADMIN" })
     @Operation(summary = "Get section detail")
     public Response getSectionsById(@PathParam("testId") ObjectId testId, @PathParam("sectionId") ObjectId sectionId) {
         TestSection section = sectionService.getInTest(testId, sectionId);
@@ -190,7 +190,7 @@ public class TestDefinitionResource {
         TestSection section = sectionService.create(
                 testId, req.code(), req.order(), req.name(), req.instructions(),
                 req.examples(), req.showExamplesFirst(), req.timeLimitSeconds(),
-                req.itemCount(), req.navigationPolicy(), req.defaultItemType(),
+                req.navigationPolicy(), req.defaultItemType(),
                 req.stimulusPhase(), req.config(), req.status());
         return ResponseHelper.created(TestSectionResponse.fromEntity(section), "Section berhasil dibuat");
     }
@@ -204,7 +204,7 @@ public class TestDefinitionResource {
         TestSection section = sectionService.update(
                 testId, sectionId, req.order(), req.name(), req.instructions(),
                 req.examples(), req.showExamplesFirst(), req.timeLimitSeconds(),
-                req.itemCount(), req.navigationPolicy(), req.defaultItemType(),
+                req.navigationPolicy(), req.defaultItemType(),
                 req.stimulusPhase(), req.config(), req.status());
         return ResponseHelper.ok(TestSectionResponse.fromEntity(section), "Section berhasil diperbarui");
     }

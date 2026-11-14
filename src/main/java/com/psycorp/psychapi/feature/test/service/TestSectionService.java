@@ -38,7 +38,6 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
             List<Map<String, Object>> examples,
             Boolean showExamplesFirst,
             Integer timeLimitSeconds,
-            Integer itemCount,
             NavigationPolicy navigationPolicy,
             DefaultItemType defaultItemType,
             Map<String, Object> stimulusPhase,
@@ -51,7 +50,7 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
             throw new ValidationException("VALIDATION_FAILED",
                     "code wajib diisi: huruf besar, angka, dan underscore (1-20 karakter)");
         }
-        validateFields(order, name, timeLimitSeconds, itemCount, stimulusPhase);
+        validateFields(order, name, timeLimitSeconds, stimulusPhase);
 
         if (codeExists(testId, code)) {
             throw new ValidationException("DUPLICATE_CODE",
@@ -69,7 +68,7 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
         section.setTestVersion(test.getVersion());
         section.setCode(code);
         apply(section, order, name, instructions, examples, showExamplesFirst, timeLimitSeconds,
-                itemCount, navigationPolicy, defaultItemType, stimulusPhase, config, status);
+                navigationPolicy, defaultItemType, stimulusPhase, config, status);
         section.setScaleIds(new ArrayList<>());
         section.setCreatedAt(now);
         section.setUpdatedAt(now);
@@ -87,7 +86,6 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
             List<Map<String, Object>> examples,
             Boolean showExamplesFirst,
             Integer timeLimitSeconds,
-            Integer itemCount,
             NavigationPolicy navigationPolicy,
             DefaultItemType defaultItemType,
             Map<String, Object> stimulusPhase,
@@ -97,7 +95,7 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
         tests.requireDraft(testId);
         TestSection section = getInTest(testId, sectionId);
 
-        validateFields(order, name, timeLimitSeconds, itemCount, stimulusPhase);
+        validateFields(order, name, timeLimitSeconds, stimulusPhase);
 
         if (orderExists(testId, order, sectionId)) {
             throw new ValidationException("ORDER_CONFLICT",
@@ -105,7 +103,7 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
         }
 
         apply(section, order, name, instructions, examples, showExamplesFirst, timeLimitSeconds,
-                itemCount, navigationPolicy, defaultItemType, stimulusPhase, config, status);
+                navigationPolicy, defaultItemType, stimulusPhase, config, status);
         section.setUpdatedAt(Instant.now());
 
         update(section);
@@ -200,7 +198,7 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
     }
 
     private void validateFields(Integer order, String name, Integer timeLimitSeconds,
-            Integer itemCount, Map<String, Object> stimulusPhase) {
+            Map<String, Object> stimulusPhase) {
         if (name == null || name.isBlank()) {
             throw new ValidationException("VALIDATION_FAILED", "name wajib diisi");
         }
@@ -209,9 +207,6 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
         }
         if (timeLimitSeconds != null && timeLimitSeconds <= 0) {
             throw new ValidationException("VALIDATION_FAILED", "timeLimitSeconds harus lebih dari 0 jika diisi");
-        }
-        if (itemCount != null && itemCount < 0) {
-            throw new ValidationException("VALIDATION_FAILED", "itemCount tidak boleh negatif");
         }
         if (stimulusPhase != null) {
             Object contentType = stimulusPhase.get("contentType");
@@ -232,7 +227,7 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
      */
     private void apply(TestSection section, Integer order, String name, String instructions,
             List<Map<String, Object>> examples, Boolean showExamplesFirst, Integer timeLimitSeconds,
-            Integer itemCount, NavigationPolicy navigationPolicy, DefaultItemType defaultItemType,
+            NavigationPolicy navigationPolicy, DefaultItemType defaultItemType,
             Map<String, Object> stimulusPhase, Map<String, Object> config, SectionStatus status) {
         section.setOrder(order);
         section.setName(name.trim());
@@ -240,7 +235,6 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
         section.setExamples(examples == null ? new ArrayList<>() : examples);
         section.setShowExamplesFirst(showExamplesFirst == null ? Boolean.TRUE : showExamplesFirst);
         section.setTimeLimitSeconds(timeLimitSeconds);
-        section.setItemCount(itemCount == null ? 0 : itemCount);
         section.setNavigationPolicy(navigationPolicy == null ? NavigationPolicy.FREE : navigationPolicy);
         section.setDefaultItemType(defaultItemType == null ? DefaultItemType.SINGLE_CHOICE : defaultItemType);
         section.setStimulusPhase(stimulusPhase);
