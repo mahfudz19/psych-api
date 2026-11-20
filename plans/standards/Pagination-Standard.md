@@ -13,6 +13,8 @@ Gunakan standar ini setiap kali membuat fitur list/get-all yang membutuhkan pagi
 1. **Soft Delete**: Selalu tambahkan `Filters.eq("deletedAt", null)` sebagai `baseFilter` jika entity mendukung soft delete.
 2. **Zero-based Page**: Panache menggunakan index 0 untuk page, sehingga selalu gunakan `request.page() - 1`.
 3. **Total Count**: Hitung total dokumen menggunakan `count(finalFilter)` sebelum mapping data.
+4. **Limit Cap**: Selalu batasi `limit` maksimum per halaman dengan `Math.min(request.limit(), 10)`
+   sebelum dipakai di query dan PaginationMeta.
 
 ## 3. Template Implementasi di Resource/Service
 

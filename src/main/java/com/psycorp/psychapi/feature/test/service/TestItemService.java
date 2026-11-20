@@ -10,6 +10,7 @@ import com.psycorp.psychapi.feature.test.models.TestDefinition;
 import com.psycorp.psychapi.feature.test.models.TestItem;
 import com.psycorp.psychapi.feature.test.models.TestItem.ItemStatus;
 import com.psycorp.psychapi.feature.test.models.TestItem.ItemType;
+import com.psycorp.psychapi.feature.test.models.TestSection;
 import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 
 import io.quarkus.mongodb.panache.PanacheMongoRepository;
@@ -95,6 +96,7 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         item.setUpdatedAt(now);
 
         persist(item);
+        syncCounts(testId, sectionId);
         return item;
     }
 
@@ -147,6 +149,7 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         item.setUpdatedAt(Instant.now());
 
         update(item);
+        syncCounts(testId, item.getSectionId());
         return item;
     }
 
@@ -155,6 +158,7 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         TestItem item = getInTest(testId, itemId);
         item.setDeletedAt(Instant.now());
         update(item);
+        syncCounts(testId, item.getSectionId());
     }
 
     public void softDeleteAllByTest(ObjectId testId) {
@@ -405,5 +409,25 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         if (least instanceof Map<?, ?> l && containsScaleId(l, targetId))
             return true;
         return false;
+    }
+
+    private void syncCounts(ObjectId testId, ObjectId sectionId) {
+        // 1. Update itemCount di section
+        TestSection section = sections.findInTest(testId, sectionId);
+        if (section != null) {
+            long sectionCount = countBySection(testId, sectionId);
+            section.setItemCount((int) sectionCount);
+            section.setUpdatedAt(Instant.now());
+            sections.update(section);
+        }
+
+        // 2. Update totalItems di test definition (sum semua section)
+        TestDefinition test = tests.findById(testId);
+        if (test != null) {
+            long total = countByTest(testId);
+            test.setTotalItems((int) total);
+            test.setUpdatedAt(Instant.now());
+            tests.update(test);
+        }
     }
 }

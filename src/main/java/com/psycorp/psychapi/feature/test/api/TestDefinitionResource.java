@@ -315,12 +315,14 @@ public class TestDefinitionResource {
         Bson finalFilter = MongoFilter.and(baseFilter, searchFilter);
         Bson sort = MongoFilter.sort(request);
 
-        int effectiveLimit = Math.min(request.limit(), 200);
-        PanacheQuery<TestItem> query = itemService.find(finalFilter, sort).page(request.page() - 1, effectiveLimit);
+        int limit = Math.min(request.limit(), 10);
+        PanacheQuery<TestItem> query = itemService.find(finalFilter, sort).page(request.page() - 1, limit);
         long total = itemService.count(finalFilter);
-
         List<TestItemResponse> data = query.stream().map(TestItemResponse::fromEntity).toList();
-        return ResponseHelper.ok(data, "Items retrieved successfully", PaginationMeta.of(request, total));
+
+        PaginationMeta meta = new PaginationMeta(request.page(), limit, total,
+                (int) Math.ceil((double) total / limit));
+        return ResponseHelper.ok(data, "Items retrieved successfully", meta);
     }
 
     @GET
