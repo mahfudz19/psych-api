@@ -1,5 +1,7 @@
 package com.psycorp.psychapi.feature.auth.api.dto.request;
 
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+
 import com.psycorp.psychapi.feature.user.models.User;
 
 import jakarta.validation.constraints.Pattern;
@@ -17,7 +19,7 @@ public record UpdateProfileRequest(
     @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "Date of birth must be in yyyy-MM-dd format")
     String dateOfBirth,
 
-    @Pattern(regexp = "^(male|female)$", message = "Gender must be one of: male, female, other")
+    @Schema(description = "Gender must be one of: male, female", examples = "male, female")
     User.Gender gender,
 
     String profilePicture
