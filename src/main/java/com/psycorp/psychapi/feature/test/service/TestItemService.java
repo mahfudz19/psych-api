@@ -1,11 +1,16 @@
 package com.psycorp.psychapi.feature.test.service;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.bson.types.ObjectId;
 
+import com.psycorp.psychapi.feature.storage.service.FileCleanupEvent;
+import com.psycorp.psychapi.feature.storage.service.StorageService;
 import com.psycorp.psychapi.feature.test.models.TestDefinition;
 import com.psycorp.psychapi.feature.test.models.TestItem;
 import com.psycorp.psychapi.feature.test.models.TestItem.ItemStatus;
@@ -15,7 +20,9 @@ import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 
 import io.quarkus.mongodb.panache.PanacheMongoRepository;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.InternalServerErrorException;
 
 @ApplicationScoped
 public class TestItemService implements PanacheMongoRepository<TestItem> {
@@ -28,6 +35,12 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
 
     @Inject
     TestScaleService scales;
+
+    @Inject
+    StorageService storageService;
+
+    @Inject
+    Event<FileCleanupEvent> fileCleanupEvent;
 
     // =====================================================================
     // CRUD
@@ -84,6 +97,9 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         validateItemRules(type, options, reverseScored, scaleId, weight, difficulty,
                 timeLimitSeconds);
 
+        // Commit temp files ke path permanen sebelum simpan DB
+        List<String> committedUrls = commitTempFiles(content, options);
+
         TestItem item = new TestItem();
         item.setTestId(testId);
         item.setSectionId(sectionId);
@@ -97,7 +113,12 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         item.setCreatedAt(now);
         item.setUpdatedAt(now);
 
-        persist(item);
+        try {
+            persist(item);
+        } catch (Exception e) {
+            rollbackCommittedFiles(committedUrls);
+            throw new InternalServerErrorException("Gagal menyimpan soal", e);
+        }
         syncCounts(testId, sectionId);
         return item;
     }
@@ -148,21 +169,49 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         validateItemRules(item.getType(), options, reverseScored, scaleId, weight,
                 difficulty, timeLimitSeconds);
 
+        // Kumpulkan file URL lama sebelum di-overwrite
+        Set<String> oldUrls = extractAllFileUrls(item.getContent(), item.getOptions());
+
+        // Commit temp files baru
+        List<String> committedUrls = commitTempFiles(content, options);
+
         apply(item, number, content, options, groupId, scaleId, reverseScored, weight, scoredInTotal,
                 consistencyGroup, answerKey, timeLimitSeconds, constraints, difficulty, isExample, status, tags);
         item.setUpdatedAt(Instant.now());
 
-        update(item);
+        try {
+            update(item);
+        } catch (Exception e) {
+            rollbackCommittedFiles(committedUrls);
+            throw new InternalServerErrorException("Gagal menyimpan soal", e);
+        }
         syncCounts(testId, item.getSectionId());
+
+        // Hapus file lama yang sudah tidak dipakai (async)
+        Set<String> newUrls = extractAllFileUrls(content, options);
+        oldUrls.removeAll(newUrls);
+        if (!oldUrls.isEmpty()) {
+            fileCleanupEvent.fireAsync(new FileCleanupEvent(List.copyOf(oldUrls)));
+        }
+
         return item;
     }
 
     public void delete(ObjectId testId, ObjectId itemId) {
         tests.requireDraft(testId);
         TestItem item = getInTest(testId, itemId);
+
+        // Kumpulkan file URLs sebelum soft-delete
+        Set<String> fileUrls = extractAllFileUrls(item.getContent(), item.getOptions());
+
         item.setDeletedAt(Instant.now());
         update(item);
         syncCounts(testId, item.getSectionId());
+
+        // Hapus file di cloud (async)
+        if (!fileUrls.isEmpty()) {
+            fileCleanupEvent.fireAsync(new FileCleanupEvent(List.copyOf(fileUrls)));
+        }
     }
 
     public void softDeleteAllByTest(ObjectId testId) {
@@ -311,6 +360,94 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
                     .count();
             if (uniqueKeys < options.size()) {
                 throw new ValidationException("VALIDATION_FAILED", "key pada options harus unik dalam satu soal");
+            }
+        }
+    }
+
+    // =====================================================================
+    // PRIVATE: FILE LIFECYCLE
+    // =====================================================================
+
+    /** Kumpulkan semua file URL dari content dan options. */
+    @SuppressWarnings("unchecked")
+    private Set<String> extractAllFileUrls(Map<String, Object> content, List<Map<String, Object>> options) {
+        Set<String> urls = new HashSet<>();
+        if (content != null) {
+            Object audioUrl = content.get("audioUrl");
+            if (audioUrl instanceof String s && !s.isBlank()) urls.add(s);
+
+            Object images = content.get("images");
+            if (images instanceof List<?> imgList) {
+                for (Object img : imgList) {
+                    if (img instanceof Map<?, ?> imgMap) {
+                        Object url = imgMap.get("url");
+                        if (url instanceof String s && !s.isBlank()) urls.add(s);
+                    }
+                }
+            }
+        }
+        if (options != null) {
+            for (Map<String, Object> opt : options) {
+                Object imageUrl = opt.get("imageUrl");
+                if (imageUrl instanceof String s && !s.isBlank()) urls.add(s);
+            }
+        }
+        return urls;
+    }
+
+    /**
+     * Commit semua URL temp/ di content dan options ke path permanen.
+     * Mutasi in-place: replace URL temp dengan URL permanen.
+     * Return list URL permanen yang baru di-commit (untuk rollback).
+     */
+    @SuppressWarnings("unchecked")
+    private List<String> commitTempFiles(Map<String, Object> content, List<Map<String, Object>> options) {
+        List<String> committed = new ArrayList<>();
+
+        if (content != null) {
+            Object audioUrl = content.get("audioUrl");
+            if (audioUrl instanceof String s && s.contains("temp/")) {
+                String perm = storageService.commitPublicFile(s);
+                content.put("audioUrl", perm);
+                committed.add(perm);
+            }
+
+            Object images = content.get("images");
+            if (images instanceof List<?> imgList) {
+                for (Object img : imgList) {
+                    if (img instanceof Map<?, ?> imgMap) {
+                        Object url = imgMap.get("url");
+                        if (url instanceof String s && s.contains("temp/")) {
+                            String perm = storageService.commitPublicFile(s);
+                            ((Map<String, Object>) imgMap).put("url", perm);
+                            committed.add(perm);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (options != null) {
+            for (Map<String, Object> opt : options) {
+                Object imageUrl = opt.get("imageUrl");
+                if (imageUrl instanceof String s && s.contains("temp/")) {
+                    String perm = storageService.commitPublicFile(s);
+                    opt.put("imageUrl", perm);
+                    committed.add(perm);
+                }
+            }
+        }
+
+        return committed;
+    }
+
+    /** Rollback: hapus file yang sudah di-commit jika DB gagal. */
+    private void rollbackCommittedFiles(List<String> committedUrls) {
+        for (String url : committedUrls) {
+            try {
+                storageService.deletePublicFile(url);
+            } catch (Exception ignored) {
+                // best-effort cleanup
             }
         }
     }

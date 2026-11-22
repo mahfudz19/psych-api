@@ -56,7 +56,8 @@ public class StorageService {
     private static final Map<String, String> CATEGORY_PATH = Map.of(
         "PROFILE_PICTURE", "profile",
         "DOCUMENT", "documents",
-        "ORGANIZATION_LOGO", "org-logo"
+        "ORGANIZATION_LOGO", "org-logo",
+        "TEST_ASSETS", "test-assets"
     );
 
     @PostConstruct
@@ -130,7 +131,8 @@ public class StorageService {
         }
     }
 
-    public String commitPublicFile(String fileKey) {
+    public String commitPublicFile(String fileUrlOrKey) {
+        String fileKey = extractFileKey(fileUrlOrKey, this.publicBucket);
         return this.commitFile(fileKey, this.publicBucket);
     }
     
