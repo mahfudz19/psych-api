@@ -183,9 +183,12 @@ public class TestAttemptResource {
       row.put("completedAt", a.getCompletedAt() != null ? a.getCompletedAt().toString() : null);
       row.put("answeredItems", answered);
       row.put("totalItems", a.getSectionStates() != null
-          ? a.getSectionStates().stream()
-              .mapToLong(s -> s.get("itemCount") instanceof Integer i ? i : 0).sum()
-          : 0);
+        ? a.getSectionStates().stream()
+            .mapToLong(s -> {
+                Object v = s.get("itemCount");
+                return v instanceof Integer i ? i.longValue() : 0L;
+            }).sum()
+        : 0);
       return row;
     }).toList();
 

@@ -68,7 +68,9 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         }
 
         // Validasi content
-        validateContent(content);
+        if (content == null) {
+            throw new ValidationException("VALIDATION_FAILED", "content wajib diisi");
+        }
 
         // Validasi scaleId
         if (scaleId != null && scales.findInTest(testId, scaleId) == null) {
@@ -79,7 +81,7 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         validateScaleMappings(testId, options);
 
         // Validasi aturan per tipe soal
-        validateItemRules(type, content, options, answerKey, reverseScored, scaleId, weight, difficulty,
+        validateItemRules(type, options, reverseScored, scaleId, weight, difficulty,
                 timeLimitSeconds);
 
         TestItem item = new TestItem();
@@ -130,7 +132,9 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         }
 
         // Validasi content
-        validateContent(content);
+        if (content == null) {
+            throw new ValidationException("VALIDATION_FAILED", "content wajib diisi");
+        }
 
         // Validasi scaleId
         if (scaleId != null && scales.findInTest(testId, scaleId) == null) {
@@ -141,7 +145,7 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         validateScaleMappings(testId, options);
 
         // Validasi aturan per tipe soal (type tidak bisa diubah, pakai type existing)
-        validateItemRules(item.getType(), content, options, answerKey, reverseScored, scaleId, weight,
+        validateItemRules(item.getType(), options, reverseScored, scaleId, weight,
                 difficulty, timeLimitSeconds);
 
         apply(item, number, content, options, groupId, scaleId, reverseScored, weight, scoredInTotal,
@@ -223,17 +227,6 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
     // PRIVATE: VALIDASI
     // =====================================================================
 
-    private void validateContent(Map<String, Object> content) {
-        if (content == null) {
-            throw new ValidationException("VALIDATION_FAILED", "content wajib diisi");
-        }
-        boolean hasText = content.get("text") instanceof String s && !s.isBlank();
-        boolean hasImages = content.get("images") instanceof List<?> list && !list.isEmpty();
-        if (!hasText && !hasImages) {
-            throw new ValidationException("VALIDATION_FAILED", "content wajib memiliki 'text' atau 'images'");
-        }
-    }
-
     private void validateScaleMappings(ObjectId testId, List<Map<String, Object>> options) {
         if (options == null)
             return;
@@ -273,9 +266,7 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
 
     private void validateItemRules(
             ItemType type,
-            Map<String, Object> content,
             List<Map<String, Object>> options,
-            Map<String, Object> answerKey,
             Boolean reverseScored,
             ObjectId scaleId,
             Double weight,
