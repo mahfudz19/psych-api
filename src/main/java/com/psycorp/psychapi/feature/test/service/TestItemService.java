@@ -187,11 +187,17 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
         }
         syncCounts(testId, item.getSectionId());
 
-        // Hapus file lama yang sudah tidak dipakai (async)
+        // Hapus file lama yang sudah tidak dipakai item manapun (async)
         Set<String> newUrls = extractAllFileUrls(content, options);
         oldUrls.removeAll(newUrls);
         if (!oldUrls.isEmpty()) {
-            fileCleanupEvent.fireAsync(new FileCleanupEvent(List.copyOf(oldUrls)));
+            // Hanya hapus file yang tidak direferensi item lain
+            List<String> safeToDelete = oldUrls.stream()
+                    .filter(url -> !isFileReferencedByOtherItems(url, itemId))
+                    .toList();
+            if (!safeToDelete.isEmpty()) {
+                fileCleanupEvent.fireAsync(new FileCleanupEvent(safeToDelete));
+            }
         }
 
         return item;
@@ -200,18 +206,9 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
     public void delete(ObjectId testId, ObjectId itemId) {
         tests.requireDraft(testId);
         TestItem item = getInTest(testId, itemId);
-
-        // Kumpulkan file URLs sebelum soft-delete
-        Set<String> fileUrls = extractAllFileUrls(item.getContent(), item.getOptions());
-
         item.setDeletedAt(Instant.now());
         update(item);
         syncCounts(testId, item.getSectionId());
-
-        // Hapus file di cloud (async)
-        if (!fileUrls.isEmpty()) {
-            fileCleanupEvent.fireAsync(new FileCleanupEvent(List.copyOf(fileUrls)));
-        }
     }
 
     public void softDeleteAllByTest(ObjectId testId) {
@@ -393,6 +390,17 @@ public class TestItemService implements PanacheMongoRepository<TestItem> {
             }
         }
         return urls;
+    }
+
+    /** Cek apakah URL file masih direferensi oleh item lain (selain excludeItemId). */
+    private boolean isFileReferencedByOtherItems(String fileUrl, ObjectId excludeItemId) {
+        List<TestItem> allItems = find("deletedAt is null").list();
+        for (TestItem other : allItems) {
+            if (other.getId().equals(excludeItemId)) continue;
+            Set<String> urls = extractAllFileUrls(other.getContent(), other.getOptions());
+            if (urls.contains(fileUrl)) return true;
+        }
+        return false;
     }
 
     /**
