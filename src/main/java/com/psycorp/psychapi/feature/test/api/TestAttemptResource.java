@@ -11,6 +11,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import com.mongodb.client.model.Filters;
 import com.psycorp.psychapi.feature.test.api.dto.request.AttemptListRequest;
 import com.psycorp.psychapi.feature.test.api.dto.request.SaveAnswersRequest;
+import com.psycorp.psychapi.feature.test.api.dto.request.StartSectionRequest;
 import com.psycorp.psychapi.feature.test.api.dto.request.SubmitSectionRequest;
 import com.psycorp.psychapi.feature.test.api.dto.request.TestDefinitionListRequest;
 import com.psycorp.psychapi.feature.test.api.dto.response.AttemptResponse;
@@ -221,7 +222,8 @@ public class TestAttemptResource {
   public Response startSection(
       @Context ContainerRequestContext requestContext,
       @PathParam("attemptId") ObjectId attemptId,
-      @PathParam("sectionId") ObjectId sectionId) {
+      @PathParam("sectionId") ObjectId sectionId,
+      @Valid StartSectionRequest req) {
 
     User user = (User) requestContext.getProperty("validatedUser");
     if (user == null)
@@ -235,32 +237,43 @@ public class TestAttemptResource {
     List<Map<String, Object>> items = (List<Map<String, Object>>) result.get("items");
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> answers = (List<Map<String, Object>>) result.get("answers");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> stimulusPhaseResult = (Map<String, Object>) result.get("stimulusPhase");
 
-    SectionStartResponse.SectionInfo si = new SectionStartResponse.SectionInfo(
+    TestSection section = sectionService.findInTest(
+        attemptService.getOwned(attemptId, user.id).getTestId(), sectionId);
+
+    // startedAt hanya tersedia saat IN_PROGRESS, bukan saat STIMULUS_IN_PROGRESS
+    java.time.Instant startedAt = sectionInfo.get("startedAt") != null
+        ? java.time.Instant.parse(sectionInfo.get("startedAt").toString()) : null;
+    java.time.Instant deadlineAt = sectionInfo.get("deadlineAt") != null
+        ? java.time.Instant.parse(sectionInfo.get("deadlineAt").toString()) : null;
+    java.time.Instant stimulusStartedAt = sectionInfo.get("stimulusStartedAt") != null
+        ? java.time.Instant.parse(sectionInfo.get("stimulusStartedAt").toString()) : null;
+    java.time.Instant stimulusDeadlineAt = sectionInfo.get("stimulusDeadlineAt") != null
+        ? java.time.Instant.parse(sectionInfo.get("stimulusDeadlineAt").toString()) : null;
+
+    SectionStartResponse.SectionInfo full = new SectionStartResponse.SectionInfo(
         String.valueOf(sectionInfo.get("sectionId")),
         String.valueOf(sectionInfo.get("code")),
         String.valueOf(sectionInfo.get("name")),
         sectionInfo.get("timeLimitSeconds") instanceof Integer i ? i : null,
         String.valueOf(sectionInfo.get("navigationPolicy")),
         sectionInfo.get("itemCount") instanceof Integer ic ? ic : null,
-        sectionInfo.get("startedAt") != null
-            ? java.time.Instant.parse(sectionInfo.get("startedAt").toString())
-            : null,
-        sectionInfo.get("deadlineAt") != null
-            ? java.time.Instant.parse(sectionInfo.get("deadlineAt").toString())
-            : null,
-        java.time.Instant.now());
+        startedAt,
+        deadlineAt,
+        java.time.Instant.now(),
+        section != null ? section.getConfig() : null,
+        section != null ? section.getExamples() : null,
+        section != null ? section.getStimulusPhase() : null,
+        section != null ? section.getInstructions() : null,
+        stimulusStartedAt,
+        stimulusDeadlineAt
+      );
 
-    TestSection section = sectionService.findInTest(
-        attemptService.getOwned(attemptId, user.id).getTestId(), sectionId);
-    SectionStartResponse.SectionInfo full = section != null
-        ? new SectionStartResponse.SectionInfo(
-            si.id(), si.code(), si.name(),
-            si.timeLimitSeconds(), si.navigationPolicy(), si.itemCount(),
-            si.startedAt(), si.deadlineAt(), si.serverTime())
-        : si;
-
-    return ResponseHelper.ok(new SectionStartResponse(full, items, answers), "Subtes berhasil dimulai");
+    return ResponseHelper.ok(
+        new SectionStartResponse(full, items, answers, stimulusPhaseResult),
+        stimulusPhaseResult != null ? "Fase hafalan dimulai" : "Subtes berhasil dimulai");
   }
 
   @PUT

@@ -121,8 +121,15 @@ public class TestAttemptService implements PanacheMongoRepository<TestAttempt> {
 
     /**
      * Mulai section. Idempoten: kalau sudah IN_PROGRESS, kembalikan state yang ada.
-     * Mengembalikan map berisi section info + items (tanpa kunci) + answers
-     * tersimpan.
+     * <p>
+     * Jika section memiliki {@code stimulusPhase}, prosesnya dua tahap:
+     * <ol>
+     *   <li>Panggilan pertama (status NOT_STARTED) → set status ke STIMULUS_IN_PROGRESS,
+     *       catat stimulusStartedAt/stimulusDeadlineAt, kembalikan data stimulus (tanpa soal).</li>
+     *   <li>Panggilan kedua (status STIMULUS_IN_PROGRESS) → set status ke IN_PROGRESS,
+     *       catat startedAt/deadlineAt, buat dokumen jawaban, kembalikan soal seperti biasa.</li>
+     * </ol>
+     * Jika section tidak memiliki {@code stimulusPhase}, langsung ke IN_PROGRESS (behavior lama).
      */
     public Map<String, Object> startSection(ObjectId attemptId, ObjectId userId, ObjectId sectionId) {
         TestAttempt attempt = getOwned(attemptId, userId);
@@ -140,8 +147,71 @@ public class TestAttemptService implements PanacheMongoRepository<TestAttempt> {
             throw new ValidationException("INVALID_STATE", "Section sudah selesai dan tidak bisa dibuka lagi");
         }
 
-        // Pastikan tidak ada section lain yang IN_PROGRESS
-        if (!"IN_PROGRESS".equals(sectionStatus)) {
+        // Ambil definisi section untuk cek stimulusPhase
+        TestSection section = sections.findById(new ObjectId(sectionId.toHexString()));
+        boolean hasStimulusPhase = section != null && section.getStimulusPhase() != null
+                && !section.getStimulusPhase().isEmpty();
+
+        // ── Fase Hafalan (STIMULUS_IN_PROGRESS) ──────────────────────────────
+        if ("NOT_STARTED".equals(sectionStatus) && hasStimulusPhase) {
+            // Pastikan tidak ada section lain yang IN_PROGRESS atau STIMULUS_IN_PROGRESS
+            boolean anotherActive = attempt.getSectionStates().stream()
+                    .anyMatch(s -> ("IN_PROGRESS".equals(s.get("status")) || "STIMULUS_IN_PROGRESS".equals(s.get("status")))
+                            && !sectionId.toHexString().equals(String.valueOf(s.get("sectionId"))));
+            if (anotherActive) {
+                throw new ValidationException("INVALID_STATE",
+                        "Selesaikan subtes yang sedang berjalan terlebih dahulu");
+            }
+
+            Instant now = Instant.now();
+            Map<String, Object> sp = section.getStimulusPhase();
+            Integer displaySeconds = sp.get("displaySeconds") instanceof Number n
+                    ? n.intValue() : null;
+
+            state.put("status", "STIMULUS_IN_PROGRESS");
+            state.put("stimulusStartedAt", now.toString());
+            state.put("stimulusDeadlineAt", displaySeconds != null
+                    ? now.plusSeconds(displaySeconds).toString() : null);
+
+            attempt.setCurrentSectionId(sectionId);
+            attempt.setLastActivityAt(now);
+            attempt.setUpdatedAt(now);
+            update(attempt);
+
+            // Kembalikan data stimulus — soal belum dikirim
+            Map<String, Object> sectionInfo = new HashMap<>(state);
+            sectionInfo.put("serverTime", now.toString());
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("section", sectionInfo);
+            result.put("stimulusPhase", sp);
+            result.put("items", List.of());
+            result.put("answers", List.of());
+            return result;
+        }
+
+        // ── Fase Tes dimulai (setelah stimulus selesai) ───────────────────────
+        if ("STIMULUS_IN_PROGRESS".equals(sectionStatus)) {
+            Instant now = Instant.now();
+            state.put("status", "IN_PROGRESS");
+            state.put("startedAt", now.toString());
+
+            Integer timeLimitSeconds = toInteger(state.get("timeLimitSeconds"));
+            if (timeLimitSeconds != null) {
+                state.put("deadlineAt", now.plusSeconds(timeLimitSeconds).toString());
+            }
+
+            attempt.setCurrentSectionId(sectionId);
+            attempt.setLastActivityAt(now);
+            attempt.setUpdatedAt(now);
+            update(attempt);
+
+            // Buat dokumen jawaban
+            answerService.create(attemptId, sectionId, attempt.getTestId(), userId);
+        }
+
+        // ── Fase Tanpa Stimulus (behavior lama: NOT_STARTED → IN_PROGRESS) ───
+        if ("NOT_STARTED".equals(sectionStatus) && !hasStimulusPhase) {
             boolean anotherInProgress = attempt.getSectionStates().stream()
                     .anyMatch(s -> "IN_PROGRESS".equals(s.get("status"))
                             && !sectionId.toHexString().equals(String.valueOf(s.get("sectionId"))));
@@ -150,12 +220,11 @@ public class TestAttemptService implements PanacheMongoRepository<TestAttempt> {
                         "Selesaikan subtes yang sedang berjalan terlebih dahulu");
             }
 
-            // Tandai mulai
             Instant now = Instant.now();
             state.put("status", "IN_PROGRESS");
             state.put("startedAt", now.toString());
 
-            Integer timeLimitSeconds = (Integer) state.get("timeLimitSeconds");
+            Integer timeLimitSeconds = state.get("timeLimitSeconds") instanceof Number n ? n.intValue() : null;
             if (timeLimitSeconds != null) {
                 state.put("deadlineAt", now.plusSeconds(timeLimitSeconds).toString());
             }
@@ -267,11 +336,11 @@ public class TestAttemptService implements PanacheMongoRepository<TestAttempt> {
         long answeredCount = answerService.countAnswered(attemptId, sectionId);
 
         // Cari section berikutnya
-        Integer currentOrder = (Integer) state.get("order");
-        String nextSectionId = attempt.getSectionStates().stream()
+        Integer currentOrder = toInteger(state.get("order"));
+        String nextSectionId = currentOrder == null ? null : attempt.getSectionStates().stream()
                 .filter(s -> {
-                    Object o = s.get("order");
-                    return o instanceof Integer i && i.equals(currentOrder + 1);
+                    Integer ord = toInteger(s.get("order"));
+                    return ord != null && ord.equals(currentOrder + 1);
                 })
                 .map(s -> String.valueOf(s.get("sectionId")))
                 .findFirst().orElse(null);
@@ -352,7 +421,19 @@ public class TestAttemptService implements PanacheMongoRepository<TestAttempt> {
         List<ObjectId> expiredSections = new ArrayList<>();
 
         for (Map<String, Object> state : attempt.getSectionStates()) {
-            if (!"IN_PROGRESS".equals(state.get("status")))
+            String st = (String) state.get("status");
+
+            // Cek expired fase hafalan (stimulusDeadlineAt)
+            if ("STIMULUS_IN_PROGRESS".equals(st)) {
+                String stimDeadlineStr = (String) state.get("stimulusDeadlineAt");
+                if (stimDeadlineStr != null && now.isAfter(Instant.parse(stimDeadlineStr).plusSeconds(30))) {
+                    // Beri toleransi 30 detik setelah stimulus deadline sebelum expired
+                    // (user masih bisa klik mulai tes setelah hafalan)
+                }
+                continue; // stimulus phase tidak di-expire otomatis
+            }
+
+            if (!"IN_PROGRESS".equals(st))
                 continue;
             String deadlineStr = (String) state.get("deadlineAt");
             if (deadlineStr == null)
@@ -400,6 +481,16 @@ public class TestAttemptService implements PanacheMongoRepository<TestAttempt> {
         return attempt.getSectionStates().stream()
                 .filter(s -> sectionId.toHexString().equals(String.valueOf(s.get("sectionId"))))
                 .findFirst().orElse(null);
+    }
+
+    private Integer toInteger(Object value) {
+        if (value instanceof Number n) return n.intValue();
+        if (value instanceof String s && !s.isBlank()) {
+            try {
+                return Integer.parseInt(s.trim());
+            } catch (NumberFormatException ignored) {}
+        }
+        return null;
     }
 
     private List<Map<String, Object>> getItemsForSection(ObjectId testId, ObjectId sectionId) {
