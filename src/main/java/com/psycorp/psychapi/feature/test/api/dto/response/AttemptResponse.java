@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.psycorp.psychapi.feature.test.models.TestAttempt;
+import com.psycorp.psychapi.feature.test.models.TestDefinition;
 
 public record AttemptResponse(
     String id,
@@ -18,9 +19,10 @@ public record AttemptResponse(
     Instant completedAt,
     String currentSectionId,
     List<Map<String, Object>> sections,  // sectionStates + answeredCount
-    Instant serverTime
+    Instant serverTime,
+    TestDefinition.PausePolicy pausePolicy
 ) {
-    public static AttemptResponse fromEntity(TestAttempt a, List<Map<String, Object>> sections) {
+    public static AttemptResponse fromEntity(TestAttempt a, List<Map<String, Object>> sections, TestDefinition t) {
         return new AttemptResponse(
             a.id.toHexString(),
             a.getTestId() != null ? a.getTestId().toHexString() : null,
@@ -33,7 +35,8 @@ public record AttemptResponse(
             a.getCompletedAt(),
             a.getCurrentSectionId() != null ? a.getCurrentSectionId().toHexString() : null,
             sections,
-            Instant.now()
+            Instant.now(),
+            t.getPausePolicy()
         );
     }
 }

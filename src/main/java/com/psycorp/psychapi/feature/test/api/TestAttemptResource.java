@@ -136,7 +136,9 @@ public class TestAttemptResource {
 
     TestAttempt attempt = attemptService.startOrResume(user.id, testId);
     List<Map<String, Object>> sections = attemptService.buildSectionsWithCount(attempt);
-    AttemptResponse resp = AttemptResponse.fromEntity(attempt, sections);
+    TestDefinition test = testDefinitionService.findById(testId);
+
+    AttemptResponse resp = AttemptResponse.fromEntity(attempt, sections, test);
 
     return isNew
         ? ResponseHelper.created(resp, "Attempt berhasil dimulai")
@@ -209,7 +211,9 @@ public class TestAttemptResource {
 
     TestAttempt attempt = attemptService.getOwned(attemptId, user.id);
     List<Map<String, Object>> sections = attemptService.buildSectionsWithCount(attempt);
-    return ResponseHelper.ok(AttemptResponse.fromEntity(attempt, sections), "Attempt berhasil diambil");
+    TestDefinition test = testDefinitionService.findById(attempt.getTestId());
+
+    return ResponseHelper.ok(AttemptResponse.fromEntity(attempt, sections, test), "Attempt berhasil diambil");
   }
 
   // =====================================================================
