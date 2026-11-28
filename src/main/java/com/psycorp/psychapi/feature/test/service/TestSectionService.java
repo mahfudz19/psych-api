@@ -3,12 +3,16 @@ package com.psycorp.psychapi.feature.test.service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.bson.types.ObjectId;
 
+import com.psycorp.psychapi.feature.storage.service.FileCleanupEvent;
+import com.psycorp.psychapi.feature.storage.service.StorageService;
 import com.psycorp.psychapi.feature.test.models.TestDefinition;
 import com.psycorp.psychapi.feature.test.models.TestSection;
 import com.psycorp.psychapi.feature.test.models.TestSection.DefaultItemType;
@@ -19,7 +23,9 @@ import com.psycorp.psychapi.infrastructure.exception.ValidationException;
 import io.quarkus.mongodb.panache.PanacheMongoRepository;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.InternalServerErrorException;
 
 @ApplicationScoped
 public class TestSectionService implements PanacheMongoRepository<TestSection> {
@@ -28,6 +34,12 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
 
     @Inject
     TestDefinitionService tests;
+
+    @Inject
+    StorageService storageService;
+
+    @Inject
+    Event<FileCleanupEvent> fileCleanupEvent;
 
     public TestSection create(
             ObjectId testId,
@@ -61,6 +73,9 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
                     "Urutan " + order + " sudah dipakai section lain di tes ini");
         }
 
+        // Commit temp files di examples sebelum simpan DB
+        List<String> committedUrls = commitTempFiles(examples);
+
         Instant now = Instant.now();
 
         TestSection section = new TestSection();
@@ -73,7 +88,12 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
         section.setCreatedAt(now);
         section.setUpdatedAt(now);
 
-        persist(section);
+        try {
+            persist(section);
+        } catch (Exception e) {
+            rollbackCommittedFiles(committedUrls);
+            throw new InternalServerErrorException("Gagal menyimpan section", e);
+        }
         return section;
     }
 
@@ -102,11 +122,35 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
                     "Urutan " + order + " sudah dipakai section lain di tes ini");
         }
 
+        // Kumpulkan file URL lama sebelum di-overwrite
+        Set<String> oldUrls = extractAllFileUrls(section.getExamples());
+
+        // Commit temp files baru
+        List<String> committedUrls = commitTempFiles(examples);
+
         apply(section, order, name, instructions, examples, showExamplesFirst, timeLimitSeconds,
                 navigationPolicy, defaultItemType, stimulusPhase, config, status);
         section.setUpdatedAt(Instant.now());
 
-        update(section);
+        try {
+            update(section);
+        } catch (Exception e) {
+            rollbackCommittedFiles(committedUrls);
+            throw new InternalServerErrorException("Gagal menyimpan section", e);
+        }
+
+        // Hapus file lama yang sudah tidak dipakai section manapun (async)
+        Set<String> newUrls = extractAllFileUrls(examples);
+        oldUrls.removeAll(newUrls);
+        if (!oldUrls.isEmpty()) {
+            List<String> safeToDelete = oldUrls.stream()
+                    .filter(url -> !isFileReferencedByOtherSections(url, sectionId))
+                    .toList();
+            if (!safeToDelete.isEmpty()) {
+                fileCleanupEvent.fireAsync(new FileCleanupEvent(safeToDelete));
+            }
+        }
+
         return section;
     }
 
@@ -240,5 +284,111 @@ public class TestSectionService implements PanacheMongoRepository<TestSection> {
         section.setStimulusPhase(stimulusPhase);
         section.setConfig(config == null ? new HashMap<>() : config);
         section.setStatus(status == null ? SectionStatus.ACTIVE : status);
+    }
+
+    // =====================================================================
+    // FILE LIFECYCLE
+    // =====================================================================
+
+    @SuppressWarnings("unchecked")
+    private List<String> commitTempFiles(List<Map<String, Object>> examples) {
+        List<String> committed = new ArrayList<>();
+        if (examples == null) return committed;
+
+        for (Map<String, Object> ex : examples) {
+            Object contentObj = ex.get("content");
+            if (contentObj instanceof Map<?, ?> contentMap) {
+                Object audioUrl = contentMap.get("audioUrl");
+                if (audioUrl instanceof String s && s.contains("temp/")) {
+                    String perm = storageService.commitPublicFile(s);
+                    ((Map<String, Object>) contentMap).put("audioUrl", perm);
+                    committed.add(perm);
+                }
+
+                Object images = contentMap.get("images");
+                if (images instanceof List<?> imgList) {
+                    for (Object img : imgList) {
+                        if (img instanceof Map<?, ?> imgMap) {
+                            Object url = imgMap.get("url");
+                            if (url instanceof String s && s.contains("temp/")) {
+                                String perm = storageService.commitPublicFile(s);
+                                ((Map<String, Object>) imgMap).put("url", perm);
+                                committed.add(perm);
+                            }
+                        }
+                    }
+                }
+            }
+
+            Object optionsObj = ex.get("options");
+            if (optionsObj instanceof List<?> optList) {
+                for (Object opt : optList) {
+                    if (opt instanceof Map<?, ?> optMap) {
+                        Object imageUrl = optMap.get("imageUrl");
+                        if (imageUrl instanceof String s && s.contains("temp/")) {
+                            String perm = storageService.commitPublicFile(s);
+                            ((Map<String, Object>) optMap).put("imageUrl", perm);
+                            committed.add(perm);
+                        }
+                    }
+                }
+            }
+        }
+
+        return committed;
+    }
+
+    private void rollbackCommittedFiles(List<String> committedUrls) {
+        for (String url : committedUrls) {
+            try {
+                storageService.deletePublicFile(url);
+            } catch (Exception ignored) {
+                // best-effort cleanup
+            }
+        }
+    }
+
+    private Set<String> extractAllFileUrls(List<Map<String, Object>> examples) {
+        Set<String> urls = new HashSet<>();
+        if (examples == null) return urls;
+
+        for (Map<String, Object> ex : examples) {
+            Object contentObj = ex.get("content");
+            if (contentObj instanceof Map<?, ?> contentMap) {
+                Object audioUrl = contentMap.get("audioUrl");
+                if (audioUrl instanceof String s && !s.isBlank()) urls.add(s);
+
+                Object images = contentMap.get("images");
+                if (images instanceof List<?> imgList) {
+                    for (Object img : imgList) {
+                        if (img instanceof Map<?, ?> imgMap) {
+                            Object url = imgMap.get("url");
+                            if (url instanceof String s && !s.isBlank()) urls.add(s);
+                        }
+                    }
+                }
+            }
+
+            Object optionsObj = ex.get("options");
+            if (optionsObj instanceof List<?> optList) {
+                for (Object opt : optList) {
+                    if (opt instanceof Map<?, ?> optMap) {
+                        Object imageUrl = optMap.get("imageUrl");
+                        if (imageUrl instanceof String s && !s.isBlank()) urls.add(s);
+                    }
+                }
+            }
+        }
+        return urls;
+    }
+
+    private boolean isFileReferencedByOtherSections(String fileUrl, ObjectId excludeSectionId) {
+        List<TestSection> allSections = find("deletedAt is null").list();
+        for (TestSection other : allSections) {
+            if (other.getId().equals(excludeSectionId)) continue;
+            Set<String> urls = extractAllFileUrls(other.getExamples());
+            if (urls.contains(fileUrl)) return true;
+        }
+        return false;
     }
 }
